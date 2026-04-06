@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WYSIWYG Editorum — Прототип</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+</head>
+<body>
+  <div id="app">
+    <header>
+      <h1>WYSIWYG Editorum <span class="version">prototype v0.1</span></h1>
+      <p class="hint">Вставьте текст из Word (Ctrl+V) или начните печатать. Формула: оберните LaTeX в $...$ (inline) или $$...$$ (block).</p>
+    </header>
+    <div id="toolbar"></div>
+    <div id="editor"></div>
+    <div id="output-panel">
+      <div class="output-tabs">
+        <button class="tab active" data-tab="json">DocumentJSON</button>
+        <button class="tab" data-tab="html">HTML</button>
+      </div>
+      <pre id="json-output"></pre>
+      <pre id="html-output" style="display:none"></pre>
+    </div>
+  </div>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
