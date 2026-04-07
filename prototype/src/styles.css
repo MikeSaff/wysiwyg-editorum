@@ -264,8 +264,14 @@ header .hint {
 }
 
 .ProseMirror .math-block .katex {
-  font-size: 1.1em;
-  white-space: nowrap;
+  font-size: 1em;
+}
+
+.ProseMirror .math-block .katex-html {
+  overflow-x: auto;
+  overflow-y: hidden;
+  max-width: 100%;
+  padding-bottom: 4px;
 }
 
 .ProseMirror .math-block .math-label {

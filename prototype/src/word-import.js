@@ -129,8 +129,19 @@ function ommlToLatex(ommlElement) {
 
       case "m": // Matrix
         const mRows = node.getElementsByTagNameNS(ns, "mr")
+        // Get column count from mPr
+        let colCount = 1
+        const mPr = node.getElementsByTagNameNS(ns, "mPr")[0]
+        if (mPr) {
+          const countEl = mPr.getElementsByTagNameNS(ns, "count")[0]
+          if (countEl) {
+            colCount = parseInt(countEl.getAttribute("m:val") || countEl.getAttributeNS(ns, "val") || "1")
+          }
+        }
+
         // Determine matrix type from parent delimiter
         let matrixEnv = "pmatrix" // default: parentheses
+        let isSystemOfEq = false
         const parentD = node.parentElement
         if (parentD) {
           const parentName = parentD.localName || parentD.nodeName?.split(":").pop()
@@ -142,25 +153,62 @@ function ommlToLatex(ommlElement) {
                 const gpPr = grandParent.getElementsByTagNameNS(ns, "dPr")[0]
                 if (gpPr) {
                   const beg = gpPr.getElementsByTagNameNS(ns, "begChr")[0]
+                  const end = gpPr.getElementsByTagNameNS(ns, "endChr")[0]
                   const begVal = beg ? (beg.getAttribute("m:val") || beg.getAttributeNS(ns, "val")) : "("
+                  const endVal = end ? (end.getAttribute("m:val") || end.getAttributeNS(ns, "val")) : ")"
                   if (begVal === "[") matrixEnv = "bmatrix"
+                  else if (begVal === "{" && (endVal === "" || endVal === " ")) {
+                    // System of equations: { with no right delimiter
+                    if (colCount === 1) {
+                      matrixEnv = "cases"
+                      isSystemOfEq = true
+                    } else {
+                      matrixEnv = "Bmatrix"
+                    }
+                  }
                   else if (begVal === "{") matrixEnv = "Bmatrix"
                   else if (begVal === "|") matrixEnv = "vmatrix"
+                  else if (begVal === "‖" || begVal === "∥") matrixEnv = "Vmatrix"
                 }
               }
             }
           }
         }
-        const rows = Array.from(mRows).map(row => {
-          const cells = row.getElementsByTagNameNS(ns, "e")
-          return Array.from(cells).map(cell => processChildren(cell)).join(" & ")
+
+        // Process rows - only direct child mr elements
+        const directMrs = []
+        for (const child of node.childNodes) {
+          if (child.nodeType === 1 && (child.localName === "mr" || child.nodeName?.endsWith(":mr"))) {
+            directMrs.push(child)
+          }
+        }
+
+        const rows = directMrs.map(row => {
+          // Get only direct child e elements of this row
+          const cells = []
+          for (const child of row.childNodes) {
+            if (child.nodeType === 1 && (child.localName === "e" || child.nodeName?.endsWith(":e"))) {
+              cells.push(processChildren(child))
+            }
+          }
+          return cells.join(" & ")
         })
+
+        if (isSystemOfEq) {
+          // For cases, don't wrap in \begin{cases} here — parent delimiter handles it
+          return rows.join(" \\\\ ")
+        }
         return `\\begin{${matrixEnv}} ${rows.join(" \\\\ ")} \\end{${matrixEnv}}`
 
       case "eqArr": // Equation array
-        const eqRows = node.getElementsByTagNameNS(ns, "e")
-        const eqLines = Array.from(eqRows).map(e => processChildren(e))
-        return eqLines.join(" \\\\ ")
+        // Only direct child <e> elements, not nested ones
+        const eqRows = []
+        for (const child of node.childNodes) {
+          if (child.nodeType === 1 && (child.localName === "e" || child.nodeName?.endsWith(":e"))) {
+            eqRows.push(processChildren(child))
+          }
+        }
+        return eqRows.join(" \\\\ ")
 
       case "bar": // Over/under bar
         const barE = node.getElementsByTagNameNS(ns, "e")[0]
