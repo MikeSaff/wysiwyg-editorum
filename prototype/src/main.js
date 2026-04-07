@@ -187,7 +187,9 @@ function init() {
 
       if (isWord) {
         event.preventDefault()
-        console.log("Word paste detected, cleaning HTML...")
+        console.log("=== WORD PASTE RAW HTML ===")
+        console.log(html)
+        console.log("=== END RAW HTML ===")
 
         const cleaned = cleanWordHtml(html)
 
@@ -230,6 +232,33 @@ function init() {
   buildToolbar(view, toolbarEl)
   updateOutput(view.state)
   setupTabs()
+
+  // Clipboard debug button
+  document.getElementById("btn-show-clipboard").addEventListener("click", async () => {
+    try {
+      const items = await navigator.clipboard.read()
+      let debugOutput = ""
+      for (const item of items) {
+        for (const type of item.types) {
+          const blob = await item.getType(type)
+          const text = await blob.text()
+          debugOutput += `=== ${type} (${text.length} chars) ===\n`
+          debugOutput += text.substring(0, 5000)
+          debugOutput += text.length > 5000 ? "\n... (truncated)" : ""
+          debugOutput += "\n\n"
+        }
+      }
+      // Show in output panel
+      const jsonEl = document.getElementById("json-output")
+      document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"))
+      document.querySelector('[data-tab="json"]').classList.add("active")
+      document.getElementById("json-output").style.display = "block"
+      document.getElementById("html-output").style.display = "none"
+      jsonEl.textContent = debugOutput || "Буфер обмена пуст или нет разрешения"
+    } catch(e) {
+      alert("Не удалось прочитать буфер: " + e.message + "\n\nПопробуйте: вставьте текст (Ctrl+V) прямо в редактор — диагностика будет в консоли браузера (F12)")
+    }
+  })
 
   // Expose for debugging
   window.editorView = view
