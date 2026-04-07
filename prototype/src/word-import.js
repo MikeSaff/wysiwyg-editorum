@@ -72,7 +72,19 @@ function ommlToLatex(ommlElement) {
           if (beg) begChar = beg.getAttribute("m:val") || beg.getAttributeNS(ns, "val") || "("
           if (end) endChar = end.getAttribute("m:val") || end.getAttributeNS(ns, "val") || ")"
         }
-        const dContent = Array.from(node.getElementsByTagNameNS(ns, "e"))
+
+        // Check if this is a system of equations: { + matrix with no right delimiter
+        const dElements = Array.from(node.childNodes).filter(n => n.nodeType === 1 && (n.localName === "e" || n.nodeName?.endsWith(":e")))
+        if (begChar === "{" && (endChar === "" || endChar === " ") && dElements.length === 1) {
+          // Check if the single element contains a matrix (eqArr or m)
+          const innerContent = processChildren(dElements[0])
+          if (innerContent.includes("\\\\")) {
+            // System of equations
+            return `\\begin{cases} ${innerContent} \\end{cases}`
+          }
+        }
+
+        const dContent = dElements
           .map(e => processChildren(e))
           .join(", ")
         // Map to LaTeX delimiters
@@ -117,11 +129,33 @@ function ommlToLatex(ommlElement) {
 
       case "m": // Matrix
         const mRows = node.getElementsByTagNameNS(ns, "mr")
+        // Determine matrix type from parent delimiter
+        let matrixEnv = "pmatrix" // default: parentheses
+        const parentD = node.parentElement
+        if (parentD) {
+          const parentName = parentD.localName || parentD.nodeName?.split(":").pop()
+          if (parentName === "e") {
+            const grandParent = parentD.parentElement
+            if (grandParent) {
+              const gpName = grandParent.localName || grandParent.nodeName?.split(":").pop()
+              if (gpName === "d") {
+                const gpPr = grandParent.getElementsByTagNameNS(ns, "dPr")[0]
+                if (gpPr) {
+                  const beg = gpPr.getElementsByTagNameNS(ns, "begChr")[0]
+                  const begVal = beg ? (beg.getAttribute("m:val") || beg.getAttributeNS(ns, "val")) : "("
+                  if (begVal === "[") matrixEnv = "bmatrix"
+                  else if (begVal === "{") matrixEnv = "Bmatrix"
+                  else if (begVal === "|") matrixEnv = "vmatrix"
+                }
+              }
+            }
+          }
+        }
         const rows = Array.from(mRows).map(row => {
           const cells = row.getElementsByTagNameNS(ns, "e")
           return Array.from(cells).map(cell => processChildren(cell)).join(" & ")
         })
-        return `\\begin{pmatrix} ${rows.join(" \\\\ ")} \\end{pmatrix}`
+        return `\\begin{${matrixEnv}} ${rows.join(" \\\\ ")} \\end{${matrixEnv}}`
 
       case "eqArr": // Equation array
         const eqRows = node.getElementsByTagNameNS(ns, "e")
