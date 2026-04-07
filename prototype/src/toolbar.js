@@ -94,16 +94,17 @@ function insertHR(state, dispatch) {
 export function buildToolbar(view, toolbarEl) {
   toolbarEl.innerHTML = ""
 
-  // Marks
+  // === Group: Форматирование текста ===
+  const groupFormat = createGroup("Текст")
   const marks = [
-    ["B", "Жирный (Ctrl+B)", toggleMark(schema.marks.bold), { className: "mark-bold" }],
-    ["I", "Курсив (Ctrl+I)", toggleMark(schema.marks.italic), { className: "mark-italic" }],
-    ["U", "Подчёркнутый", toggleMark(schema.marks.underline), { className: "mark-underline" }],
-    ["S", "Зачёркнутый", toggleMark(schema.marks.strikethrough), { className: "mark-strike" }],
+    ["𝐁", "Жирный (Ctrl+B)", toggleMark(schema.marks.bold), { className: "mark-bold" }],
+    ["𝐼", "Курсив (Ctrl+I)", toggleMark(schema.marks.italic), { className: "mark-italic" }],
+    ["U̲", "Подчёркнутый (Ctrl+U)", toggleMark(schema.marks.underline), { className: "mark-underline" }],
+    ["S̶", "Зачёркнутый", toggleMark(schema.marks.strikethrough), { className: "mark-strike" }],
     ["x²", "Надстрочный", toggleMark(schema.marks.superscript)],
     ["x₂", "Подстрочный", toggleMark(schema.marks.subscript)],
-    ["</>", "Код", toggleMark(schema.marks.code)],
-    ["🔗", "Ссылка", (state, dispatch) => {
+    ["⟨⟩", "Код", toggleMark(schema.marks.code)],
+    ["🔗", "Вставить ссылку", (state, dispatch) => {
       if (markActive(state, schema.marks.link)) {
         return toggleMark(schema.marks.link)(state, dispatch)
       }
@@ -112,49 +113,90 @@ export function buildToolbar(view, toolbarEl) {
       return toggleMark(schema.marks.link, { href })(state, dispatch)
     }],
   ]
-
   marks.forEach(([label, title, cmd, opts]) => {
-    toolbarEl.appendChild(createButton(label, title, cmd, view, opts || {}))
+    groupFormat.appendChild(createButton(label, title, cmd, view, opts || {}))
   })
+  toolbarEl.appendChild(groupFormat)
 
   toolbarEl.appendChild(createSeparator())
 
-  // Block types
+  // === Group: Структура ===
+  const groupStruct = createGroup("Блок")
   const blocks = [
-    ["H1", "Заголовок 1", setBlockType(schema.nodes.heading, { level: 1 })],
-    ["H2", "Заголовок 2", setBlockType(schema.nodes.heading, { level: 2 })],
-    ["H3", "Заголовок 3", setBlockType(schema.nodes.heading, { level: 3 })],
-    ["¶", "Абзац", setBlockType(schema.nodes.paragraph)],
+    ["H1", "Заголовок 1-го уровня", setBlockType(schema.nodes.heading, { level: 1 })],
+    ["H2", "Заголовок 2-го уровня", setBlockType(schema.nodes.heading, { level: 2 })],
+    ["H3", "Заголовок 3-го уровня", setBlockType(schema.nodes.heading, { level: 3 })],
+    ["¶", "Обычный абзац", setBlockType(schema.nodes.paragraph)],
     ["❝", "Цитата", wrapIn(schema.nodes.blockquote)],
-    ["PRE", "Блок кода", setBlockType(schema.nodes.code_block)],
+    ["⌨", "Блок кода", setBlockType(schema.nodes.code_block)],
   ]
-
   blocks.forEach(([label, title, cmd]) => {
-    toolbarEl.appendChild(createButton(label, title, cmd, view))
+    groupStruct.appendChild(createButton(label, title, cmd, view))
   })
+  toolbarEl.appendChild(groupStruct)
 
   toolbarEl.appendChild(createSeparator())
 
-  // Lists
-  toolbarEl.appendChild(createButton("• ", "Маркированный список", wrapInList(schema.nodes.bullet_list), view))
-  toolbarEl.appendChild(createButton("1.", "Нумерованный список", wrapInList(schema.nodes.ordered_list), view))
-  toolbarEl.appendChild(createButton("⇤", "Убрать вложенность", lift, view))
+  // === Group: Списки ===
+  const groupList = createGroup("Список")
+  groupList.appendChild(createButton("•", "Маркированный список", wrapInList(schema.nodes.bullet_list), view))
+  groupList.appendChild(createButton("1.", "Нумерованный список", wrapInList(schema.nodes.ordered_list), view))
+  groupList.appendChild(createButton("⇤", "Уменьшить отступ", lift, view))
+  toolbarEl.appendChild(groupList)
 
   toolbarEl.appendChild(createSeparator())
 
-  // Insert
-  toolbarEl.appendChild(createButton("∑", "Формула (блок)", insertMathBlock, view))
-  toolbarEl.appendChild(createButton("α", "Формула (inline)", insertMathInline, view))
-  toolbarEl.appendChild(createButton("🖼", "Изображение", insertImage, view))
-  toolbarEl.appendChild(createButton("▦", "Таблица 3×3", insertTable, view))
-  toolbarEl.appendChild(createButton("—", "Горизонтальная линия", insertHR, view))
+  // === Group: Вставка ===
+  const groupInsert = createGroup("Вставить")
+  groupInsert.appendChild(createButton("∑", "Формулу (блок, LaTeX)", insertMathBlock, view))
+  groupInsert.appendChild(createButton("𝛼", "Формулу (в строке)", insertMathInline, view))
+  groupInsert.appendChild(createButton("🖼", "Изображение", insertImage, view))
+  groupInsert.appendChild(createButton("⊞", "Таблицу 3×3", insertTable, view))
+  groupInsert.appendChild(createButton("―", "Горизонтальную линию", insertHR, view))
+  toolbarEl.appendChild(groupInsert)
 
-  toolbarEl.appendChild(createSeparator())
+  // === Group: Таблица (скрытая, появляется при курсоре в таблице) ===
+  const groupTable = createGroup("Таблица")
+  groupTable.id = "table-toolbar"
+  groupTable.style.display = "none"
+  groupTable.appendChild(createSeparator())
+  groupTable.appendChild(createButton("+ столбец", "Добавить столбец справа от текущего", addColumnAfter, view))
+  groupTable.appendChild(createButton("+ строку", "Добавить строку ниже текущей", addRowAfter, view))
+  groupTable.appendChild(createButton("− столбец", "Удалить текущий столбец", deleteColumn, view))
+  groupTable.appendChild(createButton("− строку", "Удалить текущую строку", deleteRow, view))
+  groupTable.appendChild(createButton("✕ таблицу", "Удалить всю таблицу", deleteTable, view))
+  toolbarEl.appendChild(groupTable)
 
-  // Table operations (shown always, work only when in table)
-  toolbarEl.appendChild(createButton("+Col→", "Добавить столбец справа", addColumnAfter, view))
-  toolbarEl.appendChild(createButton("+Row↓", "Добавить строку снизу", addRowAfter, view))
-  toolbarEl.appendChild(createButton("−Col", "Удалить столбец", deleteColumn, view))
-  toolbarEl.appendChild(createButton("−Row", "Удалить строку", deleteRow, view))
-  toolbarEl.appendChild(createButton("×Tbl", "Удалить таблицу", deleteTable, view))
+  // === Update table toolbar visibility on selection change ===
+  updateTableToolbar(view)
+}
+
+function createGroup(label) {
+  const group = document.createElement("div")
+  group.className = "toolbar-group"
+  const groupLabel = document.createElement("span")
+  groupLabel.className = "toolbar-group-label"
+  groupLabel.textContent = label
+  group.appendChild(groupLabel)
+  return group
+}
+
+/**
+ * Show/hide table toolbar based on cursor position.
+ * Called from EditorView.dispatchTransaction.
+ */
+export function updateTableToolbar(view) {
+  const tableToolbar = document.getElementById("table-toolbar")
+  if (!tableToolbar) return
+
+  // Check if cursor is inside a table
+  const { $from } = view.state.selection
+  let inTable = false
+  for (let d = $from.depth; d > 0; d--) {
+    if ($from.node(d).type.name === "table") {
+      inTable = true
+      break
+    }
+  }
+  tableToolbar.style.display = inTable ? "flex" : "none"
 }

@@ -11,7 +11,7 @@ import { tableEditing, columnResizing, goToNextCell, fixTables } from "prosemirr
 import { splitListItem, liftListItem, sinkListItem } from "prosemirror-schema-list"
 
 import { schema } from "./schema.js"
-import { buildToolbar } from "./toolbar.js"
+import { buildToolbar, updateTableToolbar } from "./toolbar.js"
 import { cleanWordHtml } from "./word-paste.js"
 import "./styles.css"
 
@@ -169,6 +169,7 @@ function init() {
       const newState = view.state.apply(tr)
       view.updateState(newState)
       updateOutput(newState)
+      updateTableToolbar(view)
     },
     handlePaste(view, event, slice) {
       // Intercept paste to clean Word HTML before ProseMirror parses it

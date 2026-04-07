@@ -42,24 +42,45 @@ header .hint {
   border: 1px solid #ddd;
   border-bottom: none;
   border-radius: 8px 8px 0 0;
-  padding: 6px 8px;
+  padding: 4px 6px;
   display: flex;
   flex-wrap: wrap;
   gap: 2px;
+  align-items: flex-end;
+}
+
+.toolbar-group {
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
+  gap: 1px;
+  position: relative;
+}
+
+.toolbar-group-label {
+  display: block;
+  width: 100%;
+  font-size: 9px;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding-left: 4px;
+  margin-bottom: 1px;
+  font-family: 'PT Sans', sans-serif;
 }
 
 .toolbar-btn {
   border: 1px solid transparent;
   background: none;
-  padding: 4px 8px;
+  padding: 3px 7px;
   border-radius: 4px;
   cursor: pointer;
   font-size: 13px;
   font-family: inherit;
   color: #333;
-  min-width: 28px;
+  min-width: 26px;
   text-align: center;
+  white-space: nowrap;
 }
 
 .toolbar-btn:hover {
@@ -79,9 +100,25 @@ header .hint {
 .toolbar-separator {
   display: inline-block;
   width: 1px;
-  height: 20px;
-  background: #ddd;
+  height: 28px;
+  background: #e0e0e0;
   margin: 0 4px;
+  align-self: flex-end;
+}
+
+/* Table toolbar — blue accent when visible */
+#table-toolbar {
+  background: #e3f2fd;
+  border-radius: 4px;
+  padding: 0 4px;
+}
+
+#table-toolbar .toolbar-group-label {
+  color: #1976d2;
+}
+
+#debug-bar {
+  font-family: 'PT Sans', sans-serif;
 }
 
 /* === Editor === */
