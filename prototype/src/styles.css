@@ -128,6 +128,28 @@ header .hint {
   border-top: none;
   min-height: 400px;
   padding: 0;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+#editor.drag-over {
+  border-color: #4caf50;
+  box-shadow: inset 0 0 0 3px rgba(76, 175, 80, 0.2);
+}
+
+#editor.drag-over::after {
+  content: "Перетащите .docx файл сюда";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(76, 175, 80, 0.9);
+  color: white;
+  padding: 16px 32px;
+  border-radius: 8px;
+  font-size: 18px;
+  font-family: 'PT Sans', sans-serif;
+  pointer-events: none;
+  z-index: 10;
 }
 
 .ProseMirror {

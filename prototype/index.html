@@ -13,9 +13,14 @@
       <p class="hint">Вставьте текст из Word (Ctrl+V) или начните печатать. Формула: оберните LaTeX в $...$ (inline) или $$...$$ (block).</p>
     </header>
     <div id="toolbar"></div>
-    <div id="debug-bar" style="background:#fff3cd;padding:4px 12px;font-size:12px;border:1px solid #ddd;border-bottom:none;display:flex;align-items:center;gap:8px;">
-      <button id="btn-show-clipboard" style="font-size:11px;padding:2px 8px;">📋 Показать HTML из буфера</button>
-      <span style="color:#666;">Скопируйте текст из Word, затем нажмите эту кнопку (или Ctrl+V в редакторе)</span>
+    <div id="import-bar" style="background:#e8f5e9;padding:6px 12px;font-size:13px;border:1px solid #ddd;border-bottom:none;display:flex;align-items:center;gap:12px;font-family:'PT Sans',sans-serif;">
+      <span>📄 <strong>Импорт из Word:</strong></span>
+      <label id="btn-import-docx" style="cursor:pointer;background:#4caf50;color:#fff;padding:4px 12px;border-radius:4px;font-size:12px;">
+        Выбрать .docx файл
+        <input type="file" accept=".docx" id="file-input" style="display:none;">
+      </label>
+      <span style="color:#666;">или перетащите .docx файл прямо в редактор</span>
+      <span id="import-status" style="color:#1976d2;margin-left:auto;"></span>
     </div>
     <div id="editor"></div>
     <div id="output-panel">

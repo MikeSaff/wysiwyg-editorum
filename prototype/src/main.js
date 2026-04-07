@@ -13,6 +13,7 @@ import { splitListItem, liftListItem, sinkListItem } from "prosemirror-schema-li
 import { schema } from "./schema.js"
 import { buildToolbar, updateTableToolbar } from "./toolbar.js"
 import { cleanWordHtml } from "./word-paste.js"
+import { importDocx } from "./word-import.js"
 import "./styles.css"
 
 // === Input rules (markdown-like shortcuts) ===
@@ -210,10 +211,18 @@ function init() {
       return false // let ProseMirror handle non-Word paste normally
     },
     handleDrop(view, event, slice, moved) {
-      // Handle image drops
       const files = event.dataTransfer?.files
       if (files && files.length > 0) {
         const file = files[0]
+
+        // Handle .docx drop
+        if (file.name.endsWith(".docx") || file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
+          event.preventDefault()
+          if (window._handleDocxImport) window._handleDocxImport(file)
+          return true
+        }
+
+        // Handle image drops
         if (file.type.startsWith("image/")) {
           event.preventDefault()
           const reader = new FileReader()
@@ -233,6 +242,61 @@ function init() {
   buildToolbar(view, toolbarEl)
   updateOutput(view.state)
   setupTabs()
+
+  // === DOCX Import ===
+  async function handleDocxImport(file, editorView) {
+    const statusEl = document.getElementById("import-status")
+    statusEl.textContent = "⏳ Импорт..."
+
+    try {
+      const result = await importDocx(file)
+
+      // Replace entire document content
+      const tr = editorView.state.tr.replaceWith(
+        0,
+        editorView.state.doc.content.size,
+        result.doc.content
+      )
+      editorView.dispatch(tr)
+
+      statusEl.textContent = `✅ Импортировано: ${file.name} (формул: ${result.formulaCount})`
+      setTimeout(() => { statusEl.textContent = "" }, 5000)
+    } catch (e) {
+      console.error("DOCX import error:", e)
+      statusEl.textContent = `❌ Ошибка: ${e.message}`
+    }
+  }
+  // Make accessible to handleDrop
+  window._handleDocxImport = (file) => handleDocxImport(file, view)
+
+  // File input handler
+  document.getElementById("file-input").addEventListener("change", (e) => {
+    const file = e.target.files[0]
+    if (file) handleDocxImport(file, view)
+  })
+
+  // Drag-over visual feedback on editor
+  editorEl.addEventListener("dragover", (e) => {
+    e.preventDefault()
+    editorEl.classList.add("drag-over")
+  })
+  editorEl.addEventListener("dragleave", () => {
+    editorEl.classList.remove("drag-over")
+  })
+  editorEl.addEventListener("drop", (e) => {
+    editorEl.classList.remove("drag-over")
+    // .docx handling is in ProseMirror handleDrop
+    // but we also handle it here as fallback for drops outside ProseMirror area
+    const files = e.dataTransfer?.files
+    if (files && files.length > 0) {
+      const file = files[0]
+      if (file.name.endsWith(".docx")) {
+        e.preventDefault()
+        e.stopPropagation()
+        handleDocxImport(file, view)
+      }
+    }
+  })
 
   // Clipboard debug button
   document.getElementById("btn-show-clipboard").addEventListener("click", async () => {
