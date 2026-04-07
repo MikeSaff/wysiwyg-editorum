@@ -54,7 +54,7 @@ const mathBlockSpec = {
     getAttrs(dom) {
       return {
         latex: dom.getAttribute("data-latex") || dom.textContent,
-        label: dom.querySelector(".math-label")?.textContent || null
+        label: dom.getAttribute("data-label") || dom.querySelector(".math-label")?.textContent || null
       }
     }
   }]

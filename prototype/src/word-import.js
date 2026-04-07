@@ -221,11 +221,27 @@ function docxXmlToHtml(xmlString, images) {
     const localName = child.localName || child.nodeName?.split(":").pop()
 
     if (localName === "p") {
-      html += processParagraph(child, wNs, mNs)
+      // Check if paragraph contains oMathPara (display/block math)
+      const oMathParas = child.getElementsByTagNameNS(mNs, "oMathPara")
+      if (oMathParas.length > 0) {
+        for (const omp of oMathParas) {
+          const oMaths = omp.getElementsByTagNameNS(mNs, "oMath")
+          for (const oMath of oMaths) {
+            const latex = ommlToLatex(oMath)
+            if (latex) {
+              html += `<div class="math-block" data-latex="${escapeAttr(latex)}">${escapeHtml(latex)}</div>\n`
+            }
+          }
+        }
+      } else {
+        html += processParagraph(child, wNs, mNs)
+      }
     } else if (localName === "tbl") {
-      html += processTable(child, wNs, mNs)
+      // Check if table is actually a formula container (Word trick)
+      const tblHtml = processTableOrFormula(child, wNs, mNs)
+      html += tblHtml
     } else if (localName === "oMathPara") {
-      // Display math paragraph
+      // Display math paragraph (top-level)
       const oMaths = child.getElementsByTagNameNS(mNs, "oMath")
       for (const oMath of oMaths) {
         const latex = ommlToLatex(oMath)
@@ -248,9 +264,15 @@ function docxXmlToHtml(xmlString, images) {
       const pStyle = pPr.getElementsByTagNameNS(wNs, "pStyle")[0]
       if (pStyle) {
         const styleVal = pStyle.getAttribute("w:val") || pStyle.getAttributeNS(wNs, "val") || ""
-        const headingMatch = styleVal.match(/Heading(\d)/i) || styleVal.match(/(\d)/)
-        if (styleVal.toLowerCase().includes("heading") && headingMatch) {
+        // Word heading styles: "Heading1", "Heading 1", "1", "2", etc.
+        const headingMatch = styleVal.match(/Heading\s*(\d)/i)
+        const numericStyle = styleVal.match(/^(\d)$/)
+        if (headingMatch) {
           level = parseInt(headingMatch[1]) || 1
+          if (level >= 1 && level <= 4) tag = `h${level}`
+        } else if (numericStyle) {
+          // Russian Word uses numeric style IDs: "1" = Heading 1, "2" = Heading 2
+          level = parseInt(numericStyle[1]) || 1
           if (level >= 1 && level <= 4) tag = `h${level}`
         }
       }
@@ -276,6 +298,16 @@ function docxXmlToHtml(xmlString, images) {
         if (latex) {
           content += `<span class="math-inline" data-latex="${escapeAttr(latex)}">${escapeHtml(latex)}</span>`
           hasContent = true
+        }
+      } else if (cName === "oMathPara") {
+        // Display math inside paragraph (shouldn't normally reach here, but just in case)
+        const oMaths = child.getElementsByTagNameNS(mNs, "oMath")
+        for (const oMath of oMaths) {
+          const latex = ommlToLatex(oMath)
+          if (latex) {
+            content += `<span class="math-inline" data-latex="${escapeAttr(latex)}">${escapeHtml(latex)}</span>`
+            hasContent = true
+          }
         }
       } else if (cName === "hyperlink") {
         // Hyperlink
@@ -339,6 +371,54 @@ function docxXmlToHtml(xmlString, images) {
     }
 
     return text
+  }
+
+  /**
+   * Detect if a table is actually a Word formula container.
+   * Word uses tables to align equations: | formula | (1) |
+   * If detected, convert to math_block. Otherwise, process as real table.
+   */
+  function processTableOrFormula(tbl, wNs, mNs) {
+    const rows = tbl.getElementsByTagNameNS(wNs, "tr")
+
+    // Formula tables typically have 1 row, 2-3 columns
+    if (rows.length === 1) {
+      const cells = rows[0].getElementsByTagNameNS(wNs, "tc")
+      if (cells.length >= 1 && cells.length <= 3) {
+        // Check if any cell contains oMath or oMathPara
+        let formulaLatex = ""
+        let label = ""
+
+        for (let ci = 0; ci < cells.length; ci++) {
+          const cell = cells[ci]
+          const oMathParas = cell.getElementsByTagNameNS(mNs, "oMathPara")
+          const oMaths = cell.getElementsByTagNameNS(mNs, "oMath")
+          const cellText = cell.textContent.trim()
+
+          if (oMathParas.length > 0 || oMaths.length > 0) {
+            // This cell contains a formula
+            const mathEls = oMathParas.length > 0
+              ? oMathParas[0].getElementsByTagNameNS(mNs, "oMath")
+              : oMaths
+            for (const m of mathEls) {
+              formulaLatex += ommlToLatex(m) + " "
+            }
+          } else if (cellText.match(/^\(\d+\)$/)) {
+            // This cell contains a label like (1), (2), etc.
+            label = cellText
+          }
+        }
+
+        if (formulaLatex.trim()) {
+          // This is a formula table, not a data table
+          const labelAttr = label ? ` data-label="${escapeAttr(label)}"` : ""
+          return `<div class="math-block" data-latex="${escapeAttr(formulaLatex.trim())}"${labelAttr}>${escapeHtml(formulaLatex.trim())}</div>\n`
+        }
+      }
+    }
+
+    // Not a formula table — process as regular table
+    return processTable(tbl, wNs, mNs)
   }
 
   function processTable(tbl, wNs, mNs) {
