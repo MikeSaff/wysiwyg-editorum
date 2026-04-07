@@ -241,9 +241,14 @@ export const schema = new Schema({
       toDOM() { return ["strong", 0] },
       parseDOM: [
         { tag: "strong" },
-        { tag: "b", getAttrs: node => node.style.fontWeight !== "normal" && null },
+        { tag: "b", getAttrs: node => {
+          // Word wraps content in <b> tags with style="font-weight:normal" — ignore those
+          if (node.style && node.style.fontWeight === "normal") return false
+          return null
+        }},
         { style: "font-weight=400", clearMark: m => m.type.name === "bold" },
-        { style: "font-weight", getAttrs: value => /^(bold(er)?|[5-9]\d{2,})$/.test(value) && null }
+        { style: "font-weight=normal", clearMark: m => m.type.name === "bold" },
+        { style: "font-weight", getAttrs: value => /^(bold(er)?|[6-9]\d{2,})$/.test(value) && null }
       ]
     },
     italic: {
