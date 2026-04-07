@@ -235,7 +235,7 @@ function ommlToLatex(ommlElement) {
 /**
  * Parse DOCX document.xml and convert to HTML with LaTeX math.
  */
-function docxXmlToHtml(xmlString, images) {
+function docxXmlToHtml(xmlString, images, imageRels) {
   const parser = new DOMParser()
   const doc = parser.parseFromString(xmlString, "application/xml")
 
@@ -374,6 +374,15 @@ function docxXmlToHtml(xmlString, images) {
         text += "<br>"
       } else if (cName === "tab") {
         text += "    "
+      } else if (cName === "drawing") {
+        // Extract image from drawing element
+        const blips = child.getElementsByTagNameNS("http://schemas.openxmlformats.org/drawingml/2006/main", "blip")
+        for (const blip of blips) {
+          const rEmbed = blip.getAttribute("r:embed") || blip.getAttributeNS("http://schemas.openxmlformats.org/officeDocument/2006/relationships", "embed")
+          if (rEmbed && imageRels[rEmbed]) {
+            text += `<img src="${imageRels[rEmbed]}" alt="image" class="inline-image">`
+          }
+        }
       }
     }
 
@@ -512,22 +521,36 @@ export async function importDocx(file) {
 
   const xmlString = await docXmlFile.async("string")
 
-  // Read images (for future use)
+  // Read images
   const images = {}
-  const mediaFolder = zip.folder("word/media")
-  if (mediaFolder) {
-    for (const [path, file] of Object.entries(zip.files)) {
-      if (path.startsWith("word/media/")) {
-        const data = await file.async("base64")
-        const ext = path.split(".").pop().toLowerCase()
-        const mime = ext === "png" ? "image/png" : ext === "jpg" || ext === "jpeg" ? "image/jpeg" : "image/" + ext
-        images[path.replace("word/", "")] = `data:${mime};base64,${data}`
+  for (const [path, file] of Object.entries(zip.files)) {
+    if (path.startsWith("word/media/") && !file.dir) {
+      const data = await file.async("base64")
+      const ext = path.split(".").pop().toLowerCase()
+      const mime = ext === "png" ? "image/png" : ext === "jpg" || ext === "jpeg" ? "image/jpeg" : ext === "gif" ? "image/gif" : "image/" + ext
+      images[path.replace("word/", "")] = `data:${mime};base64,${data}`
+    }
+  }
+
+  // Read relationships to map rId -> media path
+  const relsFile = zip.file("word/_rels/document.xml.rels")
+  const imageRels = {}
+  if (relsFile) {
+    const relsXml = await relsFile.async("string")
+    const relsParser = new DOMParser()
+    const relsDoc = relsParser.parseFromString(relsXml, "application/xml")
+    const rels = relsDoc.getElementsByTagName("Relationship")
+    for (const rel of rels) {
+      const id = rel.getAttribute("Id")
+      const target = rel.getAttribute("Target")
+      if (target && target.startsWith("media/")) {
+        imageRels[id] = images[target] || null
       }
     }
   }
 
   // Convert to HTML
-  const html = docxXmlToHtml(xmlString, images)
+  const html = docxXmlToHtml(xmlString, images, imageRels)
 
   // Parse HTML into ProseMirror doc
   const tempDiv = document.createElement("div")
