@@ -103,6 +103,14 @@ export function buildToolbar(view, toolbarEl) {
     ["x²", "Надстрочный", toggleMark(schema.marks.superscript)],
     ["x₂", "Подстрочный", toggleMark(schema.marks.subscript)],
     ["</>", "Код", toggleMark(schema.marks.code)],
+    ["🔗", "Ссылка", (state, dispatch) => {
+      if (markActive(state, schema.marks.link)) {
+        return toggleMark(schema.marks.link)(state, dispatch)
+      }
+      const href = prompt("URL:", "https://")
+      if (!href) return false
+      return toggleMark(schema.marks.link, { href })(state, dispatch)
+    }],
   ]
 
   marks.forEach(([label, title, cmd, opts]) => {

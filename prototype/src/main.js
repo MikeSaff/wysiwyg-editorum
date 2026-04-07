@@ -1,6 +1,6 @@
 import { EditorState } from "prosemirror-state"
 import { EditorView } from "prosemirror-view"
-import { DOMSerializer } from "prosemirror-model"
+import { DOMParser as ProseDOMParser, DOMSerializer, Slice } from "prosemirror-model"
 import { keymap } from "prosemirror-keymap"
 import { baseKeymap, toggleMark } from "prosemirror-commands"
 import { history, undo, redo } from "prosemirror-history"
@@ -12,6 +12,7 @@ import { splitListItem, liftListItem, sinkListItem } from "prosemirror-schema-li
 
 import { schema } from "./schema.js"
 import { buildToolbar } from "./toolbar.js"
+import { cleanWordHtml } from "./word-paste.js"
 import "./styles.css"
 
 // === Input rules (markdown-like shortcuts) ===
@@ -170,9 +171,40 @@ function init() {
       updateOutput(newState)
     },
     handlePaste(view, event, slice) {
-      // ProseMirror handles paste from Word natively
-      // The schema's parseDOM rules clean up Word HTML
-      return false // let ProseMirror handle it
+      // Intercept paste to clean Word HTML before ProseMirror parses it
+      const clipboardData = event.clipboardData || window.clipboardData
+      if (!clipboardData) return false
+
+      const html = clipboardData.getData("text/html")
+      if (!html) return false
+
+      // Check if this looks like Word HTML
+      const isWord = html.includes("urn:schemas-microsoft-com:office") ||
+                     html.includes("xmlns:w=") ||
+                     html.includes("class=\"Mso") ||
+                     html.includes("mso-") ||
+                     html.includes("<o:p>")
+
+      if (isWord) {
+        event.preventDefault()
+        console.log("Word paste detected, cleaning HTML...")
+
+        const cleaned = cleanWordHtml(html)
+
+        // Parse cleaned HTML into ProseMirror content
+        const tempDiv = document.createElement("div")
+        tempDiv.innerHTML = cleaned
+
+        const domParser = ProseDOMParser.fromSchema(schema)
+        const doc = domParser.parse(tempDiv)
+        const tr = view.state.tr.replaceSelection(
+          new Slice(doc.content, 0, 0)
+        )
+        view.dispatch(tr)
+        return true
+      }
+
+      return false // let ProseMirror handle non-Word paste normally
     },
     handleDrop(view, event, slice, moved) {
       // Handle image drops
