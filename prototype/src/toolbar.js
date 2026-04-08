@@ -1,6 +1,6 @@
 import { toggleMark, setBlockType, wrapIn, lift } from "prosemirror-commands"
 import { wrapInList } from "prosemirror-schema-list"
-import { addColumnAfter, addColumnBefore, addRowAfter, addRowBefore, deleteColumn, deleteRow, deleteTable } from "prosemirror-tables"
+import { addColumnAfter, addColumnBefore, addRowAfter, addRowBefore, deleteColumn, deleteRow, deleteTable, mergeCells, splitCell, toggleHeaderRow, toggleHeaderColumn } from "prosemirror-tables"
 import { schema } from "./schema.js"
 
 function markActive(state, type) {
@@ -177,10 +177,68 @@ export function buildToolbar(view, toolbarEl) {
   const groupInsert = createGroup("Вставить")
   groupInsert.appendChild(createButton("∑", "Формулу (блок, LaTeX)", insertMathBlock, view))
   groupInsert.appendChild(createButton("𝛼", "Формулу (в строке)", insertMathInline, view))
-  groupInsert.appendChild(createButton("🖼", "Изображение", insertImage, view))
+  groupInsert.appendChild(createButton("🖼", "Изображение (URL)", insertImage, view))
+  groupInsert.appendChild(createButton("📁", "Изображение (файл)", (state, dispatch) => {
+    const input = document.createElement("input")
+    input.type = "file"
+    input.accept = "image/*"
+    input.onchange = (e) => {
+      const file = e.target.files[0]
+      if (!file) return
+      const reader = new FileReader()
+      reader.onload = (ev) => {
+        const node = schema.nodes.image.create({ src: ev.target.result, alt: file.name })
+        const tr = view.state.tr.replaceSelectionWith(node)
+        view.dispatch(tr)
+      }
+      reader.readAsDataURL(file)
+    }
+    input.click()
+    return true
+  }, view))
   groupInsert.appendChild(createButton("⊞", "Таблицу 3×3", insertTable, view))
   groupInsert.appendChild(createButton("―", "Горизонтальную линию", insertHR, view))
   toolbarEl.appendChild(groupInsert)
+
+  toolbarEl.appendChild(createSeparator())
+
+  // === Group: Документ ===
+  const groupDoc = createGroup("Документ")
+  groupDoc.appendChild(createButton("💾", "Сохранить документ (скачать JSON)", (state, dispatch) => {
+    const json = JSON.stringify(state.doc.toJSON(), null, 2)
+    const blob = new Blob([json], { type: "application/json" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = "document.json"
+    a.click()
+    URL.revokeObjectURL(url)
+    return true
+  }, view))
+  groupDoc.appendChild(createButton("📂", "Открыть документ (JSON)", (state, dispatch) => {
+    const input = document.createElement("input")
+    input.type = "file"
+    input.accept = ".json"
+    input.onchange = (e) => {
+      const file = e.target.files[0]
+      if (!file) return
+      const reader = new FileReader()
+      reader.onload = (ev) => {
+        try {
+          const json = JSON.parse(ev.target.result)
+          const doc = view.state.schema.nodeFromJSON(json)
+          const tr = view.state.tr.replaceWith(0, view.state.doc.content.size, doc.content)
+          view.dispatch(tr)
+        } catch (err) {
+          alert("Ошибка загрузки: " + err.message)
+        }
+      }
+      reader.readAsText(file)
+    }
+    input.click()
+    return true
+  }, view))
+  toolbarEl.appendChild(groupDoc)
 
   // === Group: Таблица (скрытая, появляется при курсоре в таблице) ===
   const groupTable = createGroup("Таблица")
@@ -192,6 +250,9 @@ export function buildToolbar(view, toolbarEl) {
   groupTable.appendChild(createButton("− столбец", "Удалить текущий столбец", deleteColumn, view))
   groupTable.appendChild(createButton("− строку", "Удалить текущую строку", deleteRow, view))
   groupTable.appendChild(createButton("✕ таблицу", "Удалить всю таблицу", deleteTable, view))
+  groupTable.appendChild(createButton("⊞ объед.", "Объединить выделенные ячейки", mergeCells, view))
+  groupTable.appendChild(createButton("⊟ разд.", "Разделить ячейку", splitCell, view))
+  groupTable.appendChild(createButton("▤ заголовок", "Переключить строку-заголовок", toggleHeaderRow, view))
   toolbarEl.appendChild(groupTable)
 
   // === Update table toolbar visibility on selection change ===
