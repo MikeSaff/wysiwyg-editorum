@@ -399,10 +399,10 @@ function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
 
     if (localName === "p") {
       // Check if paragraph contains oMathPara (display/block math)
-      const oMathParas = child.getElementsByTagNameNS(mNs, "oMathPara")
+      const oMathParas = findElementsByLocalName(child, "oMathPara")
       if (oMathParas.length > 0) {
         for (const omp of oMathParas) {
-          const oMaths = omp.getElementsByTagNameNS(mNs, "oMath")
+          const oMaths = findElementsByLocalName(omp, "oMath")
           for (const oMath of oMaths) {
             const latex = ommlToLatex(oMath)
             if (latex) {
@@ -438,7 +438,7 @@ function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
       html += tblHtml
     } else if (localName === "oMathPara") {
       // Display math paragraph (top-level)
-      const oMaths = child.getElementsByTagNameNS(mNs, "oMath")
+      const oMaths = findElementsByLocalName(child, "oMath")
       for (const oMath of oMaths) {
         const latex = ommlToLatex(oMath)
         if (latex) {
@@ -496,8 +496,8 @@ function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
           hasContent = true
         }
       } else if (cName === "oMathPara") {
-        // Display math inside paragraph (shouldn't normally reach here, but just in case)
-        const oMaths = child.getElementsByTagNameNS(mNs, "oMath")
+        // Display math inside paragraph
+        const oMaths = findElementsByLocalName(child, "oMath")
         for (const oMath of oMaths) {
           const latex = ommlToLatex(oMath)
           if (latex) {
@@ -591,11 +591,14 @@ function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
    * If detected, convert to math_block. Otherwise, process as real table.
    */
   function processTableOrFormula(tbl, wNs, mNs) {
-    const rows = tbl.getElementsByTagNameNS(wNs, "tr")
+    // Namespace-agnostic row/cell finding
+    const rows = findElementsByLocalName(tbl, "tr")
+
+    console.log(`[DOCX] processTableOrFormula: ${rows.length} rows`)
 
     // Formula tables typically have 1 row, 2-3 columns
     if (rows.length === 1) {
-      const cells = rows[0].getElementsByTagNameNS(wNs, "tc")
+      const cells = findElementsByLocalName(rows[0], "tc")
       if (cells.length >= 1 && cells.length <= 3) {
         // Check if any cell contains oMath or oMathPara
         let formulaLatex = ""
@@ -639,10 +642,10 @@ function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
 
   function processTable(tbl, wNs, mNs) {
     let html = "<table>"
-    const rows = tbl.getElementsByTagNameNS(wNs, "tr")
+    const rows = findElementsByLocalName(tbl, "tr")
     for (const row of rows) {
       html += "<tr>"
-      const cells = row.getElementsByTagNameNS(wNs, "tc")
+      const cells = findElementsByLocalName(row, "tc")
       for (const cell of cells) {
         html += "<td>"
         for (const child of cell.childNodes) {
