@@ -32,8 +32,27 @@ function ommlToLatex(ommlElement) {
         const textEl = node.getElementsByTagNameNS(ns, "t")[0]
         if (!textEl) return ""
         let rText = textEl.textContent || ""
+
+        // Check if we're inside a superscript/subscript — don't add spaces there
+        let inSubSup = false
+        let ancestor = node.parentElement
+        while (ancestor) {
+          const aName = ancestor.localName || ancestor.nodeName?.split(":").pop()
+          if (aName === "sup" || aName === "sub" || aName === "deg" ||
+              aName === "num" || aName === "den") {
+            inSubSup = true
+            break
+          }
+          if (aName === "oMath") break
+          ancestor = ancestor.parentElement
+        }
+
+        if (inSubSup) {
+          // Inside sub/sup: no spacing, just return text
+          return rText
+        }
+
         // Add LaTeX spacing around operators for readability
-        // Only for single-character operators that are clearly math operators
         if (rText === "=") return " = "
         if (rText === "+") return " + "
         if (rText === "-" || rText === "−" || rText === "\u2212") return " - "
