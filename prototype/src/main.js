@@ -243,6 +243,60 @@ function init() {
   updateOutput(view.state)
   setupTabs()
 
+  // === Autosave to localStorage ===
+  const AUTOSAVE_KEY = "wysiwyg-editorum-autosave"
+  const statusEl = document.getElementById("import-status")
+  let autosaveTimer = null
+
+  function autosave() {
+    try {
+      const json = JSON.stringify(view.state.doc.toJSON())
+      localStorage.setItem(AUTOSAVE_KEY, json)
+      if (statusEl) {
+        statusEl.textContent = "💾 Автосохранение " + new Date().toLocaleTimeString()
+        setTimeout(() => { if (statusEl.textContent.startsWith("💾")) statusEl.textContent = "" }, 3000)
+      }
+    } catch (e) {
+      console.warn("Autosave failed:", e)
+    }
+  }
+
+  // Autosave every 5 seconds after last change
+  const originalDispatch = view.dispatch.bind(view)
+  view.setProps({
+    dispatchTransaction(tr) {
+      const newState = view.state.apply(tr)
+      view.updateState(newState)
+      updateOutput(newState)
+      updateTableToolbar(view)
+
+      if (tr.docChanged) {
+        clearTimeout(autosaveTimer)
+        autosaveTimer = setTimeout(autosave, 3000)
+      }
+    }
+  })
+
+  // Restore from autosave on page load
+  try {
+    const saved = localStorage.getItem(AUTOSAVE_KEY)
+    if (saved) {
+      const savedDoc = schema.nodeFromJSON(JSON.parse(saved))
+      // Only restore if it's different from initial doc
+      if (savedDoc.content.size > 10) {
+        const restore = confirm("Найден автосохранённый документ. Восстановить?")
+        if (restore) {
+          const tr = view.state.tr.replaceWith(0, view.state.doc.content.size, savedDoc.content)
+          view.dispatch(tr)
+        } else {
+          localStorage.removeItem(AUTOSAVE_KEY)
+        }
+      }
+    }
+  } catch (e) {
+    console.warn("Autosave restore failed:", e)
+  }
+
   // === DOCX Import ===
   async function handleDocxImport(file, editorView) {
     const statusEl = document.getElementById("import-status")

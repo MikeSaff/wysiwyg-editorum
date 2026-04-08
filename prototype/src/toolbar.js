@@ -1,4 +1,5 @@
 import { toggleMark, setBlockType, wrapIn, lift } from "prosemirror-commands"
+import { undo, redo } from "prosemirror-history"
 import { wrapInList } from "prosemirror-schema-list"
 import { addColumnAfter, addColumnBefore, addRowAfter, addRowBefore, deleteColumn, deleteRow, deleteTable, mergeCells, splitCell, toggleHeaderRow, toggleHeaderColumn } from "prosemirror-tables"
 import { schema } from "./schema.js"
@@ -204,6 +205,8 @@ export function buildToolbar(view, toolbarEl) {
 
   // === Group: Документ ===
   const groupDoc = createGroup("Документ")
+  groupDoc.appendChild(createButton("↩", "Отменить (Ctrl+Z)", undo, view))
+  groupDoc.appendChild(createButton("↪", "Вернуть (Ctrl+Y)", redo, view))
   groupDoc.appendChild(createButton("💾", "Сохранить документ (скачать JSON)", (state, dispatch) => {
     const json = JSON.stringify(state.doc.toJSON(), null, 2)
     const blob = new Blob([json], { type: "application/json" })
