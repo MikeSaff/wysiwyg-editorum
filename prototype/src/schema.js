@@ -12,6 +12,9 @@ const mathInlineSpec = {
   toDOM(node) {
     const span = document.createElement("span")
     span.classList.add("math-inline")
+    span.setAttribute("data-latex", node.attrs.latex)
+    span.setAttribute("title", "Кликните для редактирования")
+    span.style.cursor = "pointer"
     try {
       katex.render(node.attrs.latex, span, { throwOnError: false, displayMode: false })
     } catch {
@@ -36,6 +39,9 @@ const mathBlockSpec = {
   toDOM(node) {
     const div = document.createElement("div")
     div.classList.add("math-block")
+    div.setAttribute("data-latex", node.attrs.latex)
+    div.setAttribute("title", "Кликните для редактирования формулы")
+    div.style.cursor = "pointer"
     try {
       katex.render(node.attrs.latex, div, { throwOnError: false, displayMode: true })
     } catch {

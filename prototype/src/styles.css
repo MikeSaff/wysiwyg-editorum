@@ -9,40 +9,15 @@ body {
 }
 
 #app {
-  display: grid;
-  grid-template-columns: 240px 1fr;
-  grid-template-rows: auto auto 1fr auto;
   max-width: 1400px;
   margin: 0 auto;
   padding: 12px;
-  gap: 0;
   min-height: 100vh;
 }
 
-#app > header {
-  grid-column: 1 / -1;
-}
-
-#toolbar {
-  grid-column: 1 / -1;
-}
-
-#import-bar {
-  grid-column: 1 / -1;
-}
-
-#nav-panel {
-  grid-column: 1;
-  grid-row: 4;
-}
-
-#editor {
-  grid-column: 2;
-  grid-row: 4;
-}
-
-#output-panel {
-  grid-column: 1 / -1;
+#content-area {
+  display: flex;
+  gap: 0;
 }
 
 header {
@@ -80,8 +55,14 @@ header .hint {
   align-items: flex-end;
   position: sticky;
   top: 0;
-  z-index: 100;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+  z-index: 200;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+#import-bar {
+  position: sticky;
+  top: 40px;
+  z-index: 199;
 }
 
 #import-bar {
@@ -177,11 +158,19 @@ header .hint {
   border-top: none;
   padding: 12px 0;
   position: sticky;
-  top: 42px;
-  max-height: calc(100vh - 50px);
+  top: 80px;
+  align-self: flex-start;
+  width: 240px;
+  min-width: 240px;
+  max-height: calc(100vh - 90px);
   overflow-y: auto;
   font-size: 13px;
   line-height: 1.4;
+}
+
+/* === Editor in flex === */
+#content-area #editor {
+  flex: 1;
 }
 
 #nav-panel .nav-title {
@@ -501,6 +490,11 @@ header .hint {
   position: absolute;
   background: #1976d2;
   height: 2px;
+}
+
+/* Hide drop cursor during .docx drag (fullscreen overlay is shown instead) */
+#editor.drag-over .ProseMirror .ProseMirror-dropcursor {
+  display: none !important;
 }
 
 /* === Output panel === */

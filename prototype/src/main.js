@@ -296,6 +296,37 @@ function init() {
   _editorView = view  // Save reference for navigation clicks
   window.editorView = view
 
+  // === Formula editing on click ===
+  editorEl.addEventListener("click", (e) => {
+    const mathBlock = e.target.closest(".math-block")
+    const mathInline = e.target.closest(".math-inline")
+    const mathEl = mathBlock || mathInline
+    if (!mathEl) return
+
+    const currentLatex = mathEl.getAttribute("data-latex") || ""
+    const isBlock = !!mathBlock
+
+    // Find the ProseMirror position of this node
+    const pos = view.posAtDOM(mathEl, 0)
+    if (pos === undefined) return
+
+    const node = view.state.doc.nodeAt(pos)
+    if (!node) return
+
+    const newLatex = prompt(
+      isBlock ? "Редактирование блочной формулы (LaTeX):" : "Редактирование inline формулы (LaTeX):",
+      node.attrs.latex || currentLatex
+    )
+
+    if (newLatex !== null && newLatex !== node.attrs.latex) {
+      const tr = view.state.tr.setNodeMarkup(pos, null, {
+        ...node.attrs,
+        latex: newLatex
+      })
+      view.dispatch(tr)
+    }
+  })
+
   buildToolbar(view, toolbarEl)
   updateOutput(view.state)
   updateNavigation(view.state)

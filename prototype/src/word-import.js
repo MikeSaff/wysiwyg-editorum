@@ -350,7 +350,7 @@ function ommlToLatex(ommlElement) {
 /**
  * Parse DOCX document.xml and convert to HTML with LaTeX math.
  */
-function docxXmlToHtml(xmlString, images, imageRels) {
+function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
   const parser = new DOMParser()
   const doc = parser.parseFromString(xmlString, "application/xml")
 
@@ -489,6 +489,13 @@ function docxXmlToHtml(xmlString, images, imageRels) {
         text += "<br>"
       } else if (cName === "tab") {
         text += "    "
+      } else if (cName === "footnoteReference") {
+        const fnId = child.getAttribute("w:id") || child.getAttributeNS(wNs, "id")
+        if (fnId && footnotes && footnotes[fnId]) {
+          text += `<sup title="${escapeAttr(footnotes[fnId])}">[${fnId}]</sup>`
+        } else if (fnId) {
+          text += `<sup>[${fnId}]</sup>`
+        }
       } else if (cName === "drawing") {
         // Extract image from drawing element
         const blips = child.getElementsByTagNameNS("http://schemas.openxmlformats.org/drawingml/2006/main", "blip")
@@ -664,8 +671,31 @@ export async function importDocx(file) {
     }
   }
 
+  // Read footnotes if present
+  const footnotesFile = zip.file("word/footnotes.xml")
+  let footnotes = {}
+  if (footnotesFile) {
+    const fnXml = await footnotesFile.async("string")
+    const fnParser = new DOMParser()
+    const fnDoc = fnParser.parseFromString(fnXml, "application/xml")
+    const wNs = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+    const fnNodes = fnDoc.getElementsByTagNameNS(wNs, "footnote")
+    for (const fn of fnNodes) {
+      const fnId = fn.getAttribute("w:id") || fn.getAttributeNS(wNs, "id")
+      if (fnId && fnId !== "0" && fnId !== "-1") {
+        // Get text content of footnote
+        let fnText = ""
+        const runs = fn.getElementsByTagNameNS(wNs, "t")
+        for (const t of runs) {
+          fnText += t.textContent || ""
+        }
+        footnotes[fnId] = fnText.trim()
+      }
+    }
+  }
+
   // Convert to HTML
-  const html = docxXmlToHtml(xmlString, images, imageRels)
+  const html = docxXmlToHtml(xmlString, images, imageRels, footnotes)
 
   // Parse HTML into ProseMirror doc
   const tempDiv = document.createElement("div")
