@@ -383,9 +383,18 @@ function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
 
   let html = ""
 
-  // Process paragraphs
+  // Collect all child elements into array for look-ahead
+  const bodyChildren = []
   for (const child of body.childNodes) {
-    if (child.nodeType !== 1) continue
+    if (child.nodeType === 1) bodyChildren.push(child)
+  }
+
+  const skipIndices = new Set()
+
+  // Process paragraphs with look-ahead
+  for (let idx = 0; idx < bodyChildren.length; idx++) {
+    if (skipIndices.has(idx)) continue
+    const child = bodyChildren[idx]
     const localName = child.localName || child.nodeName?.split(":").pop()
 
     if (localName === "p") {
@@ -397,22 +406,21 @@ function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
           for (const oMath of oMaths) {
             const latex = ommlToLatex(oMath)
             if (latex) {
-              // Check if NEXT sibling paragraph is a formula number like (1)
+              // Look ahead: is next element a formula number like (1)?
               let label = null
-              const nextSibling = child.nextElementSibling
-              if (nextSibling) {
-                const nextName = nextSibling.localName || nextSibling.nodeName?.split(":").pop()
+              if (idx + 1 < bodyChildren.length) {
+                const next = bodyChildren[idx + 1]
+                const nextName = next.localName || next.nodeName?.split(":").pop()
                 if (nextName === "p") {
                   const nextTexts = []
-                  for (const t of nextSibling.getElementsByTagNameNS(wNs, "t")) {
+                  for (const t of next.getElementsByTagNameNS(wNs, "t")) {
                     if (t.textContent) nextTexts.push(t.textContent)
                   }
                   const nextText = nextTexts.join("").trim()
                   const labelMatch = nextText.match(/^\((\d+)\)$/)
                   if (labelMatch) {
                     label = nextText
-                    // Mark this paragraph to skip
-                    nextSibling.setAttribute("data-skip", "true")
+                    skipIndices.add(idx + 1)
                   }
                 }
               }
@@ -421,8 +429,6 @@ function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
             }
           }
         }
-      } else if (child.getAttribute("data-skip") === "true") {
-        // Skip — this was a formula number, already consumed
       } else {
         html += processParagraph(child, wNs, mNs)
       }
