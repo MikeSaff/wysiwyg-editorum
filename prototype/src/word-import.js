@@ -603,23 +603,20 @@ function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
 
         for (let ci = 0; ci < cells.length; ci++) {
           const cell = cells[ci]
-          // Try namespace-aware first, then fallback to local name matching
-          let oMathParas = cell.getElementsByTagNameNS(mNs, "oMathPara")
-          let oMaths = cell.getElementsByTagNameNS(mNs, "oMath")
-          // Fallback: some browser DOMParsers don't resolve namespaces
-          if (oMathParas.length === 0 && oMaths.length === 0) {
-            oMathParas = cell.querySelectorAll("oMathPara, m\\:oMathPara")
-            oMaths = cell.querySelectorAll("oMath, m\\:oMath")
-          }
           const cellText = cell.textContent.trim()
 
-          if (oMathParas.length > 0 || oMaths.length > 0) {
+          // Find math elements by walking DOM — namespace-agnostic
+          const mathElements = findElementsByLocalName(cell, "oMath")
+          const mathParaElements = findElementsByLocalName(cell, "oMathPara")
+
+          if (mathParaElements.length > 0 || mathElements.length > 0) {
             // This cell contains a formula
-            let mathEls = oMathParas.length > 0
-              ? (oMathParas[0].getElementsByTagNameNS ? oMathParas[0].getElementsByTagNameNS(mNs, "oMath") : oMathParas[0].querySelectorAll("oMath, m\\:oMath"))
-              : oMaths
-            if (mathEls.length === 0) mathEls = oMaths
-            for (const m of mathEls) {
+            const mathEls = mathParaElements.length > 0
+              ? findElementsByLocalName(mathParaElements[0], "oMath")
+              : mathElements
+            // Only use top-level oMath (not nested inside other oMath)
+            const topMaths = mathEls.length > 0 ? mathEls : mathElements
+            for (const m of topMaths) {
               formulaLatex += ommlToLatex(m) + " "
             }
           } else if (cellText.match(/^\(\d+\)$/)) {
@@ -672,6 +669,28 @@ function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
     html += "</table>"
     return html
   }
+}
+
+/**
+ * Find elements by localName — namespace-agnostic.
+ * Works in any DOMParser regardless of namespace handling.
+ */
+function findElementsByLocalName(parent, localName) {
+  const results = []
+  function walk(node) {
+    for (const child of node.childNodes) {
+      if (child.nodeType === 1) {
+        const ln = child.localName || child.nodeName?.split(":").pop() || ""
+        if (ln === localName) {
+          results.push(child)
+        } else {
+          walk(child)
+        }
+      }
+    }
+  }
+  walk(parent)
+  return results
 }
 
 function escapeHtml(text) {
