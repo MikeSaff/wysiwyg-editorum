@@ -407,12 +407,13 @@ header .hint {
 
 .ProseMirror .math-block .math-label {
   position: absolute;
-  right: 16px;
+  right: 20px;
   top: 50%;
   transform: translateY(-50%);
-  color: #888;
+  color: #333;
   font-family: 'PT Serif', serif;
-  font-size: 14px;
+  font-size: 15px;
+  font-style: normal;
 }
 
 .ProseMirror .math-inline {

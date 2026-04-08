@@ -397,10 +397,32 @@ function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
           for (const oMath of oMaths) {
             const latex = ommlToLatex(oMath)
             if (latex) {
-              html += `<div class="math-block" data-latex="${escapeAttr(latex)}">${escapeHtml(latex)}</div>\n`
+              // Check if NEXT sibling paragraph is a formula number like (1)
+              let label = null
+              const nextSibling = child.nextElementSibling
+              if (nextSibling) {
+                const nextName = nextSibling.localName || nextSibling.nodeName?.split(":").pop()
+                if (nextName === "p") {
+                  const nextTexts = []
+                  for (const t of nextSibling.getElementsByTagNameNS(wNs, "t")) {
+                    if (t.textContent) nextTexts.push(t.textContent)
+                  }
+                  const nextText = nextTexts.join("").trim()
+                  const labelMatch = nextText.match(/^\((\d+)\)$/)
+                  if (labelMatch) {
+                    label = nextText
+                    // Mark this paragraph to skip
+                    nextSibling.setAttribute("data-skip", "true")
+                  }
+                }
+              }
+              const labelAttr = label ? ` data-label="${escapeAttr(label)}"` : ""
+              html += `<div class="math-block" data-latex="${escapeAttr(latex)}"${labelAttr}>${escapeHtml(latex)}</div>\n`
             }
           }
         }
+      } else if (child.getAttribute("data-skip") === "true") {
+        // Skip — this was a formula number, already consumed
       } else {
         html += processParagraph(child, wNs, mNs)
       }
@@ -662,12 +684,31 @@ export async function importDocx(file) {
 
   const xmlString = await docXmlFile.async("string")
 
-  // Read images
+  // Read images — convert unsupported formats
   const images = {}
   for (const [path, file] of Object.entries(zip.files)) {
     if (path.startsWith("word/media/") && !file.dir) {
-      const data = await file.async("base64")
       const ext = path.split(".").pop().toLowerCase()
+      // Skip formats browsers can't display — mark as placeholder
+      if (ext === "wmf" || ext === "emf") {
+        images[path.replace("word/", "")] = "data:image/svg+xml;base64," + btoa(
+          '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="100" viewBox="0 0 400 100">' +
+          '<rect fill="#f5f5f5" stroke="#ddd" width="400" height="100" rx="4"/>' +
+          '<text x="200" y="55" text-anchor="middle" fill="#999" font-family="sans-serif" font-size="14">' +
+          '[WMF: ' + path.split("/").pop() + ']</text></svg>'
+        )
+        continue
+      }
+      if (ext === "tiff" || ext === "tif") {
+        images[path.replace("word/", "")] = "data:image/svg+xml;base64," + btoa(
+          '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="100" viewBox="0 0 400 100">' +
+          '<rect fill="#f5f5f5" stroke="#ddd" width="400" height="100" rx="4"/>' +
+          '<text x="200" y="55" text-anchor="middle" fill="#999" font-family="sans-serif" font-size="14">' +
+          '[TIFF: ' + path.split("/").pop() + ' — конвертируйте в PNG]</text></svg>'
+        )
+        continue
+      }
+      const data = await file.async("base64")
       const mime = ext === "png" ? "image/png" : ext === "jpg" || ext === "jpeg" ? "image/jpeg" : ext === "gif" ? "image/gif" : "image/" + ext
       images[path.replace("word/", "")] = `data:${mime};base64,${data}`
     }
