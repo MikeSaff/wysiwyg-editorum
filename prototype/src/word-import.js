@@ -35,7 +35,25 @@ function ommlToLatex(ommlElement) {
       case "f": // Fraction
         const num = node.getElementsByTagNameNS(ns, "num")[0]
         const den = node.getElementsByTagNameNS(ns, "den")[0]
-        return `\\frac{${processChildren(num)}}{${processChildren(den)}}`
+        const numText = processChildren(num).trim()
+        const denText = processChildren(den).trim()
+        // Use compact inline fraction for simple numerator/denominator
+        // e.g., d/dt, 1/Ix — renders as ᵈ⁄dt instead of huge stacked fraction
+        const isSimple = numText.length <= 3 && denText.length <= 4 &&
+          !numText.includes("\\") && !denText.includes("\\")
+        if (isSimple) {
+          return `{${numText}}/{${denText}}`
+        }
+        // Check fPr for linear fraction type (Word knows if author chose inline)
+        const fPr = node.getElementsByTagNameNS(ns, "fPr")[0]
+        if (fPr) {
+          const fType = fPr.getElementsByTagNameNS(ns, "type")[0]
+          const typeVal = fType ? (fType.getAttribute("m:val") || fType.getAttributeNS(ns, "val")) : null
+          if (typeVal === "lin") {
+            return `{${numText}}/{${denText}}`
+          }
+        }
+        return `\\frac{${numText}}{${denText}}`
 
       case "sSub": // Subscript
         const subBase = node.getElementsByTagNameNS(ns, "e")[0]
@@ -96,12 +114,14 @@ function ommlToLatex(ommlElement) {
         const leftDel = delimMap[begChar] || "("
         const rightDel = delimMapR[endChar] || ")"
 
-        // Use simple parens for short content, \left\right for complex
-        if (dContent.length < 20 && !dContent.includes("\\frac") && !dContent.includes("\\begin")) {
-          if (endChar === "") return `${leftDel}${dContent}`
+        // Use simple parens for most content — \left\right only for tall expressions
+        const needsAutoSize = dContent.includes("\\frac{") || dContent.includes("\\begin{") ||
+          dContent.includes("\\sum") || dContent.includes("\\int") || dContent.includes("\\prod")
+        if (!needsAutoSize) {
+          if (endChar === "" || endChar === " ") return `${leftDel}${dContent}`
           return `${leftDel}${dContent}${rightDel}`
         }
-        if (endChar === "") return `\\left${leftDel} ${dContent} \\right.`
+        if (endChar === "" || endChar === " ") return `\\left${leftDel} ${dContent} \\right.`
         return `\\left${leftDel} ${dContent} \\right${rightDel}`
 
       case "nary": // N-ary operator (sum, integral, product)
