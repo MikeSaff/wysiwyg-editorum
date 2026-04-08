@@ -76,10 +76,13 @@ function ommlToLatex(ommlElement) {
         // Check if this is a system of equations: { + matrix with no right delimiter
         const dElements = Array.from(node.childNodes).filter(n => n.nodeType === 1 && (n.localName === "e" || n.nodeName?.endsWith(":e")))
         if (begChar === "{" && (endChar === "" || endChar === " ") && dElements.length === 1) {
-          // Check if the single element contains a matrix (eqArr or m)
           const innerContent = processChildren(dElements[0])
+          // If matrix already wrapped in \begin{cases}, return as-is
+          if (innerContent.includes("\\begin{cases}")) {
+            return innerContent
+          }
+          // If content has line breaks but not yet wrapped in cases
           if (innerContent.includes("\\\\")) {
-            // System of equations
             return `\\begin{cases} ${innerContent} \\end{cases}`
           }
         }
@@ -87,9 +90,18 @@ function ommlToLatex(ommlElement) {
         const dContent = dElements
           .map(e => processChildren(e))
           .join(", ")
-        // Map to LaTeX delimiters
-        const leftDel = begChar === "{" ? "\\{" : (begChar === "[" ? "[" : (begChar === "|" ? "|" : "("))
-        const rightDel = endChar === "}" ? "\\}" : (endChar === "]" ? "]" : (endChar === "|" ? "|" : (endChar === "" ? "." : ")")))
+        // Map to LaTeX delimiters - use simple delimiters for compact rendering
+        const delimMap = { "{": "\\{", "[": "[", "|": "|", "‖": "\\|", "(": "(" }
+        const delimMapR = { "}": "\\}", "]": "]", "|": "|", "‖": "\\|", ")": ")", "": "" }
+        const leftDel = delimMap[begChar] || "("
+        const rightDel = delimMapR[endChar] || ")"
+
+        // Use simple parens for short content, \left\right for complex
+        if (dContent.length < 20 && !dContent.includes("\\frac") && !dContent.includes("\\begin")) {
+          if (endChar === "") return `${leftDel}${dContent}`
+          return `${leftDel}${dContent}${rightDel}`
+        }
+        if (endChar === "") return `\\left${leftDel} ${dContent} \\right.`
         return `\\left${leftDel} ${dContent} \\right${rightDel}`
 
       case "nary": // N-ary operator (sum, integral, product)
@@ -119,11 +131,12 @@ function ommlToLatex(ommlElement) {
         if (accPr) {
           const accChr = accPr.getElementsByTagNameNS(ns, "chr")[0]
           const accVal = accChr ? (accChr.getAttribute("m:val") || accChr.getAttributeNS(ns, "val")) : null
-          if (accVal === "̇" || accVal === "˙") accCmd = "\\dot"
-          else if (accVal === "̈") accCmd = "\\ddot"
-          else if (accVal === "̄" || accVal === "¯") accCmd = "\\bar"
-          else if (accVal === "⃗" || accVal === "→") accCmd = "\\vec"
-          else if (accVal === "̃" || accVal === "~") accCmd = "\\tilde"
+          if (accVal === "\u0307" || accVal === "\u02D9" || accVal === "̇" || accVal === "˙") accCmd = "\\dot"
+          else if (accVal === "\u0308" || accVal === "̈") accCmd = "\\ddot"
+          else if (accVal === "\u0304" || accVal === "\u00AF" || accVal === "̄" || accVal === "¯") accCmd = "\\bar"
+          else if (accVal === "\u20D7" || accVal === "\u2192" || accVal === "⃗" || accVal === "→") accCmd = "\\vec"
+          else if (accVal === "\u0303" || accVal === "~" || accVal === "̃") accCmd = "\\tilde"
+          else if (accVal === "\u0302" || accVal === "^" || accVal === "̂") accCmd = "\\hat"
         }
         return `${accCmd}{${processChildren(accE)}}`
 
@@ -195,8 +208,9 @@ function ommlToLatex(ommlElement) {
         })
 
         if (isSystemOfEq) {
-          // For cases, don't wrap in \begin{cases} here — parent delimiter handles it
-          return rows.join(" \\\\ ")
+          // System of equations: matrix handles cases directly,
+          // parent delimiter (d) should not wrap again
+          return `\\begin{cases} ${rows.join(" \\\\ ")} \\end{cases}`
         }
         return `\\begin{${matrixEnv}} ${rows.join(" \\\\ ")} \\end{${matrixEnv}}`
 
