@@ -150,8 +150,16 @@ document.getElementById("nav-items")?.addEventListener("click", (e) => {
     _editorView.focus()
     const resolvedPos = _editorView.state.doc.resolve(Math.min(pos + 1, _editorView.state.doc.content.size))
     const selection = _editorView.state.selection.constructor.near(resolvedPos)
-    const tr = _editorView.state.tr.setSelection(selection).scrollIntoView()
+    const tr = _editorView.state.tr.setSelection(selection)
     _editorView.dispatch(tr)
+
+    // Scroll heading to top third of viewport
+    const coords = _editorView.coordsAtPos(pos + 1)
+    if (coords) {
+      const viewportHeight = window.innerHeight
+      const targetY = coords.top - viewportHeight * 0.15  // 15% from top
+      window.scrollTo({ top: window.scrollY + (coords.top - window.innerHeight * 0.15), behavior: "smooth" })
+    }
   } catch (err) {
     console.warn("Nav click error:", err)
   }
