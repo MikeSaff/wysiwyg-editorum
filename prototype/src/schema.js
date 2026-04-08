@@ -141,30 +141,39 @@ export const schema = new Schema({
     paragraph: {
       group: "block",
       content: "inline*",
-      attrs: { id: { default: null } },
+      attrs: { id: { default: null }, align: { default: null } },
       toDOM(node) {
         const attrs = {}
         if (node.attrs.id) attrs.id = node.attrs.id
+        if (node.attrs.align) attrs.style = `text-align: ${node.attrs.align}`
         return ["p", attrs, 0]
       },
       parseDOM: [{
         tag: "p",
-        getAttrs(dom) { return { id: dom.getAttribute("id") } }
+        getAttrs(dom) {
+          return {
+            id: dom.getAttribute("id"),
+            align: dom.style?.textAlign || dom.getAttribute("align") || null
+          }
+        }
       }]
     },
 
     heading: {
       group: "block",
       content: "inline*",
-      attrs: { level: { default: 1 }, id: { default: null } },
+      attrs: { level: { default: 1 }, id: { default: null }, align: { default: null } },
       toDOM(node) {
-        return [`h${node.attrs.level}`, node.attrs.id ? { id: node.attrs.id } : {}, 0]
+        const attrs = {}
+        if (node.attrs.id) attrs.id = node.attrs.id
+        if (node.attrs.align) attrs.style = `text-align: ${node.attrs.align}`
+        return [`h${node.attrs.level}`, attrs, 0]
       },
       parseDOM: [
-        { tag: "h1", attrs: { level: 1 } },
-        { tag: "h2", attrs: { level: 2 } },
-        { tag: "h3", attrs: { level: 3 } },
-        { tag: "h4", attrs: { level: 4 } }
+        { tag: "h1", getAttrs(dom) { return { level: 1, align: dom.style?.textAlign || null } } },
+        { tag: "h2", getAttrs(dom) { return { level: 2, align: dom.style?.textAlign || null } } },
+        { tag: "h3", getAttrs(dom) { return { level: 3, align: dom.style?.textAlign || null } } },
+        { tag: "h4", getAttrs(dom) { return { level: 4, align: dom.style?.textAlign || null } } }
       ]
     },
 

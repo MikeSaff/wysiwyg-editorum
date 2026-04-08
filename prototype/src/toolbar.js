@@ -146,6 +146,33 @@ export function buildToolbar(view, toolbarEl) {
 
   toolbarEl.appendChild(createSeparator())
 
+  toolbarEl.appendChild(createSeparator())
+
+  // === Group: Выравнивание ===
+  const groupAlign = createGroup("Выравнивание")
+  const alignCommands = [
+    ["⇤", "По левому краю", "left"],
+    ["⇔", "По центру", "center"],
+    ["⇥", "По правому краю", "right"],
+    ["☰", "По ширине", "justify"],
+  ]
+  alignCommands.forEach(([label, title, align]) => {
+    groupAlign.appendChild(createButton(label, title, (state, dispatch) => {
+      const { from, to } = state.selection
+      let tr = state.tr
+      state.doc.nodesBetween(from, to, (node, pos) => {
+        if (node.type.name === "paragraph" || node.type.name === "heading") {
+          tr = tr.setNodeMarkup(pos, null, { ...node.attrs, align })
+        }
+      })
+      if (dispatch) dispatch(tr)
+      return true
+    }, view))
+  })
+  toolbarEl.appendChild(groupAlign)
+
+  toolbarEl.appendChild(createSeparator())
+
   // === Group: Вставка ===
   const groupInsert = createGroup("Вставить")
   groupInsert.appendChild(createButton("∑", "Формулу (блок, LaTeX)", insertMathBlock, view))
