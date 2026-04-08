@@ -596,12 +596,18 @@ function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
     // Namespace-agnostic row/cell finding
     const rows = findElementsByLocalName(tbl, "tr")
 
-    console.log(`[DOCX] processTableOrFormula: ${rows.length} rows`)
-
     // Formula tables typically have 1 row, 2-3 columns
     if (rows.length === 1) {
       const cells = findElementsByLocalName(rows[0], "tc")
       if (cells.length >= 1 && cells.length <= 3) {
+        // Debug: log cell contents
+        const debugCells = []
+        for (let ci = 0; ci < cells.length; ci++) {
+          const ct = cells[ci].textContent.trim().substring(0, 30)
+          const hasMath = findElementsByLocalName(cells[ci], "oMath").length
+          debugCells.push(`[${ct}|math:${hasMath}]`)
+        }
+        console.log(`[DOCX] tbl ${cells.length} cells: ${debugCells.join(' ')}`)
         // Check if any cell contains oMath or oMathPara
         let formulaLatex = ""
         let label = ""
