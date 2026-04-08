@@ -690,22 +690,14 @@ export async function importDocx(file) {
     if (path.startsWith("word/media/") && !file.dir) {
       const ext = path.split(".").pop().toLowerCase()
       // Skip formats browsers can't display — mark as placeholder
-      if (ext === "wmf" || ext === "emf") {
-        images[path.replace("word/", "")] = "data:image/svg+xml;base64," + btoa(
-          '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="100" viewBox="0 0 400 100">' +
-          '<rect fill="#f5f5f5" stroke="#ddd" width="400" height="100" rx="4"/>' +
-          '<text x="200" y="55" text-anchor="middle" fill="#999" font-family="sans-serif" font-size="14">' +
-          '[WMF: ' + path.split("/").pop() + ']</text></svg>'
-        )
-        continue
-      }
-      if (ext === "tiff" || ext === "tif") {
-        images[path.replace("word/", "")] = "data:image/svg+xml;base64," + btoa(
-          '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="100" viewBox="0 0 400 100">' +
-          '<rect fill="#f5f5f5" stroke="#ddd" width="400" height="100" rx="4"/>' +
-          '<text x="200" y="55" text-anchor="middle" fill="#999" font-family="sans-serif" font-size="14">' +
-          '[TIFF: ' + path.split("/").pop() + ' — конвертируйте в PNG]</text></svg>'
-        )
+      if (ext === "wmf" || ext === "emf" || ext === "tiff" || ext === "tif") {
+        const fname = path.split("/").pop()
+        const label = ext.toUpperCase() + ": " + fname
+        const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="80" viewBox="0 0 400 80">' +
+          '<rect fill="#f5f5f5" stroke="#ddd" width="400" height="80" rx="4"/>' +
+          '<text x="200" y="45" text-anchor="middle" fill="#999" font-family="sans-serif" font-size="13">' +
+          '[' + label + ']</text></svg>'
+        images[path.replace("word/", "")] = "data:image/svg+xml," + encodeURIComponent(svg)
         continue
       }
       const data = await file.async("base64")
