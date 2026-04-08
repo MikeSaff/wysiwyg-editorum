@@ -458,12 +458,8 @@ header .hint {
 }
 
 /* === Remove empty paragraphs around block elements === */
-.ProseMirror p:empty,
-.ProseMirror p:has(> br:only-child) {
-  margin: 0;
-  padding: 0;
-  line-height: 0.5;
-  font-size: 0;
+.ProseMirror p:empty {
+  display: none;
 }
 
 /* Collapse spacing between adjacent block elements */

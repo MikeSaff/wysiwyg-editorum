@@ -521,7 +521,8 @@ function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
 
     if (!hasContent) return ""
     // Skip empty or whitespace-only paragraphs
-    if (content.trim() === "" || content.trim() === "&nbsp;") return ""
+    const stripped = content.replace(/&nbsp;/g, "").replace(/<br>/g, "").trim()
+    if (stripped === "" || stripped === " ") return ""
     return `<${tag}>${content}</${tag}>\n`
   }
 
