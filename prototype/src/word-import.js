@@ -37,22 +37,31 @@ function ommlToLatex(ommlElement) {
         const den = node.getElementsByTagNameNS(ns, "den")[0]
         const numText = processChildren(num).trim()
         const denText = processChildren(den).trim()
-        // Use compact inline fraction for simple numerator/denominator
-        // e.g., d/dt, 1/Ix — renders as ᵈ⁄dt instead of huge stacked fraction
-        const isSimple = numText.length <= 3 && denText.length <= 4 &&
-          !numText.includes("\\") && !denText.includes("\\")
-        if (isSimple) {
-          return `{${numText}}/{${denText}}`
-        }
-        // Check fPr for linear fraction type (Word knows if author chose inline)
+
+        // Check fPr for linear fraction type
         const fPr = node.getElementsByTagNameNS(ns, "fPr")[0]
         if (fPr) {
           const fType = fPr.getElementsByTagNameNS(ns, "type")[0]
           const typeVal = fType ? (fType.getAttribute("m:val") || fType.getAttributeNS(ns, "val")) : null
           if (typeVal === "lin") {
-            return `{${numText}}/{${denText}}`
+            return `{${numText}}/{${denText}} `
           }
         }
+
+        // d/dt → use \frac but add space after for readability
+        if (numText === "d" && denText.startsWith("dt")) {
+          return `\\frac{d}{dt}\\,`
+        }
+
+        // Simple numeric fractions like 1/2 → keep as \frac (more readable)
+        // Only use inline for things like 1/Ix where stacked looks odd in cases
+        const isDenomSubscripted = denText.includes("_") || denText.includes("I")
+        const isSimpleNum = /^[0-9]+$/.test(numText) && numText.length <= 2
+        if (isSimpleNum && isDenomSubscripted && denText.length <= 6) {
+          // 1/Ix style — inline fraction
+          return `{${numText}}/{${denText}} `
+        }
+
         return `\\frac{${numText}}{${denText}}`
 
       case "sSub": // Subscript
@@ -87,22 +96,37 @@ function ommlToLatex(ommlElement) {
         if (dPr) {
           const beg = dPr.getElementsByTagNameNS(ns, "begChr")[0]
           const end = dPr.getElementsByTagNameNS(ns, "endChr")[0]
-          if (beg) begChar = beg.getAttribute("m:val") || beg.getAttributeNS(ns, "val") || "("
-          if (end) endChar = end.getAttribute("m:val") || end.getAttributeNS(ns, "val") || ")"
+          if (beg) {
+            const bv = beg.getAttribute("m:val") ?? beg.getAttributeNS(ns, "val")
+            if (bv !== null) begChar = bv
+          }
+          if (end) {
+            const ev = end.getAttribute("m:val") ?? end.getAttributeNS(ns, "val")
+            if (ev !== null) endChar = ev
+          }
         }
 
         // Check if this is a system of equations: { + matrix with no right delimiter
         const dElements = Array.from(node.childNodes).filter(n => n.nodeType === 1 && (n.localName === "e" || n.nodeName?.endsWith(":e")))
-        if (begChar === "{" && (endChar === "" || endChar === " ") && dElements.length === 1) {
-          const innerContent = processChildren(dElements[0])
-          // If matrix already wrapped in \begin{cases}, return as-is
-          if (innerContent.includes("\\begin{cases}")) {
-            return innerContent
+        if (begChar === "{" && (endChar === "" || endChar === " " || endChar === ")")) {
+          // System of equations with { on the left only
+          if (dElements.length === 1) {
+            const innerContent = processChildren(dElements[0])
+            // If matrix already wrapped in \begin{cases}, return as-is
+            if (innerContent.includes("\\begin{cases}")) {
+              return innerContent
+            }
+            // If content has line breaks but not yet wrapped in cases
+            if (innerContent.includes("\\\\")) {
+              return `\\begin{cases} ${innerContent} \\end{cases}`
+            }
           }
-          // If content has line breaks but not yet wrapped in cases
-          if (innerContent.includes("\\\\")) {
-            return `\\begin{cases} ${innerContent} \\end{cases}`
-          }
+        }
+
+        // Handle mismatched delimiters: { on left, ) on right — only show left
+        if (begChar === "{" && endChar === ")") {
+          const dContent2 = dElements.map(e => processChildren(e)).join(", ")
+          return `\\left\\{ ${dContent2} \\right.`
         }
 
         const dContent = dElements
