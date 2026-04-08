@@ -373,11 +373,11 @@ function init() {
       )
       editorView.dispatch(tr)
 
-      statusEl.textContent = `✅ Импортировано: ${file.name} (формул: ${result.formulaCount})`
-      // Collapse import bar after successful import
+      statusEl.textContent = `✅ ${file.name} (формул: ${result.formulaCount})`
+      // Hide import bar completely after import
       const importBar = document.getElementById("import-bar")
       if (importBar) {
-        setTimeout(() => { importBar.classList.add("collapsed") }, 2000)
+        setTimeout(() => { importBar.style.display = "none" }, 1500)
       }
       updateNavigation(editorView.state)
     } catch (e) {
