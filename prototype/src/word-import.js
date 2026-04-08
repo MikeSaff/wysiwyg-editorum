@@ -630,9 +630,15 @@ function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
             for (const m of topMaths) {
               formulaLatex += ommlToLatex(m) + " "
             }
-          } else if (cellText.match(/^\(\d+\)$/)) {
-            // This cell contains a label like (1), (2), etc.
-            label = cellText
+          } else {
+            // Check for formula label: (1), (2) or Word SEQ field: ( SEQ Формула \* ARABIC 1)
+            const simpleLabel = cellText.match(/^\((\d+)\)$/)
+            const seqLabel = cellText.match(/SEQ\s+\S+\s+\\?\*\s*ARABIC\s+(\d+)/)
+            if (simpleLabel) {
+              label = `(${simpleLabel[1]})`
+            } else if (seqLabel) {
+              label = `(${seqLabel[1]})`
+            }
           }
         }
 
