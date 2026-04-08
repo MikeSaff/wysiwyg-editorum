@@ -453,8 +453,36 @@ header .hint {
   max-width: 100%;
   height: auto;
   display: block;
-  margin: 1em auto;
-  border-radius: 4px;
+  margin: 0.8em auto;
+  border-radius: 2px;
+}
+
+/* === Remove empty paragraphs around block elements === */
+.ProseMirror p:empty,
+.ProseMirror p:has(> br:only-child) {
+  margin: 0;
+  padding: 0;
+  line-height: 0.5;
+  font-size: 0;
+}
+
+/* Collapse spacing between adjacent block elements */
+.ProseMirror .math-block + .math-block,
+.ProseMirror table + table,
+.ProseMirror .inline-image + .inline-image {
+  margin-top: 0.4em;
+}
+
+/* Tighten spacing around images and formulas */
+.ProseMirror figure + p,
+.ProseMirror .inline-image + p,
+.ProseMirror table + p {
+  margin-top: 0.6em;
+}
+
+.ProseMirror p + figure,
+.ProseMirror p + table {
+  margin-top: 0.6em;
 }
 
 /* === Tables === */
