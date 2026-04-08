@@ -48,21 +48,14 @@ function ommlToLatex(ommlElement) {
           }
         }
 
-        // d/dt → use \frac but add space after for readability
+        // d/dt → display fraction with space after
         if (numText === "d" && denText.startsWith("dt")) {
-          return `\\frac{d}{dt}\\,`
+          return `\\dfrac{d}{dt}\\,`
         }
 
-        // Simple numeric fractions like 1/2 → keep as \frac (more readable)
-        // Only use inline for things like 1/Ix where stacked looks odd in cases
-        const isDenomSubscripted = denText.includes("_") || denText.includes("I")
-        const isSimpleNum = /^[0-9]+$/.test(numText) && numText.length <= 2
-        if (isSimpleNum && isDenomSubscripted && denText.length <= 6) {
-          // 1/Ix style — inline fraction
-          return `{${numText}}/{${denText}} `
-        }
-
-        return `\\frac{${numText}}{${denText}}`
+        // Always use \dfrac inside cases/matrices for full-size fractions
+        // (KaTeX renders \frac as inline in cases environment)
+        return `\\dfrac{${numText}}{${denText}}`
 
       case "sSub": // Subscript
         const subBase = node.getElementsByTagNameNS(ns, "e")[0]
