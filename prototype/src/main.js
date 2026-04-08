@@ -111,6 +111,44 @@ const initialDoc = {
   ]
 }
 
+// === Navigation panel ===
+function updateNavigation(state) {
+  const navItems = document.getElementById("nav-items")
+  if (!navItems) return
+
+  const headings = []
+  state.doc.forEach((node, offset) => {
+    if (node.type.name === "heading") {
+      const level = node.attrs.level || 1
+      const text = node.textContent
+      if (text.trim()) {
+        headings.push({ level, text: text.substring(0, 60), pos: offset })
+      }
+    }
+  })
+
+  navItems.innerHTML = headings.map(h =>
+    `<div class="nav-item level-${h.level}" data-pos="${h.pos}">${h.text}</div>`
+  ).join("")
+
+  // Click to scroll
+  navItems.querySelectorAll(".nav-item").forEach(item => {
+    item.addEventListener("click", () => {
+      const pos = parseInt(item.dataset.pos)
+      const editorEl = document.querySelector(".ProseMirror")
+      if (editorEl && window.editorView) {
+        window.editorView.focus()
+        const tr = window.editorView.state.tr.setSelection(
+          window.editorView.state.selection.constructor.near(
+            window.editorView.state.doc.resolve(pos + 1)
+          )
+        )
+        window.editorView.dispatch(tr.scrollIntoView())
+      }
+    })
+  })
+}
+
 // === Output panel ===
 function updateOutput(state) {
   const jsonEl = document.getElementById("json-output")
@@ -241,6 +279,7 @@ function init() {
 
   buildToolbar(view, toolbarEl)
   updateOutput(view.state)
+  updateNavigation(view.state)
   setupTabs()
 
   // === Autosave to localStorage ===
@@ -269,7 +308,9 @@ function init() {
       view.updateState(newState)
       updateOutput(newState)
       updateTableToolbar(view)
-
+      if (tr.docChanged) {
+        updateNavigation(newState)
+      }
       if (tr.docChanged) {
         clearTimeout(autosaveTimer)
         autosaveTimer = setTimeout(autosave, 3000)
@@ -314,7 +355,12 @@ function init() {
       editorView.dispatch(tr)
 
       statusEl.textContent = `✅ Импортировано: ${file.name} (формул: ${result.formulaCount})`
-      setTimeout(() => { statusEl.textContent = "" }, 5000)
+      // Collapse import bar after successful import
+      const importBar = document.getElementById("import-bar")
+      if (importBar) {
+        setTimeout(() => { importBar.classList.add("collapsed") }, 2000)
+      }
+      updateNavigation(editorView.state)
     } catch (e) {
       console.error("DOCX import error:", e)
       statusEl.textContent = `❌ Ошибка: ${e.message}`
