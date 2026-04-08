@@ -603,15 +603,22 @@ function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
 
         for (let ci = 0; ci < cells.length; ci++) {
           const cell = cells[ci]
-          const oMathParas = cell.getElementsByTagNameNS(mNs, "oMathPara")
-          const oMaths = cell.getElementsByTagNameNS(mNs, "oMath")
+          // Try namespace-aware first, then fallback to local name matching
+          let oMathParas = cell.getElementsByTagNameNS(mNs, "oMathPara")
+          let oMaths = cell.getElementsByTagNameNS(mNs, "oMath")
+          // Fallback: some browser DOMParsers don't resolve namespaces
+          if (oMathParas.length === 0 && oMaths.length === 0) {
+            oMathParas = cell.querySelectorAll("oMathPara, m\\:oMathPara")
+            oMaths = cell.querySelectorAll("oMath, m\\:oMath")
+          }
           const cellText = cell.textContent.trim()
 
           if (oMathParas.length > 0 || oMaths.length > 0) {
             // This cell contains a formula
-            const mathEls = oMathParas.length > 0
-              ? oMathParas[0].getElementsByTagNameNS(mNs, "oMath")
+            let mathEls = oMathParas.length > 0
+              ? (oMathParas[0].getElementsByTagNameNS ? oMathParas[0].getElementsByTagNameNS(mNs, "oMath") : oMathParas[0].querySelectorAll("oMath, m\\:oMath"))
               : oMaths
+            if (mathEls.length === 0) mathEls = oMaths
             for (const m of mathEls) {
               formulaLatex += ommlToLatex(m) + " "
             }
