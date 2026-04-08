@@ -30,7 +30,17 @@ function ommlToLatex(ommlElement) {
 
       case "r": // Run (text)
         const textEl = node.getElementsByTagNameNS(ns, "t")[0]
-        return textEl ? textEl.textContent : ""
+        if (!textEl) return ""
+        let rText = textEl.textContent || ""
+        // Add LaTeX spacing around operators for readability
+        // Only for single-character operators that are clearly math operators
+        if (rText === "=") return " = "
+        if (rText === "+") return " + "
+        if (rText === "-" || rText === "−" || rText === "\u2212") return " - "
+        if (rText === ",") return ", \\;"
+        if (rText === "[") return "\\left["
+        if (rText === "]") return "\\right]"
+        return rText
 
       case "f": // Fraction
         const num = node.getElementsByTagNameNS(ns, "num")[0]
