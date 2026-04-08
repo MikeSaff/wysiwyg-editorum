@@ -112,6 +112,8 @@ const initialDoc = {
 }
 
 // === Navigation panel ===
+let _editorView = null  // Module-level reference
+
 function updateNavigation(state) {
   const navItems = document.getElementById("nav-items")
   if (!navItems) return
@@ -128,26 +130,32 @@ function updateNavigation(state) {
   })
 
   navItems.innerHTML = headings.map(h =>
-    `<div class="nav-item level-${h.level}" data-pos="${h.pos}">${h.text}</div>`
+    `<div class="nav-item level-${h.level}" data-pos="${h.pos}">${escapeHtmlNav(h.text)}</div>`
   ).join("")
-
-  // Click to scroll
-  navItems.querySelectorAll(".nav-item").forEach(item => {
-    item.addEventListener("click", () => {
-      const pos = parseInt(item.dataset.pos)
-      const editorEl = document.querySelector(".ProseMirror")
-      if (editorEl && window.editorView) {
-        window.editorView.focus()
-        const tr = window.editorView.state.tr.setSelection(
-          window.editorView.state.selection.constructor.near(
-            window.editorView.state.doc.resolve(pos + 1)
-          )
-        )
-        window.editorView.dispatch(tr.scrollIntoView())
-      }
-    })
-  })
 }
+
+function escapeHtmlNav(text) {
+  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+}
+
+// Event delegation for nav clicks — works even after innerHTML updates
+document.getElementById("nav-items")?.addEventListener("click", (e) => {
+  const item = e.target.closest(".nav-item")
+  if (!item || !_editorView) return
+
+  const pos = parseInt(item.dataset.pos)
+  if (isNaN(pos)) return
+
+  try {
+    _editorView.focus()
+    const resolvedPos = _editorView.state.doc.resolve(Math.min(pos + 1, _editorView.state.doc.content.size))
+    const selection = _editorView.state.selection.constructor.near(resolvedPos)
+    const tr = _editorView.state.tr.setSelection(selection).scrollIntoView()
+    _editorView.dispatch(tr)
+  } catch (err) {
+    console.warn("Nav click error:", err)
+  }
+})
 
 // === Output panel ===
 function updateOutput(state) {
@@ -276,6 +284,9 @@ function init() {
       return false
     }
   })
+
+  _editorView = view  // Save reference for navigation clicks
+  window.editorView = view
 
   buildToolbar(view, toolbarEl)
   updateOutput(view.state)
