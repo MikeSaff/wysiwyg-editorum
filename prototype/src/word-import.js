@@ -48,13 +48,19 @@ function ommlToLatex(ommlElement) {
           }
         }
 
-        // d/dt → display fraction with space after
+        // d/dt → medium fraction with thin space after
         if (numText === "d" && denText.startsWith("dt")) {
-          return `\\dfrac{d}{dt}\\,`
+          return `\\tfrac{d}{dt}\\,`
         }
 
-        // Always use \dfrac inside cases/matrices for full-size fractions
-        // (KaTeX renders \frac as inline in cases environment)
+        // Simple fractions (1/Ix, 1/2) → tfrac for compact rendering
+        const isSimpleFrac = numText.length <= 2 && denText.length <= 5 &&
+          !numText.includes("\\frac") && !denText.includes("\\frac")
+        if (isSimpleFrac) {
+          return `\\tfrac{${numText}}{${denText}}`
+        }
+
+        // Complex fractions → dfrac for full display
         return `\\dfrac{${numText}}{${denText}}`
 
       case "sSub": // Subscript
