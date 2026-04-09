@@ -633,6 +633,7 @@ function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
             }
           } else {
             // Check for formula label: (1), (2) or Word SEQ field: ( SEQ Формула \* ARABIC 1)
+            console.log(`[DOCX] label cell text: "${cellText.substring(0, 60)}" (len=${cellText.length})`)
             const simpleLabel = cellText.match(/^\((\d+)\)$/)
             const seqLabel = cellText.match(/SEQ\s+\S+\s+\\?\*\s*ARABIC\s+(\d+)/)
             if (simpleLabel) {
