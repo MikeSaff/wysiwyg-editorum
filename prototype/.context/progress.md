@@ -45,6 +45,7 @@
 | 19 | OMML: запятые в формулах, `cases`, вынос `u∈U/w∈W/t∈[...]` из (2), split строк в (4)/(15)/(16), фиксы тестов | Codex | `src/word-import.js`, `tests/word-import.test.js`, `.context/progress.md` | ✅ | OK |
 | 20 | OMML follow-up: split auxiliary conditions через whitespace-run (`w∈W`, `t∈[...]`) | Codex | `src/word-import.js`, `tests/word-import.test.js`, `.context/progress.md` | ✅ | OK |
 | 21 | Тестовый follow-up: скорректировано synthetic-ожидание по хвостовой запятой в auxiliary conditions | Codex | `tests/word-import.test.js`, `.context/progress.md` | ✅ | OK |
+| 22 | Lightbox: overlay click close, image click stopPropagation, Escape close, SVG placeholders blocked | Codex | `src/main.js`, `.context/progress.md` | ✅ | OK |
 
 ### Ранее в этот день (сводка)
 
@@ -94,6 +95,7 @@
 ## Notes
 
 - `*` `src/styles.css` owner = Claude. Codex внёс минимальный CSS fix `.ProseMirror .katex .mrel { color: inherit; }` для выравнивания цвета `=`; нужен review владельца по file-ownership protocol.
+- `src/main.js` owner = Claude. Lightbox fix внесён Codex по прямому тикету `CODEX-TASK-LIGHTBOX.md`; при желании владелец может сделать follow-up review.
 
 ---
 

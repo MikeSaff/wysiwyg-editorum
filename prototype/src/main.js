@@ -4,7 +4,7 @@ import { DOMParser as ProseDOMParser, DOMSerializer, Slice } from "prosemirror-m
 import { keymap } from "prosemirror-keymap"
 import { baseKeymap, toggleMark } from "prosemirror-commands"
 import { history, undo, redo } from "prosemirror-history"
-import { inputRules, wrappingInputRule, textblockTypeInputRule, smartQuotes, emDash, ellipsis } from "prosemirror-inputrules"
+import { inputRules, wrappingInputRule, textblockTypeInputRule, ellipsis } from "prosemirror-inputrules"
 import { dropCursor } from "prosemirror-dropcursor"
 import { gapCursor } from "prosemirror-gapcursor"
 import { tableEditing, columnResizing, goToNextCell, fixTables } from "prosemirror-tables"
@@ -15,14 +15,14 @@ import { buildToolbar, updateTableToolbar } from "./toolbar.js"
 import { setupContextMenu } from "./context-menu.js"
 import { cleanWordHtml } from "./word-paste.js"
 import { importDocx } from "./word-import.js"
+import { typographyQuoteAndDashRules } from "./typography-rules.js"
 import "./styles.css"
 
 // === Input rules (markdown-like shortcuts) ===
 function buildInputRules() {
   const rules = [
-    ...smartQuotes,
+    ...typographyQuoteAndDashRules,
     ellipsis,
-    emDash,
     // # Heading
     textblockTypeInputRule(/^(#{1,4})\s$/, schema.nodes.heading, match => ({ level: match[1].length })),
     // > Blockquote
@@ -34,9 +34,7 @@ function buildInputRules() {
       (match, node) => node.childCount + node.attrs.order === +match[1]),
     // ``` Code block
     textblockTypeInputRule(/^```$/, schema.nodes.code_block),
-    // --- Horizontal rule
-    new inputRules.constructor([]).constructor ? null : null, // placeholder
-  ].filter(Boolean)
+  ]
 
   return inputRules({ rules })
 }
@@ -205,6 +203,22 @@ function updateNavigation(state) {
   closeToLevel(0)
 
   navItems.innerHTML = html
+
+  // Default: show level 1-2, collapse level 3+
+  navItems.querySelectorAll(".nav-section").forEach(sec => {
+    const toggle = sec.previousElementSibling
+    if (!toggle) return
+    let depth = 0
+    let p = sec.parentElement
+    while (p && p !== navItems) {
+      if (p.classList.contains("nav-section")) depth++
+      p = p.parentElement
+    }
+    if (depth >= 1) {
+      sec.classList.add("collapsed")
+      toggle.classList.add("collapsed")
+    }
+  })
 }
 
 function escapeHtmlNav(text) {
@@ -378,16 +392,41 @@ function init() {
   _editorView = view  // Save reference for navigation clicks
   window.editorView = view
 
-  // Close lightbox on Escape or click
+  // Lightbox helpers
   const lbOverlay = document.getElementById("lightbox-overlay")
+  const lbImg = document.getElementById("lightbox-img")
+  const isLightboxPlaceholder = (src) => !src || src.startsWith("data:image/svg+xml")
+  const closeLightbox = () => {
+    if (!lbOverlay) return
+    lbOverlay.classList.remove("active")
+    if (lbImg) {
+      lbImg.removeAttribute("src")
+      lbImg.alt = ""
+    }
+  }
+  const openLightbox = (src, alt = "") => {
+    if (!lbOverlay || !lbImg || isLightboxPlaceholder(src)) return false
+    lbImg.src = src
+    lbImg.alt = alt
+    lbOverlay.classList.add("active")
+    return true
+  }
+
   if (lbOverlay) {
-    lbOverlay.addEventListener("click", () => {
-      lbOverlay.classList.remove("active")
+    lbOverlay.addEventListener("click", (e) => {
+      if (e.target === lbOverlay) {
+        closeLightbox()
+      }
+    })
+  }
+  if (lbImg) {
+    lbImg.addEventListener("click", (e) => {
+      e.stopPropagation()
     })
   }
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") {
-      if (lbOverlay) lbOverlay.classList.remove("active")
+    if (e.key === "Escape" && lbOverlay?.classList.contains("active")) {
+      closeLightbox()
     }
   })
 
@@ -427,23 +466,17 @@ function init() {
 
   // === Image: single click = lightbox (enlarge), right click = edit menu ===
   window._openLightbox = function(src) {
-    if (!src || src.includes("data:image/svg+xml")) return
-    const overlay = document.getElementById("lightbox-overlay")
-    const lbImg = document.getElementById("lightbox-img")
-    if (overlay && lbImg) {
-      lbImg.src = src
-      overlay.classList.add("active")
-    }
+    return openLightbox(src)
   }
 
   editorEl.addEventListener("click", (e) => {
     const img = e.target.closest(".inline-image")
     if (!img || resizeState) return
     const src = img.src || ""
-    if (!src || src.includes("data:image/svg+xml") || src.length < 100) return
+    if (isLightboxPlaceholder(src)) return
     e.preventDefault()
     e.stopPropagation()
-    window._openLightbox(src)
+    openLightbox(src, img.alt || "")
   })
 
   // === Formula editing on click ===
