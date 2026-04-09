@@ -1,4 +1,4 @@
-import { EditorState } from "prosemirror-state"
+import { EditorState, Plugin } from "prosemirror-state"
 import { EditorView } from "prosemirror-view"
 import { DOMParser as ProseDOMParser, DOMSerializer, Slice } from "prosemirror-model"
 import { keymap } from "prosemirror-keymap"
@@ -17,6 +17,53 @@ import { cleanWordHtml } from "./word-paste.js"
 import { importDocx } from "./word-import.js"
 import { typographyQuoteAndDashRules } from "./typography-rules.js"
 import "./styles.css"
+
+// === Non-breaking space plugin (ГОСТ §9.4-9.5) ===
+// Auto-replace regular space with nbsp after numbers+units, №, etc.
+const nbspAutoPlugin = new Plugin({
+  appendTransaction(transactions, oldState, newState) {
+    if (!transactions.some(tr => tr.docChanged)) return null
+
+    const tr = newState.tr
+    let modified = false
+
+    newState.doc.descendants((node, pos) => {
+      if (node.isText && node.text) {
+        const text = node.text
+        // Patterns requiring nbsp (ГОСТ §9.5):
+        // 1. After initials: А. Б. before surname
+        // 2. After №
+        // 3. Between number and unit: 5 м, 10 кг
+        // 4. After abbreviations: г., ул., т.д., т.е.
+
+        // Pattern: digit + regular space + short word (unit)
+        const unitPattern = /(\d)\s(мм|см|м|км|кг|г|мг|т|л|мл|с|мин|ч|Вт|В|А|Гц|Па|К|°С|%|‰)\b/g
+        let match
+        while ((match = unitPattern.exec(text)) !== null) {
+          const spacePos = pos + match.index + match[1].length
+          if (text[match.index + match[1].length] === ' ') {
+            tr.replaceWith(spacePos, spacePos + 1,
+              newState.schema.text('\u00A0'))
+            modified = true
+          }
+        }
+
+        // Pattern: № + regular space + digit
+        const numPattern = /№\s(\d)/g
+        while ((match = numPattern.exec(text)) !== null) {
+          const spacePos = pos + match.index + 1
+          if (text[match.index + 1] === ' ') {
+            tr.replaceWith(spacePos, spacePos + 1,
+              newState.schema.text('\u00A0'))
+            modified = true
+          }
+        }
+      }
+    })
+
+    return modified ? tr : null
+  }
+})
 
 // === Input rules (markdown-like shortcuts) ===
 function buildInputRules() {
@@ -308,6 +355,7 @@ function init() {
       gapCursor(),
       columnResizing(),
       tableEditing(),
+      nbspAutoPlugin,
     ]
   })
 
