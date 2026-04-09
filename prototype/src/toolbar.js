@@ -235,14 +235,7 @@ export function buildToolbar(view, toolbarEl) {
   groupDoc.appendChild(createButton("🗑", "Новый документ (очистить всё)", (state, dispatch) => {
     if (confirm("Очистить документ? Автосохранение будет удалено.")) {
       localStorage.removeItem("wysiwyg-editorum-autosave")
-      const emptyDoc = view.state.schema.node("doc", null, [
-        view.state.schema.node("paragraph")
-      ])
-      const tr = view.state.tr.replaceWith(0, view.state.doc.content.size, emptyDoc.content)
-      if (dispatch) dispatch(tr)
-      // Show import bar again
-      const importBar = document.getElementById("import-bar")
-      if (importBar) importBar.style.display = ""
+      location.reload()
     }
     return true
   }, view))
