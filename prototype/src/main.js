@@ -119,20 +119,60 @@ function updateNavigation(state) {
   const navItems = document.getElementById("nav-items")
   if (!navItems) return
 
-  const headings = []
+  const items = []
+  let figNum = 0, tblNum = 0, formulaNum = 0
+
   state.doc.forEach((node, offset) => {
+    // Headings
     if (node.type.name === "heading") {
       const level = node.attrs.level || 1
-      const text = node.textContent
-      if (text.trim()) {
-        headings.push({ level, text: text.substring(0, 60), pos: offset })
+      const text = node.textContent.trim()
+      if (text) {
+        items.push({ type: "heading", level, text: text.substring(0, 55), pos: offset })
       }
+    }
+    // Figures (paragraphs starting with "Рис" or containing images)
+    if (node.type.name === "paragraph") {
+      const text = node.textContent.trim()
+      if (/^(Рис\.|Рисунок)\s*\d/i.test(text)) {
+        figNum++
+        items.push({ type: "fig", text: text.substring(0, 50), pos: offset })
+      }
+      if (/^(Табл\.|Таблица)\s*\d/i.test(text)) {
+        tblNum++
+        items.push({ type: "tbl", text: text.substring(0, 50), pos: offset })
+      }
+    }
+    // Formulas with labels
+    if (node.type.name === "math_block" && node.attrs.label) {
+      formulaNum++
+      items.push({ type: "formula", text: `Формула ${node.attrs.label}`, pos: offset })
     }
   })
 
-  navItems.innerHTML = headings.map(h =>
-    `<div class="nav-item level-${h.level}" data-pos="${h.pos}">${escapeHtmlNav(h.text)}</div>`
-  ).join("")
+  // Build HTML with collapsible sections
+  let html = ""
+  let currentSection = null
+
+  items.forEach(item => {
+    if (item.type === "heading" && item.level === 1) {
+      if (currentSection) html += "</div>"
+      html += `<div class="nav-item level-1 nav-section-toggle" data-pos="${item.pos}">${escapeHtmlNav(item.text)}</div>`
+      html += `<div class="nav-section">`
+      currentSection = item
+    } else if (item.type === "heading") {
+      html += `<div class="nav-item level-${item.level}" data-pos="${item.pos}">${escapeHtmlNav(item.text)}</div>`
+    } else if (item.type === "fig") {
+      html += `<div class="nav-item nav-fig" data-pos="${item.pos}">🖼 ${escapeHtmlNav(item.text)}</div>`
+    } else if (item.type === "tbl") {
+      html += `<div class="nav-item nav-tbl" data-pos="${item.pos}">▦ ${escapeHtmlNav(item.text)}</div>`
+    } else if (item.type === "formula") {
+      html += `<div class="nav-item nav-formula" data-pos="${item.pos}">∑ ${escapeHtmlNav(item.text)}</div>`
+    }
+  })
+  if (currentSection) html += "</div>"
+
+  navItems.innerHTML = html
 }
 
 function escapeHtmlNav(text) {
@@ -142,8 +182,20 @@ function escapeHtmlNav(text) {
 // Event delegation for nav clicks — works even after innerHTML updates
 document.getElementById("nav-items")?.addEventListener("click", (e) => {
   const item = e.target.closest(".nav-item")
-  if (!item || !_editorView) return
+  if (!item) return
 
+  // Toggle section collapse
+  if (item.classList.contains("nav-section-toggle")) {
+    item.classList.toggle("collapsed")
+    const section = item.nextElementSibling
+    if (section && section.classList.contains("nav-section")) {
+      section.classList.toggle("collapsed")
+    }
+    // Don't navigate, just toggle
+    if (!e.ctrlKey) return
+  }
+
+  if (!_editorView) return
   const pos = parseInt(item.dataset.pos)
   if (isNaN(pos)) return
 
@@ -154,11 +206,8 @@ document.getElementById("nav-items")?.addEventListener("click", (e) => {
     const tr = _editorView.state.tr.setSelection(selection)
     _editorView.dispatch(tr)
 
-    // Scroll heading to top third of viewport
     const coords = _editorView.coordsAtPos(pos + 1)
     if (coords) {
-      const viewportHeight = window.innerHeight
-      const targetY = coords.top - viewportHeight * 0.15  // 15% from top
       window.scrollTo({ top: window.scrollY + (coords.top - window.innerHeight * 0.15), behavior: "smooth" })
     }
   } catch (err) {
@@ -297,11 +346,16 @@ function init() {
   _editorView = view  // Save reference for navigation clicks
   window.editorView = view
 
-  // Close lightbox on Escape
+  // Close lightbox on Escape or click
+  const lbOverlay = document.getElementById("lightbox-overlay")
+  if (lbOverlay) {
+    lbOverlay.addEventListener("click", () => {
+      lbOverlay.classList.remove("active")
+    })
+  }
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
-      const overlay = document.getElementById("lightbox-overlay")
-      if (overlay) overlay.classList.remove("active")
+      if (lbOverlay) lbOverlay.classList.remove("active")
     }
   })
 

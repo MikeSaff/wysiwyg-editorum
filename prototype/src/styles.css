@@ -204,6 +204,18 @@ header .hint {
 #nav-panel .nav-item.level-2 { padding-left: 24px; }
 #nav-panel .nav-item.level-3 { padding-left: 36px; font-size: 12px; color: #666; }
 
+/* Structural elements in nav */
+#nav-panel .nav-fig { padding-left: 28px; font-size: 11px; color: #0d47a1; }
+#nav-panel .nav-tbl { padding-left: 28px; font-size: 11px; color: #1b5e20; }
+#nav-panel .nav-formula { padding-left: 28px; font-size: 11px; color: #e65100; }
+
+/* Collapsible sections */
+#nav-panel .nav-section-toggle { cursor: pointer; }
+#nav-panel .nav-section-toggle::before { content: "▼ "; font-size: 9px; }
+#nav-panel .nav-section-toggle.collapsed::before { content: "▶ "; }
+#nav-panel .nav-section.collapsed { display: none; }
+#nav-panel .nav-section { margin-bottom: 4px; }
+
 /* === Editor === */
 #editor {
   background: #fff;
