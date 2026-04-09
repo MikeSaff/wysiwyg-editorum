@@ -381,19 +381,17 @@ function init() {
     }
   })
 
-  // Restore from autosave on page load
+  // Restore from autosave on page load — silent, no confirm dialog
   try {
     const saved = localStorage.getItem(AUTOSAVE_KEY)
     if (saved) {
       const savedDoc = schema.nodeFromJSON(JSON.parse(saved))
-      // Only restore if it's different from initial doc
       if (savedDoc.content.size > 10) {
-        const restore = confirm("Найден автосохранённый документ. Восстановить?")
-        if (restore) {
-          const tr = view.state.tr.replaceWith(0, view.state.doc.content.size, savedDoc.content)
-          view.dispatch(tr)
-        } else {
-          localStorage.removeItem(AUTOSAVE_KEY)
+        const tr = view.state.tr.replaceWith(0, view.state.doc.content.size, savedDoc.content)
+        view.dispatch(tr)
+        if (statusEl) {
+          statusEl.textContent = "📄 Восстановлен автосохранённый документ"
+          setTimeout(() => { statusEl.textContent = "" }, 3000)
         }
       }
     }
