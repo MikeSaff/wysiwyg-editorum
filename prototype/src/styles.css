@@ -457,13 +457,24 @@ header .hint {
   border-radius: 2px;
 }
 
-/* Paragraph containing only an image — no extra spacing */
-.ProseMirror p:has(> img.inline-image:only-child),
+/* Paragraph containing an image — collapse extra spacing */
 .ProseMirror p:has(> img.inline-image) {
   text-indent: 0;
   margin: 0;
   padding: 0;
-  line-height: 1;
+  line-height: 0;
+  font-size: 0;
+}
+
+/* ProseMirror internal elements after images — hide */
+.ProseMirror p > img.ProseMirror-separator,
+.ProseMirror p > br.ProseMirror-trailingBreak {
+  display: none;
+}
+
+/* Restore normal line-height for image itself */
+.ProseMirror p > img.inline-image {
+  line-height: normal;
 }
 
 /* === Remove empty paragraphs around block elements === */
