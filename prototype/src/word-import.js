@@ -597,7 +597,55 @@ function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
     // Namespace-agnostic row/cell finding
     const rows = findElementsByLocalName(tbl, "tr")
 
-    // Formula tables typically have 1 row, 2-3 columns
+    // Check if this table contains ANY math — if so, treat as formula table
+    const allMathInTable = findElementsByLocalName(tbl, "oMath")
+    if (allMathInTable.length > 0 && rows.length <= 3) {
+      // Formula table — may have 1-3 rows
+      // Collect all formula content and labels across all rows
+      let formulaLatex = ""
+      let label = ""
+      const allCells = []
+      for (const row of rows) {
+        const cells = findElementsByLocalName(row, "tc")
+        for (const cell of cells) allCells.push(cell)
+      }
+
+      for (const cell of allCells) {
+        const cellText = cell.textContent.trim()
+        const mathElements = findElementsByLocalName(cell, "oMath")
+        const mathParaElements = findElementsByLocalName(cell, "oMathPara")
+
+        if (mathParaElements.length > 0 || mathElements.length > 0) {
+          const mathEls = mathParaElements.length > 0
+            ? findElementsByLocalName(mathParaElements[0], "oMath")
+            : mathElements
+          const topMaths = mathEls.length > 0 ? mathEls : mathElements
+          for (const m of topMaths) {
+            formulaLatex += ommlToLatex(m) + " "
+          }
+        } else if (!label) {
+          // Check for formula label
+          const simpleLabel = cellText.match(/^\((\d+)\)$/)
+          const seqLabel = cellText.match(/SEQ\s+\S+\s+\\?\*\s*ARABIC\s+(\d+)/)
+          // Also try: text contains just a number surrounded by parens somewhere
+          const fieldResult = cellText.match(/\(?\s*(\d+)\s*\)?/)
+          if (simpleLabel) {
+            label = `(${simpleLabel[1]})`
+          } else if (seqLabel) {
+            label = `(${seqLabel[1]})`
+          } else if (fieldResult && cellText.length < 20 && /SEQ|ARABIC/.test(cellText)) {
+            label = `(${fieldResult[1]})`
+          }
+        }
+      }
+
+      if (formulaLatex.trim()) {
+        const labelAttr = label ? ` data-label="${escapeAttr(label)}"` : ""
+        return `<div class="math-block" data-latex="${escapeAttr(formulaLatex.trim())}"${labelAttr}>${escapeHtml(formulaLatex.trim())}</div>\n`
+      }
+    }
+
+    // Legacy path for single-row tables (kept for compatibility)
     if (rows.length === 1) {
       const cells = findElementsByLocalName(rows[0], "tc")
       if (cells.length >= 1 && cells.length <= 3) {
