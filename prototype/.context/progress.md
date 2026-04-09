@@ -31,8 +31,9 @@
 | v0.34 | 2026-04-09 | Codex: 32 формулы OK |
 | v0.38 | 2026-04-09 | Навигация: рисунки/формулы/таблицы, правки lightbox |
 | **v0.39** | **2026-04-09** | **Документация контекста: `.context/activeContext.md`, расширенный `progress.md`, Ticket protocol** |
+| **v0.40** | **2026-04-09** | **ГОСТ §16: кавычки «»„" и тире —/– (input rules), `typography-rules.js`, тесты** |
 
-*Следующая версия (v0.40+): добавлять строку при значимом релизе или по договорённости команды.*
+*Следующая версия (v0.41+): добавлять строку при значимом релизе или по договорённости команды.*
 
 ---
 
@@ -41,11 +42,7 @@
 | # | Задача | Кто | Файлы | Статус | Билд |
 |---|--------|-----|-------|--------|------|
 | — | Документация: правила, владение файлами, Ticket protocol | Composer | `.context/activeContext.md`, `.context/progress.md` | ✅ | OK |
-| 16 | OMML: multiline/comma/integral fix, 32 формулы и регрессионные тесты | Codex | `src/word-import.js`, `tests/word-import.test.js`, `tests/fixtures/omml-fixtures.js`, `package.json`, `src/styles.css`* | ✅ | OK |
-| 19 | OMML: запятые в формулах, `cases`, вынос `u∈U/w∈W/t∈[...]` из (2), split строк в (4)/(15)/(16), фиксы тестов | Codex | `src/word-import.js`, `tests/word-import.test.js`, `.context/progress.md` | ✅ | OK |
-| 20 | OMML follow-up: split auxiliary conditions через whitespace-run (`w∈W`, `t∈[...]`) | Codex | `src/word-import.js`, `tests/word-import.test.js`, `.context/progress.md` | ✅ | OK |
-| 21 | Тестовый follow-up: скорректировано synthetic-ожидание по хвостовой запятой в auxiliary conditions | Codex | `tests/word-import.test.js`, `.context/progress.md` | ✅ | OK |
-| 22 | Lightbox: overlay click close, image click stopPropagation, Escape close, SVG placeholders blocked | Codex | `src/main.js`, `.context/progress.md` | ✅ | OK |
+| — | COMPOSER-TYPOGRAPHY: кавычки «»„", тире `---`→—, `--`+символ→–; убраны smartQuotes/emDash PM | Composer | `src/typography-rules.js`, `src/main.js`, `tests/typography-rules.test.js` | ✅ | OK |
 
 ### Ранее в этот день (сводка)
 
@@ -73,8 +70,11 @@
 
 | # | Задача | Кто | Приоритет |
 |---|--------|-----|-----------|
+| 16 | OMML: запятые в формулах (разделение строк, не ломать `f(x,y)`) | Codex | HIGH |
 | 17 | Lightbox: чёрный фон не закрывается | Claude | HIGH |
 | 18 | Знак «=» разного оттенка (subpixel) | — | LOW |
+
+**Детали #16 (Codex):** см. `activeContext.md`; тест: `docs/test_semion_full.docx` (32 формулы), особенно (2), (4), (15), (16).
 
 ---
 
@@ -89,13 +89,6 @@
 | 23 | Экспорт в HTML5 | MEDIUM |
 | 24 | Экспорт в PDF | MEDIUM |
 | 25 | Мультиязычность (AI-перевод) | LOW |
-
----
-
-## Notes
-
-- `*` `src/styles.css` owner = Claude. Codex внёс минимальный CSS fix `.ProseMirror .katex .mrel { color: inherit; }` для выравнивания цвета `=`; нужен review владельца по file-ownership protocol.
-- `src/main.js` owner = Claude. Lightbox fix внесён Codex по прямому тикету `CODEX-TASK-LIGHTBOX.md`; при желании владелец может сделать follow-up review.
 
 ---
 

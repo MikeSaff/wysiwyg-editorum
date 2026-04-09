@@ -32,6 +32,7 @@
 | `src/schema.js` | Claude | типы узлов, marks, атрибуты |
 | `src/word-import.js` | Codex | OMML, таблицы, формулы, импорт .docx |
 | `src/context-menu.js` | Composer | контекстное меню, floating toolbar |
+| `src/typography-rules.js` | Composer | ГОСТ §16 input rules: кавычки, тире (импорт в `main.js`) |
 | `src/toolbar.js` | Claude | кнопки панели инструментов |
 | `src/main.js` | Claude | инициализация view, lightbox, навигация, autosave; Composer — только точечное подключение своих модулей (например `setupContextMenu`) |
 | `src/styles.css` | Claude | общий CSS; Composer добавляет секции по согласованию (например `/* === Context Menu === */`) |
