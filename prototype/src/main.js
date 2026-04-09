@@ -417,7 +417,8 @@ function init() {
     }
   })
 
-  // Restore from autosave on page load — silent, no confirm dialog
+  // Restore from autosave — only if not a forced reload
+  // User can clear with "Новый документ" button
   try {
     const saved = localStorage.getItem(AUTOSAVE_KEY)
     if (saved) {
@@ -426,8 +427,8 @@ function init() {
         const tr = view.state.tr.replaceWith(0, view.state.doc.content.size, savedDoc.content)
         view.dispatch(tr)
         if (statusEl) {
-          statusEl.textContent = "📄 Восстановлен автосохранённый документ"
-          setTimeout(() => { statusEl.textContent = "" }, 3000)
+          statusEl.textContent = "📄 Восстановлен документ. «📂 Новый» для сброса."
+          setTimeout(() => { statusEl.textContent = "" }, 4000)
         }
       }
     }

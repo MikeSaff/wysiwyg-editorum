@@ -232,6 +232,20 @@ export function buildToolbar(view, toolbarEl) {
   const groupDoc = createGroup("Документ")
   groupDoc.appendChild(createButton("↩", "Отменить (Ctrl+Z)", undo, view))
   groupDoc.appendChild(createButton("↪", "Вернуть (Ctrl+Y)", redo, view))
+  groupDoc.appendChild(createButton("🗑", "Новый документ (очистить всё)", (state, dispatch) => {
+    if (confirm("Очистить документ? Автосохранение будет удалено.")) {
+      localStorage.removeItem("wysiwyg-editorum-autosave")
+      const emptyDoc = view.state.schema.node("doc", null, [
+        view.state.schema.node("paragraph")
+      ])
+      const tr = view.state.tr.replaceWith(0, view.state.doc.content.size, emptyDoc.content)
+      if (dispatch) dispatch(tr)
+      // Show import bar again
+      const importBar = document.getElementById("import-bar")
+      if (importBar) importBar.style.display = ""
+    }
+    return true
+  }, view))
   groupDoc.appendChild(createButton("💾", "Сохранить документ (скачать JSON)", (state, dispatch) => {
     const json = JSON.stringify(state.doc.toJSON(), null, 2)
     const blob = new Blob([json], { type: "application/json" })
