@@ -16,7 +16,7 @@ import { DOMParser as ProseDOMParser } from "prosemirror-model"
  * Handles common OMML structures: fractions, subscripts, superscripts,
  * square roots, matrices, integrals, summations.
  */
-function ommlToLatex(ommlElement) {
+export function ommlToLatex(ommlElement) {
   const ns = "http://schemas.openxmlformats.org/officeDocument/2006/math"
 
   function processNode(node) {
@@ -86,19 +86,21 @@ function ommlToLatex(ommlElement) {
         if (rText === "=") return " = "
         if (rText === "+") return " + "
         if (rText === "-" || rText === "−" || rText === "\u2212") return " - "
-        if (rText === ",") return ", \\;"
+        if (rText === ",") return ","
+        if (rText === ".") return "."
+        if (rText === ";") return ";"
         if (rText === "[") return "\\left["
         if (rText === "]") return "\\right]"
         return rText
 
       case "f": // Fraction
-        const num = node.getElementsByTagNameNS(ns, "num")[0]
-        const den = node.getElementsByTagNameNS(ns, "den")[0]
+        const num = getFirstDirectChildByLocalName(node, "num")
+        const den = getFirstDirectChildByLocalName(node, "den")
         const numText = processChildren(num).trim()
         const denText = processChildren(den).trim()
 
         // Check fPr for linear fraction type
-        const fPr = node.getElementsByTagNameNS(ns, "fPr")[0]
+        const fPr = getFirstDirectChildByLocalName(node, "fPr")
         if (fPr) {
           const fType = fPr.getElementsByTagNameNS(ns, "type")[0]
           const typeVal = fType ? (fType.getAttribute("m:val") || fType.getAttributeNS(ns, "val")) : null
@@ -123,24 +125,24 @@ function ommlToLatex(ommlElement) {
         return `\\dfrac{${numText}}{${denText}}`
 
       case "sSub": // Subscript
-        const subBase = node.getElementsByTagNameNS(ns, "e")[0]
-        const sub = node.getElementsByTagNameNS(ns, "sub")[0]
+        const subBase = getFirstDirectChildByLocalName(node, "e")
+        const sub = getFirstDirectChildByLocalName(node, "sub")
         return `${processChildren(subBase)}_{${processChildren(sub)}}`
 
       case "sSup": // Superscript
-        const supBase = node.getElementsByTagNameNS(ns, "e")[0]
-        const sup = node.getElementsByTagNameNS(ns, "sup")[0]
+        const supBase = getFirstDirectChildByLocalName(node, "e")
+        const sup = getFirstDirectChildByLocalName(node, "sup")
         return `${processChildren(supBase)}^{${processChildren(sup)}}`
 
       case "sSubSup": // Sub-superscript
-        const ssbBase = node.getElementsByTagNameNS(ns, "e")[0]
-        const ssbSub = node.getElementsByTagNameNS(ns, "sub")[0]
-        const ssbSup = node.getElementsByTagNameNS(ns, "sup")[0]
+        const ssbBase = getFirstDirectChildByLocalName(node, "e")
+        const ssbSub = getFirstDirectChildByLocalName(node, "sub")
+        const ssbSup = getFirstDirectChildByLocalName(node, "sup")
         return `${processChildren(ssbBase)}_{${processChildren(ssbSub)}}^{${processChildren(ssbSup)}}`
 
       case "rad": // Radical/square root
-        const radDeg = node.getElementsByTagNameNS(ns, "deg")[0]
-        const radE = node.getElementsByTagNameNS(ns, "e")[0]
+        const radDeg = getFirstDirectChildByLocalName(node, "deg")
+        const radE = getFirstDirectChildByLocalName(node, "e")
         const degree = processChildren(radDeg).trim()
         if (degree && degree !== "") {
           return `\\sqrt[${degree}]{${processChildren(radE)}}`
@@ -148,7 +150,7 @@ function ommlToLatex(ommlElement) {
         return `\\sqrt{${processChildren(radE)}}`
 
       case "d": // Delimiter (parentheses, brackets, braces)
-        const dPr = node.getElementsByTagNameNS(ns, "dPr")[0]
+        const dPr = getFirstDirectChildByLocalName(node, "dPr")
         let begChar = "("
         let endChar = ")"
         if (dPr) {
@@ -207,7 +209,7 @@ function ommlToLatex(ommlElement) {
         return `\\left${leftDel} ${dContent} \\right${rightDel}`
 
       case "nary": // N-ary operator (sum, integral, product)
-        const naryPr = node.getElementsByTagNameNS(ns, "naryPr")[0]
+        const naryPr = getFirstDirectChildByLocalName(node, "naryPr")
         let operator = "\\int"
         if (naryPr) {
           const chr = naryPr.getElementsByTagNameNS(ns, "chr")[0]
@@ -217,9 +219,9 @@ function ommlToLatex(ommlElement) {
           else if (val === "∫") operator = "\\int"
           else if (val === "∬") operator = "\\iint"
         }
-        const narySub = node.getElementsByTagNameNS(ns, "sub")[0]
-        const narySup = node.getElementsByTagNameNS(ns, "sup")[0]
-        const naryE = node.getElementsByTagNameNS(ns, "e")[0]
+        const narySub = getFirstDirectChildByLocalName(node, "sub")
+        const narySup = getFirstDirectChildByLocalName(node, "sup")
+        const naryE = getFirstDirectChildByLocalName(node, "e")
         let naryLatex = operator
         if (narySub) naryLatex += `_{${processChildren(narySub)}}`
         if (narySup) naryLatex += `^{${processChildren(narySup)}}`
@@ -227,8 +229,8 @@ function ommlToLatex(ommlElement) {
         return naryLatex
 
       case "acc": // Accent (hat, bar, dot, etc.)
-        const accPr = node.getElementsByTagNameNS(ns, "accPr")[0]
-        const accE = node.getElementsByTagNameNS(ns, "e")[0]
+        const accPr = getFirstDirectChildByLocalName(node, "accPr")
+        const accE = getFirstDirectChildByLocalName(node, "e")
         let accCmd = "\\hat"
         if (accPr) {
           const accChr = accPr.getElementsByTagNameNS(ns, "chr")[0]
@@ -292,7 +294,8 @@ function ommlToLatex(ommlElement) {
 
         // Process rows - only direct child mr elements
         const directMrs = []
-        for (const child of node.childNodes) {
+        for (let i = 0; i < node.childNodes.length; i++) {
+          const child = node.childNodes[i]
           if (child.nodeType === 1 && (child.localName === "mr" || child.nodeName?.endsWith(":mr"))) {
             directMrs.push(child)
           }
@@ -301,7 +304,8 @@ function ommlToLatex(ommlElement) {
         const rows = directMrs.map(row => {
           // Get only direct child e elements of this row
           const cells = []
-          for (const child of row.childNodes) {
+          for (let i = 0; i < row.childNodes.length; i++) {
+            const child = row.childNodes[i]
             if (child.nodeType === 1 && (child.localName === "e" || child.nodeName?.endsWith(":e"))) {
               cells.push(processChildren(child))
             }
@@ -319,7 +323,8 @@ function ommlToLatex(ommlElement) {
       case "eqArr": // Equation array
         // Only direct child <e> elements, not nested ones
         const eqRows = []
-        for (const child of node.childNodes) {
+        for (let i = 0; i < node.childNodes.length; i++) {
+          const child = node.childNodes[i]
           if (child.nodeType === 1 && (child.localName === "e" || child.nodeName?.endsWith(":e"))) {
             eqRows.push(processChildren(child))
           }
@@ -327,16 +332,16 @@ function ommlToLatex(ommlElement) {
         return eqRows.join(" \\\\ ")
 
       case "bar": // Over/under bar
-        const barE = node.getElementsByTagNameNS(ns, "e")[0]
+        const barE = getFirstDirectChildByLocalName(node, "e")
         return `\\overline{${processChildren(barE)}}`
 
       case "box": // Box
-        const boxE = node.getElementsByTagNameNS(ns, "e")[0]
+        const boxE = getFirstDirectChildByLocalName(node, "e")
         return processChildren(boxE)
 
       case "func": // Function (sin, cos, etc.)
-        const fName = node.getElementsByTagNameNS(ns, "fName")[0]
-        const funcE = node.getElementsByTagNameNS(ns, "e")[0]
+        const fName = getFirstDirectChildByLocalName(node, "fName")
+        const funcE = getFirstDirectChildByLocalName(node, "e")
         // fName may contain limLow/limUpp — don't duplicate
         const fNameContent = processChildren(fName).trim()
         const funcContent = processChildren(funcE)
@@ -349,12 +354,12 @@ function ommlToLatex(ommlElement) {
         return `${latexFunc} ${funcContent}`
 
       case "groupChr": // Group character (over/under brace)
-        const gcE = node.getElementsByTagNameNS(ns, "e")[0]
+        const gcE = getFirstDirectChildByLocalName(node, "e")
         return processChildren(gcE)
 
       case "limLow": // Lower limit (e.g., lim_{x→∞})
-        const limBase = node.getElementsByTagNameNS(ns, "e")[0]
-        const limLim = node.getElementsByTagNameNS(ns, "lim")[0]
+        const limBase = getFirstDirectChildByLocalName(node, "e")
+        const limLim = getFirstDirectChildByLocalName(node, "lim")
         const limBaseText = processChildren(limBase).trim()
         const limLimText = processChildren(limLim).trim()
         // If base is "lim", use \lim with subscript
@@ -364,8 +369,8 @@ function ommlToLatex(ommlElement) {
         return `${limBaseText}_{${limLimText}}`
 
       case "limUpp": // Upper limit
-        const limUBase = node.getElementsByTagNameNS(ns, "e")[0]
-        const limULim = node.getElementsByTagNameNS(ns, "lim")[0]
+        const limUBase = getFirstDirectChildByLocalName(node, "e")
+        const limULim = getFirstDirectChildByLocalName(node, "lim")
         return `${processChildren(limUBase)}^{${processChildren(limULim)}}`
 
       // Skip presentation/property elements
@@ -397,7 +402,8 @@ function ommlToLatex(ommlElement) {
   function processChildren(node) {
     if (!node) return ""
     let result = ""
-    for (const child of node.childNodes) {
+    for (let i = 0; i < node.childNodes.length; i++) {
+      const child = node.childNodes[i]
       if (child.nodeType === 1) { // Element node
         result += processNode(child)
       }
@@ -411,7 +417,7 @@ function ommlToLatex(ommlElement) {
 /**
  * Parse DOCX document.xml and convert to HTML with LaTeX math.
  */
-function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
+export function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
   const parser = new DOMParser()
   const doc = parser.parseFromString(xmlString, "application/xml")
 
@@ -427,7 +433,8 @@ function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
 
   // Collect all child elements into array for look-ahead
   const bodyChildren = []
-  for (const child of body.childNodes) {
+  for (let i = 0; i < body.childNodes.length; i++) {
+    const child = body.childNodes[i]
     if (child.nodeType === 1) bodyChildren.push(child)
   }
 
@@ -455,7 +462,9 @@ function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
                 const nextName = next.localName || next.nodeName?.split(":").pop()
                 if (nextName === "p") {
                   const nextTexts = []
-                  for (const t of next.getElementsByTagNameNS(wNs, "t")) {
+                  const nextTextRuns = next.getElementsByTagNameNS(wNs, "t")
+                  for (let ti = 0; ti < nextTextRuns.length; ti++) {
+                    const t = nextTextRuns[ti]
                     if (t.textContent) nextTexts.push(t.textContent)
                   }
                   const nextText = nextTexts.join("").trim()
@@ -519,7 +528,8 @@ function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
     let content = ""
     let hasContent = false
 
-    for (const child of p.childNodes) {
+    for (let i = 0; i < p.childNodes.length; i++) {
+      const child = p.childNodes[i]
       if (child.nodeType !== 1) continue
       const cName = child.localName || child.nodeName?.split(":").pop()
 
@@ -549,7 +559,8 @@ function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
         }
       } else if (cName === "hyperlink") {
         // Hyperlink
-        for (const hChild of child.childNodes) {
+        for (let hi = 0; hi < child.childNodes.length; hi++) {
+          const hChild = child.childNodes[hi]
           if (hChild.nodeType === 1) {
             const hcName = hChild.localName || hChild.nodeName?.split(":").pop()
             if (hcName === "r") {
@@ -573,7 +584,8 @@ function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
     let text = ""
 
     // Get text content
-    for (const child of r.childNodes) {
+    for (let i = 0; i < r.childNodes.length; i++) {
+      const child = r.childNodes[i]
       const cName = child.localName || child.nodeName?.split(":").pop()
       if (cName === "t") {
         text += child.textContent || ""
@@ -591,7 +603,8 @@ function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
       } else if (cName === "drawing") {
         // Extract image from drawing element
         const blips = child.getElementsByTagNameNS("http://schemas.openxmlformats.org/drawingml/2006/main", "blip")
-        for (const blip of blips) {
+        for (let bi = 0; bi < blips.length; bi++) {
+          const blip = blips[bi]
           const rEmbed = blip.getAttribute("r:embed") || blip.getAttributeNS("http://schemas.openxmlformats.org/officeDocument/2006/relationships", "embed")
           if (rEmbed && imageRels[rEmbed]) {
             text += `<img src="${imageRels[rEmbed]}" alt="image" class="inline-image">`
@@ -637,53 +650,23 @@ function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
    */
   function processTableOrFormula(tbl, wNs, mNs) {
     // Namespace-agnostic row/cell finding
-    const rows = findElementsByLocalName(tbl, "tr")
+    const rows = getDirectChildElementsByLocalName(tbl, "tr")
 
     // Check if this table contains ANY math — if so, treat as formula table
     const allMathInTable = findElementsByLocalName(tbl, "oMath")
     if (allMathInTable.length > 0 && rows.length <= 3) {
-      // Formula table — may have 1-3 rows
-      // Collect all formula content and labels across all rows
-      let formulaLatex = ""
-      let label = ""
-      const allCells = []
+      const blocks = []
+
       for (const row of rows) {
-        const cells = findElementsByLocalName(row, "tc")
-        for (const cell of cells) allCells.push(cell)
-      }
-
-      for (const cell of allCells) {
-        const cellText = cell.textContent.trim()
-        const mathElements = findElementsByLocalName(cell, "oMath")
-        const mathParaElements = findElementsByLocalName(cell, "oMathPara")
-
-        if (mathParaElements.length > 0 || mathElements.length > 0) {
-          const mathEls = mathParaElements.length > 0
-            ? findElementsByLocalName(mathParaElements[0], "oMath")
-            : mathElements
-          const topMaths = mathEls.length > 0 ? mathEls : mathElements
-          for (const m of topMaths) {
-            formulaLatex += ommlToLatex(m) + " "
-          }
-        } else if (!label) {
-          // Check for formula label
-          const simpleLabel = cellText.match(/^\((\d+)\)$/)
-          const seqLabel = cellText.match(/SEQ\s+\S+\s+\\?\*\s*ARABIC\s+(\d+)/)
-          // Also try: text contains just a number surrounded by parens somewhere
-          const fieldResult = cellText.match(/\(?\s*(\d+)\s*\)?/)
-          if (simpleLabel) {
-            label = `(${simpleLabel[1]})`
-          } else if (seqLabel) {
-            label = `(${seqLabel[1]})`
-          } else if (fieldResult && cellText.length < 20 && /SEQ|ARABIC/.test(cellText)) {
-            label = `(${fieldResult[1]})`
-          }
+        const rowFormula = extractFormulaFromRow(row)
+        if (rowFormula?.latex) {
+          const labelAttr = rowFormula.label ? ` data-label="${escapeAttr(rowFormula.label)}"` : ""
+          blocks.push(`<div class="math-block" data-latex="${escapeAttr(rowFormula.latex)}"${labelAttr}>${escapeHtml(rowFormula.latex)}</div>\n`)
         }
       }
 
-      if (formulaLatex.trim()) {
-        const labelAttr = label ? ` data-label="${escapeAttr(label)}"` : ""
-        return `<div class="math-block" data-latex="${escapeAttr(formulaLatex.trim())}"${labelAttr}>${escapeHtml(formulaLatex.trim())}</div>\n`
+      if (blocks.length > 0) {
+        return blocks.join("")
       }
     }
 
@@ -754,12 +737,14 @@ function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
       const cells = findElementsByLocalName(row, "tc")
       for (const cell of cells) {
         html += "<td>"
-        for (const child of cell.childNodes) {
+        for (let i = 0; i < cell.childNodes.length; i++) {
+          const child = cell.childNodes[i]
           const cName = child.localName || child.nodeName?.split(":").pop()
           if (cName === "p") {
             // Don't wrap in <p> inside table cells for simplicity
             let cellContent = ""
-            for (const pChild of child.childNodes) {
+            for (let pi = 0; pi < child.childNodes.length; pi++) {
+              const pChild = child.childNodes[pi]
               if (pChild.nodeType !== 1) continue
               const pcName = pChild.localName || pChild.nodeName?.split(":").pop()
               if (pcName === "r") cellContent += processRun(pChild, wNs)
@@ -778,6 +763,134 @@ function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
     html += "</table>"
     return html
   }
+
+  function extractFormulaFromRow(row) {
+    const cells = getDirectChildElementsByLocalName(row, "tc")
+    const formulaLines = []
+    let label = ""
+
+    for (const cell of cells) {
+      const hasMath = findElementsByLocalName(cell, "oMath").length > 0 || findElementsByLocalName(cell, "oMathPara").length > 0
+      const cellText = normalizeFormulaWhitespace(cell.textContent || "")
+
+      if (hasMath) {
+        const cellLines = extractFormulaLinesFromCell(cell)
+        if (cellLines.length > 0) {
+          formulaLines.push(...cellLines)
+        }
+      } else if (!label) {
+        label = extractFormulaLabel(cellText) || label
+      }
+    }
+
+    if (formulaLines.length === 0) return null
+
+    return {
+      latex: formulaLines.join(" \\\\ "),
+      label
+    }
+  }
+
+  function extractFormulaLinesFromCell(cell) {
+    const lines = []
+    const paragraphs = getDirectChildElementsByLocalName(cell, "p")
+
+    for (const paragraph of paragraphs) {
+      const line = extractFormulaLineFromParagraph(paragraph)
+      if (line) lines.push(line)
+    }
+
+    if (lines.length > 0) return lines
+
+    const fallbackMaths = findElementsByLocalName(cell, "oMath")
+    if (fallbackMaths.length === 0) return []
+
+    return [fallbackMaths.map(m => ommlToLatex(m)).filter(Boolean).join(" ")]
+  }
+
+  function extractFormulaLineFromParagraph(paragraph) {
+    let line = ""
+    let hasMath = false
+
+    for (let i = 0; i < paragraph.childNodes.length; i++) {
+      const child = paragraph.childNodes[i]
+      if (child.nodeType !== 1) continue
+      const childName = child.localName || child.nodeName?.split(":").pop()
+
+      if (childName === "oMath") {
+        const latex = ommlToLatex(child)
+        if (!latex) continue
+        hasMath = true
+        line = appendFormulaMath(line, latex)
+      } else if (childName === "oMathPara") {
+        const maths = findElementsByLocalName(child, "oMath")
+        for (const math of maths) {
+          const latex = ommlToLatex(math)
+          if (!latex) continue
+          hasMath = true
+          line = appendFormulaMath(line, latex)
+        }
+      } else if (childName === "r") {
+        line = appendFormulaText(line, extractPlainTextFromRun(child))
+      }
+    }
+
+    if (!hasMath) return ""
+    return normalizeFormulaWhitespace(line)
+  }
+
+  function appendFormulaMath(current, latex) {
+    if (!current) return latex.trim()
+    if (/[({[\s]$/.test(current)) return `${current}${latex.trim()}`
+    if (/[=+\-*/]\\?$/.test(current)) return `${current}${latex.trim()}`
+    return `${current} ${latex.trim()}`
+  }
+
+  function appendFormulaText(current, text) {
+    const normalized = normalizeFormulaWhitespace(text)
+    if (!normalized) return current
+
+    if (/^[,.;:]$/.test(normalized)) {
+      return `${current.replace(/\s+$/u, "")}${normalized}`
+    }
+
+    if (!current) return normalized
+    return `${current} ${normalized}`
+  }
+
+  function extractPlainTextFromRun(run) {
+    let text = ""
+    for (let i = 0; i < run.childNodes.length; i++) {
+      const child = run.childNodes[i]
+      const childName = child.localName || child.nodeName?.split(":").pop()
+      if (childName === "t" || childName === "instrText") {
+        text += child.textContent || ""
+      } else if (childName === "tab" || childName === "br") {
+        text += " "
+      }
+    }
+    return text
+  }
+
+  function extractFormulaLabel(text) {
+    const simpleLabel = text.match(/^\((\d+)\)$/)
+    const seqLabel = text.match(/SEQ\s+\S+\s+\\?\*\s*ARABIC\s+(\d+)/)
+    const fieldResult = text.match(/\(?\s*(\d+)\s*\)?/)
+
+    if (simpleLabel) return `(${simpleLabel[1]})`
+    if (seqLabel) return `(${seqLabel[1]})`
+    if (fieldResult && text.length < 40 && /SEQ|ARABIC/.test(text)) {
+      return `(${fieldResult[1]})`
+    }
+    return ""
+  }
+
+  function normalizeFormulaWhitespace(text) {
+    return text
+      .replace(/\s+/gu, " ")
+      .replace(/\s+([,.;:])/gu, "$1")
+      .trim()
+  }
 }
 
 /**
@@ -787,7 +900,8 @@ function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
 function findElementsByLocalName(parent, localName) {
   const results = []
   function walk(node) {
-    for (const child of node.childNodes) {
+    for (let i = 0; i < node.childNodes.length; i++) {
+      const child = node.childNodes[i]
       if (child.nodeType === 1) {
         const ln = child.localName || child.nodeName?.split(":").pop() || ""
         if (ln === localName) {
@@ -800,6 +914,21 @@ function findElementsByLocalName(parent, localName) {
   }
   walk(parent)
   return results
+}
+
+function getDirectChildElementsByLocalName(parent, localName) {
+  const results = []
+  for (let i = 0; i < parent.childNodes.length; i++) {
+    const child = parent.childNodes[i]
+    if (child.nodeType !== 1) continue
+    const ln = child.localName || child.nodeName?.split(":").pop() || ""
+    if (ln === localName) results.push(child)
+  }
+  return results
+}
+
+function getFirstDirectChildByLocalName(parent, localName) {
+  return getDirectChildElementsByLocalName(parent, localName)[0] || null
 }
 
 function escapeHtml(text) {
@@ -855,7 +984,8 @@ export async function importDocx(file) {
     const relsParser = new DOMParser()
     const relsDoc = relsParser.parseFromString(relsXml, "application/xml")
     const rels = relsDoc.getElementsByTagName("Relationship")
-    for (const rel of rels) {
+    for (let i = 0; i < rels.length; i++) {
+      const rel = rels[i]
       const id = rel.getAttribute("Id")
       const target = rel.getAttribute("Target")
       if (target && target.startsWith("media/")) {
@@ -873,13 +1003,15 @@ export async function importDocx(file) {
     const fnDoc = fnParser.parseFromString(fnXml, "application/xml")
     const wNs = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
     const fnNodes = fnDoc.getElementsByTagNameNS(wNs, "footnote")
-    for (const fn of fnNodes) {
+    for (let i = 0; i < fnNodes.length; i++) {
+      const fn = fnNodes[i]
       const fnId = fn.getAttribute("w:id") || fn.getAttributeNS(wNs, "id")
       if (fnId && fnId !== "0" && fnId !== "-1") {
         // Get text content of footnote
         let fnText = ""
         const runs = fn.getElementsByTagNameNS(wNs, "t")
-        for (const t of runs) {
+        for (let ri = 0; ri < runs.length; ri++) {
+          const t = runs[ri]
           fnText += t.textContent || ""
         }
         footnotes[fnId] = fnText.trim()

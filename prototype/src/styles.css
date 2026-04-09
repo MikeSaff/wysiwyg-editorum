@@ -481,6 +481,10 @@ header .hint {
   font-size: 1em;
 }
 
+.ProseMirror .katex .mrel {
+  color: inherit;
+}
+
 /* === Figure === */
 .ProseMirror figure {
   margin: 1.5em 0;
@@ -491,6 +495,39 @@ header .hint {
   max-width: 100%;
   height: auto;
   border-radius: 4px;
+}
+
+/* === Стили подписей (paragraph styleType) === */
+/* §10.5 Подрисуночная подпись */
+.ProseMirror p.style-fig-caption {
+  font-size: 0.88em;
+  text-align: center;
+  text-indent: 0;
+  color: #333;
+  font-family: 'PT Sans', sans-serif;
+  line-height: 1.3;
+  margin-top: 6pt;
+  margin-bottom: 12pt;
+}
+
+/* §11.3 Заголовок таблицы */
+.ProseMirror p.style-table-caption {
+  font-size: 1em;
+  text-align: left;
+  text-indent: 0;
+  font-weight: 700;
+  margin-top: 12pt;
+  margin-bottom: 4pt;
+}
+
+/* §11.3 Номер таблицы (родо-нумерационная часть) */
+.ProseMirror p.style-table-number {
+  font-size: 0.88em;
+  text-align: right;
+  text-indent: 0;
+  font-style: italic;
+  margin-top: 8pt;
+  margin-bottom: 4pt;
 }
 
 /* === §10.5-10.7 Подписи рисунков === */
@@ -723,4 +760,103 @@ header .hint {
   word-break: break-all;
   color: #333;
   background: #fff;
+}
+
+/* === Context Menu === */
+.pm-context-menu {
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
+  padding: 4px 0;
+  min-width: 200px;
+  font-family: 'PT Sans', sans-serif;
+  font-size: 13px;
+  animation: pm-context-fade-in 0.15s ease-out;
+  z-index: 500;
+}
+
+@keyframes pm-context-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.pm-context-menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  padding: 6px 14px;
+  font-family: inherit;
+  font-size: 13px;
+  color: #333;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.pm-context-menu-item:hover {
+  background: #e3f2fd;
+}
+
+.pm-context-menu-sep {
+  height: 1px;
+  margin: 4px 8px;
+  background: #e0e0e0;
+}
+
+.pm-floating-toolbar {
+  display: none;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+  padding: 4px 6px;
+  font-family: 'PT Sans', sans-serif;
+  font-size: 13px;
+  animation: pm-context-fade-in 0.15s ease-out;
+}
+
+.pm-floating-toolbar.visible {
+  display: flex;
+}
+
+.pm-floating-toolbar-btn {
+  border: 1px solid transparent;
+  background: none;
+  padding: 3px 7px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  font-family: inherit;
+  color: #333;
+  min-width: 26px;
+  text-align: center;
+}
+
+.pm-floating-toolbar-btn:hover {
+  background: #e3f2fd;
+  border-color: #90caf9;
+}
+
+.pm-floating-toolbar-btn.mark-bold { font-weight: 700; }
+.pm-floating-toolbar-btn.mark-italic { font-style: italic; }
+.pm-floating-toolbar-btn.mark-underline { text-decoration: underline; }
+.pm-floating-toolbar-btn.mark-strike { text-decoration: line-through; }
+
+/* Выравнивание inline-изображения через абзац (контекстное меню) */
+.ProseMirror p[style*="text-align: left"] > img.inline-image {
+  margin-left: 0 !important;
+  margin-right: auto !important;
+}
+.ProseMirror p[style*="text-align: right"] > img.inline-image {
+  margin-left: auto !important;
+  margin-right: 0 !important;
+}
+.ProseMirror p[style*="text-align: center"] > img.inline-image {
+  margin-left: auto !important;
+  margin-right: auto !important;
 }

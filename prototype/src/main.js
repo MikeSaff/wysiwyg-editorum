@@ -12,6 +12,7 @@ import { splitListItem, liftListItem, sinkListItem } from "prosemirror-schema-li
 
 import { schema } from "./schema.js"
 import { buildToolbar, updateTableToolbar } from "./toolbar.js"
+import { setupContextMenu } from "./context-menu.js"
 import { cleanWordHtml } from "./word-paste.js"
 import { importDocx } from "./word-import.js"
 import "./styles.css"
@@ -341,6 +342,7 @@ function init() {
   })
 
   buildToolbar(view, toolbarEl)
+  setupContextMenu(view, editorEl)
   updateOutput(view.state)
   updateNavigation(view.state)
   setupTabs()

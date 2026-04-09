@@ -149,6 +149,31 @@ export function buildToolbar(view, toolbarEl) {
 
   toolbarEl.appendChild(createSeparator())
 
+  // === Group: Стиль абзаца ===
+  const groupStyle = createGroup("Стиль")
+  const paraStyles = [
+    ["Рис.", "Подпись рисунка (Рис. N. Название)", "fig-caption"],
+    ["Табл.", "Заголовок таблицы (Табл. N. Название)", "table-caption"],
+    ["№Т", "Номер таблицы (справа)", "table-number"],
+    ["¶", "Обычный абзац (сбросить стиль)", null],
+  ]
+  paraStyles.forEach(([label, title, styleType]) => {
+    groupStyle.appendChild(createButton(label, title, (state, dispatch) => {
+      const { from, to } = state.selection
+      let tr = state.tr
+      state.doc.nodesBetween(from, to, (node, pos) => {
+        if (node.type.name === "paragraph") {
+          tr = tr.setNodeMarkup(pos, null, { ...node.attrs, styleType })
+        }
+      })
+      if (dispatch) dispatch(tr)
+      return true
+    }, view))
+  })
+  toolbarEl.appendChild(groupStyle)
+
+  toolbarEl.appendChild(createSeparator())
+
   // === Group: Выравнивание ===
   const groupAlign = createGroup("Выравнивание")
   const alignCommands = [

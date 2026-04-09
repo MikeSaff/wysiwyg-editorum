@@ -147,19 +147,32 @@ export const schema = new Schema({
     paragraph: {
       group: "block",
       content: "inline*",
-      attrs: { id: { default: null }, align: { default: null } },
+      attrs: {
+        id: { default: null },
+        align: { default: null },
+        styleType: { default: null }  // null=normal, "fig-caption", "table-caption", "table-number"
+      },
       toDOM(node) {
         const attrs = {}
+        const classes = []
         if (node.attrs.id) attrs.id = node.attrs.id
         if (node.attrs.align) attrs.style = `text-align: ${node.attrs.align}`
+        if (node.attrs.styleType) classes.push(`style-${node.attrs.styleType}`)
+        if (classes.length) attrs.class = classes.join(" ")
         return ["p", attrs, 0]
       },
       parseDOM: [{
         tag: "p",
         getAttrs(dom) {
+          const cls = dom.getAttribute("class") || ""
+          let styleType = null
+          if (cls.includes("style-fig-caption")) styleType = "fig-caption"
+          else if (cls.includes("style-table-caption")) styleType = "table-caption"
+          else if (cls.includes("style-table-number")) styleType = "table-number"
           return {
             id: dom.getAttribute("id"),
-            align: dom.style?.textAlign || dom.getAttribute("align") || null
+            align: dom.style?.textAlign || dom.getAttribute("align") || null,
+            styleType
           }
         }
       }]
