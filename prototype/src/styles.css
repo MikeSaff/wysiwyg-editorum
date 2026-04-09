@@ -481,16 +481,12 @@ header .hint {
   font-size: 1em;
 }
 
-/* Все элементы KaTeX одного цвета с текстом */
-.ProseMirror .katex,
-.ProseMirror .katex .mrel,
-.ProseMirror .katex .mbin,
-.ProseMirror .katex .mord,
-.ProseMirror .katex .mop,
-.ProseMirror .katex .mpunct,
-.ProseMirror .katex .mopen,
-.ProseMirror .katex .mclose {
-  color: #1a1a1a;
+/* Все элементы KaTeX: единый цвет и рендеринг */
+.ProseMirror .katex * {
+  color: #1a1a1a !important;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: geometricPrecision;
 }
 
 /* === Figure === */

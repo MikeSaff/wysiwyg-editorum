@@ -339,24 +339,17 @@ function init() {
     resizeState = null
   })
 
-  // === Image: single click = lightbox, double click = resize mode ===
-  editorEl.addEventListener("click", (e) => {
-    if (e.target.classList.contains("inline-image") && !resizeState) {
-      const src = e.target.src || ""
-      // Don't open lightbox for SVG placeholders or empty images
-      if (!src || src.includes("data:image/svg+xml") || src.length < 100) return
-
-      const overlay = document.getElementById("lightbox-overlay")
-      const img = document.getElementById("lightbox-img")
-      if (overlay && img) {
-        img.src = src
-        img.alt = e.target.alt || ""
-        overlay.classList.add("active")
-      }
-      e.preventDefault()
-      e.stopPropagation()
+  // === Image: click selects, lightbox via context menu "Увеличить" ===
+  // Lightbox function accessible globally for context menu
+  window._openLightbox = function(src) {
+    if (!src || src.includes("data:image/svg+xml")) return
+    const overlay = document.getElementById("lightbox-overlay")
+    const img = document.getElementById("lightbox-img")
+    if (overlay && img) {
+      img.src = src
+      overlay.classList.add("active")
     }
-  })
+  }
 
   // === Formula editing on click ===
   editorEl.addEventListener("click", (e) => {
