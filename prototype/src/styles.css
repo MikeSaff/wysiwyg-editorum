@@ -481,8 +481,16 @@ header .hint {
   font-size: 1em;
 }
 
-.ProseMirror .katex .mrel {
-  color: inherit;
+/* Все элементы KaTeX одного цвета с текстом */
+.ProseMirror .katex,
+.ProseMirror .katex .mrel,
+.ProseMirror .katex .mbin,
+.ProseMirror .katex .mord,
+.ProseMirror .katex .mop,
+.ProseMirror .katex .mpunct,
+.ProseMirror .katex .mopen,
+.ProseMirror .katex .mclose {
+  color: #1a1a1a;
 }
 
 /* === Figure === */
