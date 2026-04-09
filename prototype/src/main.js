@@ -160,47 +160,49 @@ function updateNavigation(state) {
     }
   })
 
-  // Build HTML — collapsible only for sections with children
-  // First pass: find which H1 sections have sub-items
-  const sections = []
-  let curSec = null
-  items.forEach(item => {
-    if (item.type === "heading" && item.level === 1) {
-      curSec = { heading: item, children: [] }
-      sections.push(curSec)
-    } else if (curSec) {
-      curSec.children.push(item)
-    } else {
-      sections.push({ heading: null, children: [item] })
-    }
-  })
-
+  // Build HTML — hierarchical tree with collapsible headings
   let html = ""
-  sections.forEach(sec => {
-    if (sec.heading) {
-      const hasChildren = sec.children.length > 0
-      if (hasChildren) {
-        html += `<div class="nav-item level-1 nav-section-toggle" data-pos="${sec.heading.pos}">${escapeHtmlNav(sec.heading.text)}</div>`
-        html += `<div class="nav-section">`
-      } else {
-        html += `<div class="nav-item level-1" data-pos="${sec.heading.pos}">${escapeHtmlNav(sec.heading.text)}</div>`
-      }
+  let openSections = [] // stack of open section divs
+
+  function closeToLevel(level) {
+    while (openSections.length > 0 && openSections[openSections.length - 1] >= level) {
+      html += "</div>"
+      openSections.pop()
     }
+  }
 
-    sec.children.forEach(item => {
-      if (item.type === "heading") {
-        html += `<div class="nav-item level-${item.level}" data-pos="${item.pos}">${escapeHtmlNav(item.text)}</div>`
-      } else if (item.type === "fig") {
-        html += `<div class="nav-item nav-fig" data-pos="${item.pos}">🖼 ${escapeHtmlNav(item.text)}</div>`
-      } else if (item.type === "tbl") {
-        html += `<div class="nav-item nav-tbl" data-pos="${item.pos}">▦ ${escapeHtmlNav(item.text)}</div>`
-      } else if (item.type === "formula") {
-        html += `<div class="nav-item nav-formula" data-pos="${item.pos}">∑ ${escapeHtmlNav(item.text)}</div>`
+  // Group items: each heading opens a section, non-heading items go inside
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i]
+
+    if (item.type === "heading") {
+      closeToLevel(item.level)
+
+      // Check if this heading has any children (next items before next same/higher level heading)
+      let hasChildren = false
+      for (let j = i + 1; j < items.length; j++) {
+        if (items[j].type === "heading" && items[j].level <= item.level) break
+        hasChildren = true
+        break
       }
-    })
 
-    if (sec.heading && sec.children.length > 0) html += "</div>"
-  })
+      if (hasChildren) {
+        html += `<div class="nav-item level-${item.level} nav-section-toggle" data-pos="${item.pos}">${escapeHtmlNav(item.text)}</div>`
+        html += `<div class="nav-section">`
+        openSections.push(item.level)
+      } else {
+        html += `<div class="nav-item level-${item.level}" data-pos="${item.pos}">${escapeHtmlNav(item.text)}</div>`
+      }
+    } else if (item.type === "fig") {
+      html += `<div class="nav-item nav-fig" data-pos="${item.pos}">🖼 ${escapeHtmlNav(item.text)}</div>`
+    } else if (item.type === "tbl") {
+      html += `<div class="nav-item nav-tbl" data-pos="${item.pos}">▦ ${escapeHtmlNav(item.text)}</div>`
+    } else if (item.type === "formula") {
+      html += `<div class="nav-item nav-formula" data-pos="${item.pos}">∑ ${escapeHtmlNav(item.text)}</div>`
+    }
+  }
+
+  closeToLevel(0)
 
   navItems.innerHTML = html
 }
