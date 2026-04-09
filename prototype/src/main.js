@@ -297,6 +297,40 @@ function init() {
   _editorView = view  // Save reference for navigation clicks
   window.editorView = view
 
+  // === Image resize (drag corner to resize) ===
+  let resizeState = null
+  editorEl.addEventListener("mousedown", (e) => {
+    const img = e.target.closest(".inline-image")
+    if (!img || e.button !== 0) return
+    // Only start resize if clicking near bottom-right corner
+    const rect = img.getBoundingClientRect()
+    const cornerSize = 20
+    if (e.clientX > rect.right - cornerSize && e.clientY > rect.bottom - cornerSize) {
+      e.preventDefault()
+      img.classList.add("resizing")
+      resizeState = { img, startX: e.clientX, startY: e.clientY, startW: img.offsetWidth, startH: img.offsetHeight }
+    }
+  })
+
+  document.addEventListener("mousemove", (e) => {
+    if (!resizeState) return
+    e.preventDefault()
+    const { img, startX, startW, startH } = resizeState
+    const dx = e.clientX - startX
+    const newW = Math.max(50, startW + dx)
+    const ratio = startH / startW
+    img.style.width = newW + "px"
+    img.style.height = (newW * ratio) + "px"
+  })
+
+  document.addEventListener("mouseup", (e) => {
+    if (!resizeState) return
+    const { img } = resizeState
+    img.classList.remove("resizing")
+    // Update ProseMirror node attrs if needed
+    resizeState = null
+  })
+
   // === Image lightbox (click to enlarge) ===
   editorEl.addEventListener("click", (e) => {
     if (e.target.classList.contains("inline-image")) {
