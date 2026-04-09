@@ -297,6 +297,14 @@ function init() {
   _editorView = view  // Save reference for navigation clicks
   window.editorView = view
 
+  // Close lightbox on Escape
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      const overlay = document.getElementById("lightbox-overlay")
+      if (overlay) overlay.classList.remove("active")
+    }
+  })
+
   // === Image resize (drag corner to resize) ===
   let resizeState = null
   editorEl.addEventListener("mousedown", (e) => {
@@ -331,23 +339,21 @@ function init() {
     resizeState = null
   })
 
-  // === Image lightbox (double-click to enlarge) ===
-  editorEl.addEventListener("dblclick", (e) => {
-    if (e.target.classList.contains("inline-image")) {
+  // === Image: single click = lightbox, double click = resize mode ===
+  editorEl.addEventListener("click", (e) => {
+    if (e.target.classList.contains("inline-image") && !resizeState) {
+      const src = e.target.src || ""
+      // Don't open lightbox for SVG placeholders or empty images
+      if (!src || src.includes("data:image/svg+xml") || src.length < 100) return
+
       const overlay = document.getElementById("lightbox-overlay")
       const img = document.getElementById("lightbox-img")
-      img.src = e.target.src
-      img.alt = e.target.alt
-      overlay.classList.add("active")
+      if (overlay && img) {
+        img.src = src
+        img.alt = e.target.alt || ""
+        overlay.classList.add("active")
+      }
       e.preventDefault()
-      e.stopPropagation()
-    }
-  })
-
-  // Single click on image — select it (blue outline), no floating toolbar
-  editorEl.addEventListener("click", (e) => {
-    if (e.target.classList.contains("inline-image")) {
-      // ProseMirror handles selection, just prevent floating toolbar
       e.stopPropagation()
     }
   })
