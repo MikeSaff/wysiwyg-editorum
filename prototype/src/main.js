@@ -331,7 +331,7 @@ function init() {
     resizeState = null
   })
 
-  // === Image lightbox (double-click to enlarge, not single click) ===
+  // === Image lightbox (double-click to enlarge) ===
   editorEl.addEventListener("dblclick", (e) => {
     if (e.target.classList.contains("inline-image")) {
       const overlay = document.getElementById("lightbox-overlay")
@@ -340,6 +340,14 @@ function init() {
       img.alt = e.target.alt
       overlay.classList.add("active")
       e.preventDefault()
+      e.stopPropagation()
+    }
+  })
+
+  // Single click on image — select it (blue outline), no floating toolbar
+  editorEl.addEventListener("click", (e) => {
+    if (e.target.classList.contains("inline-image")) {
+      // ProseMirror handles selection, just prevent floating toolbar
       e.stopPropagation()
     }
   })

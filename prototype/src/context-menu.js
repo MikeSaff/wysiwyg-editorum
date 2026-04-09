@@ -511,6 +511,11 @@ export function setupContextMenu(view, editorEl) {
         hideFloating()
         return
       }
+      // Don't show floating toolbar for node selections (images, formulas)
+      if (sel instanceof NodeSelection) {
+        hideFloating()
+        return
+      }
       showFloating()
     }, 10)
   }
