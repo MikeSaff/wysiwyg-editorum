@@ -573,10 +573,20 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
     }
 
     if (!hasContent) return ""
-    // Skip empty or near-empty paragraphs (spaces, nbsp, br, tabs)
+    // Skip empty or near-empty paragraphs
     const stripped = content.replace(/&nbsp;/g, "").replace(/<br\s*\/?>/g, "").replace(/\s+/g, "").trim()
     if (stripped.length < 2) return ""
-    return `<${tag}>${content}</${tag}>\n`
+
+    // Auto-detect caption styles by text pattern
+    const plainText = content.replace(/<[^>]+>/g, "").trim()
+    let styleClass = ""
+    if (/^(Рис\.|Рисунок)\s*\d/i.test(plainText)) {
+      styleClass = ' class="style-fig-caption"'
+    } else if (/^(Табл\.|Таблица)\s*\d/i.test(plainText)) {
+      styleClass = ' class="style-table-caption"'
+    }
+
+    return `<${tag}${styleClass}>${content}</${tag}>\n`
   }
 
   function processRun(r, wNs) {

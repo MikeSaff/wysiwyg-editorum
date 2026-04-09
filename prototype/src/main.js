@@ -331,8 +331,8 @@ function init() {
     resizeState = null
   })
 
-  // === Image lightbox (click to enlarge) ===
-  editorEl.addEventListener("click", (e) => {
+  // === Image lightbox (double-click to enlarge, not single click) ===
+  editorEl.addEventListener("dblclick", (e) => {
     if (e.target.classList.contains("inline-image")) {
       const overlay = document.getElementById("lightbox-overlay")
       const img = document.getElementById("lightbox-img")

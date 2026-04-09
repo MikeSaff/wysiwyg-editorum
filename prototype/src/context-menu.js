@@ -515,6 +515,14 @@ export function setupContextMenu(view, editorEl) {
     }, 10)
   }
 
+  // Prevent ProseMirror from changing selection on right-click
+  view.dom.addEventListener("mousedown", (e) => {
+    if (e.button === 2) {
+      // Right click — don't let ProseMirror handle it
+      e.stopPropagation()
+    }
+  }, true)
+
   view.dom.addEventListener("contextmenu", onContextMenu)
   document.addEventListener("mousedown", onDocMouseDown, true)
   document.addEventListener("keydown", onKeyDown, true)
