@@ -33,6 +33,36 @@ function ommlToLatex(ommlElement) {
         if (!textEl) return ""
         let rText = textEl.textContent || ""
 
+        // Replace Unicode math symbols with LaTeX commands
+        rText = rText.replace(/⨂/g, "\\otimes ")
+        rText = rText.replace(/⊗/g, "\\otimes ")
+        rText = rText.replace(/⨁/g, "\\oplus ")
+        rText = rText.replace(/⊕/g, "\\oplus ")
+        rText = rText.replace(/∑/g, "\\Sigma ")
+        rText = rText.replace(/∏/g, "\\Pi ")
+        rText = rText.replace(/∙/g, "\\bullet ")
+        rText = rText.replace(/•/g, "\\cdot ")
+        rText = rText.replace(/∞/g, "\\infty ")
+        rText = rText.replace(/∈/g, "\\in ")
+        rText = rText.replace(/∉/g, "\\notin ")
+        rText = rText.replace(/⊂/g, "\\subset ")
+        rText = rText.replace(/⊃/g, "\\supset ")
+        rText = rText.replace(/∀/g, "\\forall ")
+        rText = rText.replace(/∃/g, "\\exists ")
+        rText = rText.replace(/≤/g, "\\leq ")
+        rText = rText.replace(/≥/g, "\\geq ")
+        rText = rText.replace(/≠/g, "\\neq ")
+        rText = rText.replace(/≈/g, "\\approx ")
+        rText = rText.replace(/→/g, "\\to ")
+        rText = rText.replace(/←/g, "\\leftarrow ")
+        rText = rText.replace(/↔/g, "\\leftrightarrow ")
+        rText = rText.replace(/≺/g, "\\prec ")
+        rText = rText.replace(/≻/g, "\\succ ")
+        rText = rText.replace(/∂/g, "\\partial ")
+        rText = rText.replace(/∇/g, "\\nabla ")
+        rText = rText.replace(/…/g, "\\ldots ")
+        rText = rText.replace(/⋯/g, "\\cdots ")
+
         // Check if we're inside a superscript/subscript — don't add spaces there
         let inSubSup = false
         let ancestor = node.parentElement
@@ -48,7 +78,6 @@ function ommlToLatex(ommlElement) {
         }
 
         if (inSubSup) {
-          // Inside sub/sup: no spacing, just return text
           return rText
         }
 
