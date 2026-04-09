@@ -66,7 +66,7 @@ export function ommlToLatex(ommlElement) {
 
         // Check if we're inside a superscript/subscript — don't add spaces there
         let inSubSup = false
-        let ancestor = node.parentElement
+        let ancestor = getParentElement(node)
         while (ancestor) {
           const aName = ancestor.localName || ancestor.nodeName?.split(":").pop()
           if (aName === "sup" || aName === "sub" || aName === "deg" ||
@@ -75,7 +75,7 @@ export function ommlToLatex(ommlElement) {
             break
           }
           if (aName === "oMath") break
-          ancestor = ancestor.parentElement
+          ancestor = getParentElement(ancestor)
         }
 
         if (inSubSup) {
@@ -259,11 +259,11 @@ export function ommlToLatex(ommlElement) {
         // Determine matrix type from parent delimiter
         let matrixEnv = "pmatrix" // default: parentheses
         let isSystemOfEq = false
-        const parentD = node.parentElement
+        const parentD = getParentElement(node)
         if (parentD) {
           const parentName = parentD.localName || parentD.nodeName?.split(":").pop()
           if (parentName === "e") {
-            const grandParent = parentD.parentElement
+            const grandParent = getParentElement(parentD)
             if (grandParent) {
               const gpName = grandParent.localName || grandParent.nodeName?.split(":").pop()
               if (gpName === "d") {
@@ -672,6 +672,9 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
         if (rowFormula?.latex) {
           const labelAttr = rowFormula.label ? ` data-label="${escapeAttr(rowFormula.label)}"` : ""
           blocks.push(`<div class="math-block" data-latex="${escapeAttr(rowFormula.latex)}"${labelAttr}>${escapeHtml(rowFormula.latex)}</div>\n`)
+          if (rowFormula.trailingHtml) {
+            blocks.push(rowFormula.trailingHtml)
+          }
         }
       }
 
@@ -777,6 +780,7 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
   function extractFormulaFromRow(row) {
     const cells = getDirectChildElementsByLocalName(row, "tc")
     const formulaLines = []
+    const auxiliarySegments = []
     let label = ""
 
     for (const cell of cells) {
@@ -784,10 +788,9 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
       const cellText = normalizeFormulaWhitespace(cell.textContent || "")
 
       if (hasMath) {
-        const cellLines = extractFormulaLinesFromCell(cell)
-        if (cellLines.length > 0) {
-          formulaLines.push(...cellLines)
-        }
+        const cellContent = extractFormulaContentFromCell(cell)
+        formulaLines.push(...cellContent.formulaLines)
+        auxiliarySegments.push(...cellContent.auxiliarySegments)
       } else if (!label) {
         label = extractFormulaLabel(cellText) || label
       }
@@ -796,36 +799,69 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
     if (formulaLines.length === 0) return null
 
     return {
-      latex: formulaLines.join(" \\\\ "),
-      label
+      latex: formatFormulaLines(formulaLines),
+      label,
+      trailingHtml: buildAuxiliaryMathParagraph(auxiliarySegments)
     }
   }
 
-  function extractFormulaLinesFromCell(cell) {
-    const lines = []
+  function extractFormulaContentFromCell(cell) {
+    const formulaLines = []
+    const auxiliarySegments = []
     const paragraphs = getDirectChildElementsByLocalName(cell, "p")
 
     for (const paragraph of paragraphs) {
-      const line = extractFormulaLineFromParagraph(paragraph)
-      if (line) lines.push(line)
+      const segments = extractFormulaSegmentsFromParagraph(paragraph)
+      if (segments.length === 0) continue
+      for (const segment of segments) {
+        if (isAuxiliaryFormulaSegment(segment)) {
+          auxiliarySegments.push(segment)
+        } else {
+          formulaLines.push(segment)
+        }
+      }
     }
 
-    if (lines.length > 0) return lines
+    if (formulaLines.length > 0 || auxiliarySegments.length > 0) {
+      return { formulaLines, auxiliarySegments }
+    }
 
     const fallbackMaths = findElementsByLocalName(cell, "oMath")
-    if (fallbackMaths.length === 0) return []
+    if (fallbackMaths.length === 0) {
+      return { formulaLines: [], auxiliarySegments: [] }
+    }
 
-    return [fallbackMaths.map(m => ommlToLatex(m)).filter(Boolean).join(" ")]
+    return {
+      formulaLines: [fallbackMaths.map(m => ommlToLatex(m)).filter(Boolean).join(" ")],
+      auxiliarySegments: []
+    }
   }
 
-  function extractFormulaLineFromParagraph(paragraph) {
+  function extractFormulaSegmentsFromParagraph(paragraph) {
     let line = ""
     let hasMath = false
+    const segments = []
+    const meaningfulChildren = []
 
     for (let i = 0; i < paragraph.childNodes.length; i++) {
       const child = paragraph.childNodes[i]
       if (child.nodeType !== 1) continue
       const childName = child.localName || child.nodeName?.split(":").pop()
+      if (childName === "pPr") continue
+      meaningfulChildren.push(child)
+    }
+
+    function flushSegment() {
+      const normalized = normalizeFormulaWhitespace(line)
+      if (normalized) segments.push(normalized)
+      line = ""
+      hasMath = false
+    }
+
+    for (let i = 0; i < meaningfulChildren.length; i++) {
+      const child = meaningfulChildren[i]
+      const childName = child.localName || child.nodeName?.split(":").pop()
+      const nextMeaningfulChild = getNextFormulaRelevantChild(meaningfulChildren, i + 1)
 
       if (childName === "oMath") {
         const latex = ommlToLatex(child)
@@ -841,12 +877,19 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
           line = appendFormulaMath(line, latex)
         }
       } else if (childName === "r") {
-        line = appendFormulaText(line, extractPlainTextFromRun(child))
+        const runText = extractPlainTextFromRun(child)
+        line = appendFormulaText(line, runText)
+        if (hasMath && shouldSplitFormulaSegment(runText, nextMeaningfulChild)) {
+          flushSegment()
+        }
       }
     }
 
-    if (!hasMath) return ""
-    return normalizeFormulaWhitespace(line)
+    if (hasMath || normalizeFormulaWhitespace(line)) {
+      flushSegment()
+    }
+
+    return segments
   }
 
   function appendFormulaMath(current, latex) {
@@ -866,6 +909,57 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
 
     if (!current) return normalized
     return `${current} ${normalized}`
+  }
+
+  function shouldSplitFormulaSegment(runText, nextMeaningfulChild) {
+    const normalized = normalizeFormulaWhitespace(runText)
+    if (!normalized) return false
+    if (!/[,;.]$/.test(normalized)) return false
+    if (!nextMeaningfulChild) return false
+    const nextName = nextMeaningfulChild.localName || nextMeaningfulChild.nodeName?.split(":").pop()
+    return nextName === "oMath" || nextName === "oMathPara"
+  }
+
+  function getNextFormulaRelevantChild(children, startIndex) {
+    for (let i = startIndex; i < children.length; i++) {
+      const child = children[i]
+      const childName = child.localName || child.nodeName?.split(":").pop()
+      if (childName !== "r") return child
+      if (normalizeFormulaWhitespace(extractPlainTextFromRun(child))) return child
+    }
+    return null
+  }
+
+  function isAuxiliaryFormulaSegment(segment) {
+    return !segment.includes("=") && /\\in|\\notin|\\subset|\\supset/.test(segment)
+  }
+
+  function formatFormulaLines(lines) {
+    const normalizedLines = lines
+      .map(line => normalizeFormulaWhitespace(line))
+      .filter(Boolean)
+
+    if (normalizedLines.length === 0) return ""
+
+    const joined = normalizedLines.join(" \\\\ ")
+    if (shouldWrapFormulaLinesInCases(normalizedLines)) {
+      return `\\begin{cases} ${joined} \\end{cases}`
+    }
+    return joined
+  }
+
+  function shouldWrapFormulaLinesInCases(lines) {
+    if (lines.length < 3) return false
+    if (lines.some(line => /\\begin\{[a-zA-Z*]+\}/.test(line))) return false
+    return /\\(?:tfrac|dfrac|frac)\{d\}\{dt\}/.test(lines[0])
+  }
+
+  function buildAuxiliaryMathParagraph(segments) {
+    if (segments.length === 0) return ""
+    const content = segments
+      .map(segment => `<span class="math-inline" data-latex="${escapeAttr(segment)}">${escapeHtml(segment)}</span>`)
+      .join(" ")
+    return `<p>${content}</p>\n`
   }
 
   function extractPlainTextFromRun(run) {
@@ -939,6 +1033,14 @@ function getDirectChildElementsByLocalName(parent, localName) {
 
 function getFirstDirectChildByLocalName(parent, localName) {
   return getDirectChildElementsByLocalName(parent, localName)[0] || null
+}
+
+function getParentElement(node) {
+  let parent = node?.parentElement || node?.parentNode || null
+  while (parent && parent.nodeType !== 1) {
+    parent = parent.parentNode || null
+  }
+  return parent || null
 }
 
 function escapeHtml(text) {

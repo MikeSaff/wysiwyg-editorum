@@ -131,12 +131,22 @@ function updateNavigation(state) {
         items.push({ type: "heading", level, text: text.substring(0, 55), pos: offset })
       }
     }
-    // Figures (paragraphs starting with "Рис" or containing images)
+    // Figures — find image paragraph BEFORE the caption
     if (node.type.name === "paragraph") {
       const text = node.textContent.trim()
       if (/^(Рис\.|Рисунок)\s*\d/i.test(text)) {
         figNum++
-        items.push({ type: "fig", text: text.substring(0, 50), pos: offset })
+        // Navigate to image above caption, not to caption itself
+        // Look back for nearest image paragraph
+        let imgPos = offset
+        state.doc.nodesBetween(Math.max(0, offset - 2000), offset, (n, p) => {
+          if (n.type.name === "paragraph") {
+            let hasImage = false
+            n.forEach(child => { if (child.type.name === "image") hasImage = true })
+            if (hasImage) imgPos = p
+          }
+        })
+        items.push({ type: "fig", text: text.substring(0, 50), pos: imgPos })
       }
       if (/^(Табл\.|Таблица)\s*\d/i.test(text)) {
         tblNum++
@@ -150,27 +160,47 @@ function updateNavigation(state) {
     }
   })
 
-  // Build HTML with collapsible sections
-  let html = ""
-  let currentSection = null
-
+  // Build HTML — collapsible only for sections with children
+  // First pass: find which H1 sections have sub-items
+  const sections = []
+  let curSec = null
   items.forEach(item => {
     if (item.type === "heading" && item.level === 1) {
-      if (currentSection) html += "</div>"
-      html += `<div class="nav-item level-1 nav-section-toggle" data-pos="${item.pos}">${escapeHtmlNav(item.text)}</div>`
-      html += `<div class="nav-section">`
-      currentSection = item
-    } else if (item.type === "heading") {
-      html += `<div class="nav-item level-${item.level}" data-pos="${item.pos}">${escapeHtmlNav(item.text)}</div>`
-    } else if (item.type === "fig") {
-      html += `<div class="nav-item nav-fig" data-pos="${item.pos}">🖼 ${escapeHtmlNav(item.text)}</div>`
-    } else if (item.type === "tbl") {
-      html += `<div class="nav-item nav-tbl" data-pos="${item.pos}">▦ ${escapeHtmlNav(item.text)}</div>`
-    } else if (item.type === "formula") {
-      html += `<div class="nav-item nav-formula" data-pos="${item.pos}">∑ ${escapeHtmlNav(item.text)}</div>`
+      curSec = { heading: item, children: [] }
+      sections.push(curSec)
+    } else if (curSec) {
+      curSec.children.push(item)
+    } else {
+      sections.push({ heading: null, children: [item] })
     }
   })
-  if (currentSection) html += "</div>"
+
+  let html = ""
+  sections.forEach(sec => {
+    if (sec.heading) {
+      const hasChildren = sec.children.length > 0
+      if (hasChildren) {
+        html += `<div class="nav-item level-1 nav-section-toggle" data-pos="${sec.heading.pos}">${escapeHtmlNav(sec.heading.text)}</div>`
+        html += `<div class="nav-section">`
+      } else {
+        html += `<div class="nav-item level-1" data-pos="${sec.heading.pos}">${escapeHtmlNav(sec.heading.text)}</div>`
+      }
+    }
+
+    sec.children.forEach(item => {
+      if (item.type === "heading") {
+        html += `<div class="nav-item level-${item.level}" data-pos="${item.pos}">${escapeHtmlNav(item.text)}</div>`
+      } else if (item.type === "fig") {
+        html += `<div class="nav-item nav-fig" data-pos="${item.pos}">🖼 ${escapeHtmlNav(item.text)}</div>`
+      } else if (item.type === "tbl") {
+        html += `<div class="nav-item nav-tbl" data-pos="${item.pos}">▦ ${escapeHtmlNav(item.text)}</div>`
+      } else if (item.type === "formula") {
+        html += `<div class="nav-item nav-formula" data-pos="${item.pos}">∑ ${escapeHtmlNav(item.text)}</div>`
+      }
+    })
+
+    if (sec.heading && sec.children.length > 0) html += "</div>"
+  })
 
   navItems.innerHTML = html
 }
