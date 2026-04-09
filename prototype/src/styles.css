@@ -482,11 +482,10 @@ header .hint {
 }
 
 /* Все элементы KaTeX: единый цвет и рендеринг */
+.ProseMirror .katex,
 .ProseMirror .katex * {
-  color: #1a1a1a !important;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-rendering: geometricPrecision;
+  color: #000 !important;
+  -webkit-font-smoothing: auto;
 }
 
 /* === Figure === */

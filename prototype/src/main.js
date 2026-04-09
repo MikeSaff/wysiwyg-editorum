@@ -339,17 +339,26 @@ function init() {
     resizeState = null
   })
 
-  // === Image: click selects, lightbox via context menu "Увеличить" ===
-  // Lightbox function accessible globally for context menu
+  // === Image: single click = lightbox (enlarge), right click = edit menu ===
   window._openLightbox = function(src) {
     if (!src || src.includes("data:image/svg+xml")) return
     const overlay = document.getElementById("lightbox-overlay")
-    const img = document.getElementById("lightbox-img")
-    if (overlay && img) {
-      img.src = src
+    const lbImg = document.getElementById("lightbox-img")
+    if (overlay && lbImg) {
+      lbImg.src = src
       overlay.classList.add("active")
     }
   }
+
+  editorEl.addEventListener("click", (e) => {
+    const img = e.target.closest(".inline-image")
+    if (!img || resizeState) return
+    const src = img.src || ""
+    if (!src || src.includes("data:image/svg+xml") || src.length < 100) return
+    e.preventDefault()
+    e.stopPropagation()
+    window._openLightbox(src)
+  })
 
   // === Formula editing on click ===
   editorEl.addEventListener("click", (e) => {
