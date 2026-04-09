@@ -270,15 +270,23 @@ header .hint {
   height: 200px;
 }
 
-/* === Typography — Scientific Standards === */
+/* =============================================
+   ГОСТ Р 7.0.110-2025: Типографическое оформление
+   Вступил в силу 01.01.2026. Разработан АНРИ.
+   ============================================= */
+
+/* === §8. Основной текст === */
+/* §8.1 Выравнивание по ширине */
+/* §8.2 Абзацный отступ 1,25 см для кегля 10-14pt */
+/* §8.3 Межстрочный интервал 1 или 1,5 */
 .ProseMirror p {
-  margin-bottom: 0.2em;
-  margin-top: 0.2em;
+  margin-bottom: 0.15em;
+  margin-top: 0.15em;
   text-align: justify;
-  text-indent: 1.25em;
+  text-indent: 1.25cm;
 }
 
-/* No indent after headings and for first child */
+/* §8.2 Первый абзац после заголовка, формулы, рисунка — без отступа */
 .ProseMirror h1 + p,
 .ProseMirror h2 + p,
 .ProseMirror h3 + p,
@@ -296,21 +304,47 @@ header .hint {
   text-indent: 0;
 }
 
+/* === §6.2, §7. Заголовки === */
+/* §6.6 Шаг кегля 2pt между уровнями: текст=12 → H3=12, H2=14, H1=16 */
+/* §7.5 Жирное начертание */
+/* §7.4 С прописной буквы, без КАПСЛОКА */
+/* §7.8 Интервал над > интервал под; before=кегль, after=кегль/2 */
+/* §7.9 Запрет отрыва от следующего абзаца */
 .ProseMirror h1, .ProseMirror h2, .ProseMirror h3, .ProseMirror h4 {
   font-family: 'PT Sans', sans-serif;
   font-weight: 700;
-  margin-top: 1.8em;
-  margin-bottom: 0.6em;
-  line-height: 1.3;
+  line-height: 1.2;
   color: #111;
   text-indent: 0;
   text-align: left;
+  page-break-after: avoid;
+  break-after: avoid;
 }
 
-.ProseMirror h1 { font-size: 1.6em; margin-top: 2em; }
-.ProseMirror h2 { font-size: 1.3em; }
-.ProseMirror h3 { font-size: 1.15em; }
-.ProseMirror h4 { font-size: 1.05em; font-style: italic; }
+/* §6.6 Пример: H1=16pt, H2=14pt, H3=12pt */
+.ProseMirror h1 {
+  font-size: 16pt;
+  margin-top: 16pt;
+  margin-bottom: 8pt;
+}
+.ProseMirror h2 {
+  font-size: 14pt;
+  margin-top: 14pt;
+  margin-bottom: 7pt;
+}
+.ProseMirror h3 {
+  font-size: 12pt;
+  margin-top: 12pt;
+  margin-bottom: 6pt;
+}
+/* §6.2 Допускается чередование жирного и обычного */
+.ProseMirror h4 {
+  font-size: 12pt;
+  font-weight: 400;
+  font-style: italic;
+  margin-top: 12pt;
+  margin-bottom: 6pt;
+}
 
 .ProseMirror strong { font-weight: 700; }
 .ProseMirror em { font-style: italic; }
@@ -333,16 +367,25 @@ header .hint {
 }
 
 /* === Blockquote === */
+/* === Цитаты === */
 .ProseMirror blockquote {
-  border-left: 3px solid #999;
-  padding-left: 20px;
-  margin: 1em 0 1em 1.25em;
+  border-left: 2px solid #999;
+  padding-left: 1.25cm;
+  margin: 0.8em 0 0.8em 0;
   color: #333;
   font-size: 0.95em;
 }
 
 .ProseMirror blockquote p {
   text-indent: 0;
+}
+
+/* === §15. Сноски === */
+/* §15.4 Кегль на 2pt меньше основного */
+.ProseMirror sup {
+  font-size: 0.75em;
+  vertical-align: super;
+  line-height: 0;
 }
 
 /* === Code block === */
@@ -358,14 +401,24 @@ header .hint {
   line-height: 1.5;
 }
 
-/* === Lists === */
+/* === §12. Списки === */
+/* §12.1 Маркер: длинное тире или буллет, не дефис */
+/* §12.2 Абзацный отступ = основной текст */
 .ProseMirror ul, .ProseMirror ol {
-  margin: 0.5em 0;
-  padding-left: 2em;
+  margin: 0.4em 0;
+  padding-left: 1.25cm;
 }
 
+.ProseMirror ul { list-style-type: disc; }
+
 .ProseMirror li {
-  margin-bottom: 0.25em;
+  margin-bottom: 0.15em;
+  text-indent: 0;
+}
+
+.ProseMirror li p {
+  text-indent: 0;
+  margin: 0;
 }
 
 /* === Horizontal rule === */
@@ -376,12 +429,14 @@ header .hint {
 }
 
 /* === Math === */
+/* === §13. Математические выражения === */
+/* §13.3 Выравнивание по левому краю, номер справа */
 .ProseMirror .math-block {
-  text-align: center;
-  margin: 1.2em 0;
-  padding: 16px 60px 16px 20px;
-  background: #fafbfc;
-  border-left: 3px solid #e0e0e0;
+  text-align: left;
+  margin: 0.8em 0;
+  padding: 12px 60px 12px 1.25cm;
+  background: transparent;
+  border-left: none;
   position: relative;
   overflow-x: auto;
   max-width: 100%;
@@ -438,23 +493,58 @@ header .hint {
   border-radius: 4px;
 }
 
+/* === §10.5-10.7 Подписи рисунков === */
+/* §10.5 Под рисунком, по центру */
+/* §10.7 Кегль на 1-2pt меньше, before=кегль/2, after=кегль */
 .ProseMirror figcaption {
   font-size: 0.88em;
-  color: #444;
-  margin-top: 8px;
+  color: #333;
+  margin-top: 6pt;
+  margin-bottom: 12pt;
   text-align: center;
   font-family: 'PT Sans', sans-serif;
-  line-height: 1.4;
+  line-height: 1.3;
   text-indent: 0;
 }
 
-/* === Image === */
+/* === §10. Изображения === */
+/* §10.3 По центру, с интервалом = кегль */
 .ProseMirror .inline-image {
   max-width: 100%;
   height: auto;
   display: block;
   margin: 0.5em auto 0.2em;
-  border-radius: 2px;
+  border-radius: 1px;
+  cursor: zoom-in;
+  transition: opacity 0.2s;
+}
+
+.ProseMirror .inline-image:hover {
+  opacity: 0.9;
+}
+
+/* Lightbox overlay */
+#lightbox-overlay {
+  display: none;
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.85);
+  z-index: 10000;
+  cursor: zoom-out;
+  justify-content: center;
+  align-items: center;
+}
+
+#lightbox-overlay.active {
+  display: flex;
+}
+
+#lightbox-overlay img {
+  max-width: 95vw;
+  max-height: 95vh;
+  object-fit: contain;
+  border-radius: 4px;
+  box-shadow: 0 4px 40px rgba(0,0,0,0.5);
 }
 
 /* Paragraph containing an image — collapse extra spacing */
@@ -501,26 +591,32 @@ header .hint {
   margin-top: 0.6em;
 }
 
-/* === Tables === */
+/* === §11. Таблицы === */
+/* §11.2 Простая сетка, линии 0.25мм */
+/* §11.5 Одинарный интервал, без абзацного отступа */
+/* §11.6 Кегль на 2pt меньше основного */
 .ProseMirror table {
   border-collapse: collapse;
   width: 100%;
-  margin: 1.2em 0;
+  margin: 0.8em 0;
   font-size: 0.88em;
   font-family: 'PT Sans', sans-serif;
-  line-height: 1.4;
+  line-height: 1.3;
 }
 
 .ProseMirror th, .ProseMirror td {
-  border: 1px solid #ccc;
-  padding: 8px 12px;
+  border: 1px solid #999;
+  padding: 6px 10px;
   text-align: left;
   vertical-align: top;
+  text-indent: 0;
 }
 
+/* §11.7 Головка жирным, по центру */
 .ProseMirror th {
-  background: #e3f2fd;
+  background: #f5f5f5;
   font-weight: 700;
+  text-align: center;
   font-family: 'PT Sans', sans-serif;
 }
 

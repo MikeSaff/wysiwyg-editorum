@@ -296,6 +296,19 @@ function init() {
   _editorView = view  // Save reference for navigation clicks
   window.editorView = view
 
+  // === Image lightbox (click to enlarge) ===
+  editorEl.addEventListener("click", (e) => {
+    if (e.target.classList.contains("inline-image")) {
+      const overlay = document.getElementById("lightbox-overlay")
+      const img = document.getElementById("lightbox-img")
+      img.src = e.target.src
+      img.alt = e.target.alt
+      overlay.classList.add("active")
+      e.preventDefault()
+      e.stopPropagation()
+    }
+  })
+
   // === Formula editing on click ===
   editorEl.addEventListener("click", (e) => {
     const mathBlock = e.target.closest(".math-block")
