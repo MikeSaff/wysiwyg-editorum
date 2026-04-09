@@ -40,8 +40,9 @@ function ommlToLatex(ommlElement) {
         rText = rText.replace(/⊕/g, "\\oplus ")
         rText = rText.replace(/∑/g, "\\Sigma ")
         rText = rText.replace(/∏/g, "\\Pi ")
-        rText = rText.replace(/∙/g, "\\bullet ")
+        rText = rText.replace(/∙/g, "\\cdot ")
         rText = rText.replace(/•/g, "\\cdot ")
+        rText = rText.replace(/·/g, "\\cdot ")
         rText = rText.replace(/∞/g, "\\infty ")
         rText = rText.replace(/∈/g, "\\in ")
         rText = rText.replace(/∉/g, "\\notin ")
@@ -336,19 +337,31 @@ function ommlToLatex(ommlElement) {
       case "func": // Function (sin, cos, etc.)
         const fName = node.getElementsByTagNameNS(ns, "fName")[0]
         const funcE = node.getElementsByTagNameNS(ns, "e")[0]
-        const funcName = processChildren(fName).trim()
-        const knownFuncs = ["sin", "cos", "tan", "log", "ln", "exp", "lim", "max", "min"]
-        const latexFunc = knownFuncs.includes(funcName) ? `\\${funcName}` : `\\mathrm{${funcName}}`
-        return `${latexFunc} ${processChildren(funcE)}`
+        // fName may contain limLow/limUpp — don't duplicate
+        const fNameContent = processChildren(fName).trim()
+        const funcContent = processChildren(funcE)
+        // If fName already produced a \lim or similar, just return it
+        if (fNameContent.includes("\\lim") || fNameContent.includes("\\max") || fNameContent.includes("\\min")) {
+          return `${fNameContent} ${funcContent}`
+        }
+        const knownFuncs = ["sin", "cos", "tan", "log", "ln", "exp", "lim", "max", "min", "sup", "inf", "det", "dim"]
+        const latexFunc = knownFuncs.includes(fNameContent) ? `\\${fNameContent}` : `\\operatorname{${fNameContent}}`
+        return `${latexFunc} ${funcContent}`
 
       case "groupChr": // Group character (over/under brace)
         const gcE = node.getElementsByTagNameNS(ns, "e")[0]
         return processChildren(gcE)
 
-      case "limLow": // Lower limit
+      case "limLow": // Lower limit (e.g., lim_{x→∞})
         const limBase = node.getElementsByTagNameNS(ns, "e")[0]
         const limLim = node.getElementsByTagNameNS(ns, "lim")[0]
-        return `${processChildren(limBase)}_{${processChildren(limLim)}}`
+        const limBaseText = processChildren(limBase).trim()
+        const limLimText = processChildren(limLim).trim()
+        // If base is "lim", use \lim with subscript
+        if (limBaseText === "lim") {
+          return `\\lim_{${limLimText}}`
+        }
+        return `${limBaseText}_{${limLimText}}`
 
       case "limUpp": // Upper limit
         const limUBase = node.getElementsByTagNameNS(ns, "e")[0]
