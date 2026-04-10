@@ -154,12 +154,13 @@ test("real Semion DOCX yields 32 labeled display formulas with preserved multili
   assert.ok(byLabel.has("(32)"))
   assert.ok([...byLabel.keys()].every((label) => !label || blocks.find((block) => block.label === label)?.mathml.includes("<math")))
 
-  assert.match(byLabel.get("(2)"), /^\\begin\{cases\}/)
+  // Formulas (2) and (4) do NOT have { in Word original — no cases
+  assert.doesNotMatch(byLabel.get("(2)"), /^\\begin\{cases\}/)
   assert.doesNotMatch(byLabel.get("(2)"), /u\(t\)\\in U/)
   assert.doesNotMatch(byLabel.get("(2)"), /w\(t\)\\in W/)
   assert.doesNotMatch(byLabel.get("(2)"), /t\\in \[t_\{0\},t_\{f\}\]/)
 
-  assert.match(byLabel.get("(4)"), /^\\begin\{cases\}/)
+  assert.doesNotMatch(byLabel.get("(4)"), /^\\begin\{cases\}/)
   assert.match(byLabel.get("(7)"), /^\\begin\{cases\}/)
   assert.doesNotMatch(byLabel.get("(7)"), /\\begin\{pmatrix\}/)
   assert.match(byLabel.get("(9)"), /^\\begin\{cases\}/)
