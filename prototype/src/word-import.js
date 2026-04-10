@@ -1204,12 +1204,10 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
   }
 
   function shouldWrapFormulaLinesInCases(lines) {
-    if (lines.length < 2) return false
-    // Only wrap in cases if the OMML MathML already contains a { delimiter
-    // (detected by presence of mfenced with open="{" or <mo>{</mo> in first line)
-    const firstMathml = lines[0].mathml || ''
-    if (firstMathml.includes('open="{') || firstMathml.includes('>{</mo>')) return true
-    // Don't guess — if OMML didn't have {, don't add it
+    // Never wrap — cases should come from OMML structure itself
+    // (handled by ommlNodeToMathML "d" case with begChr="{" endChr="")
+    // Adding extra { at wrapFormulaMathML level was causing
+    // false positives (formulas 2, 4, 11)
     return false
   }
 
