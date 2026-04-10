@@ -32,8 +32,10 @@
 | v0.38 | 2026-04-09 | Навигация: рисунки/формулы/таблицы, правки lightbox |
 | **v0.39** | **2026-04-09** | **Документация контекста: `.context/activeContext.md`, расширенный `progress.md`, Ticket protocol** |
 | **v0.40** | **2026-04-09** | **ГОСТ §16: кавычки «»„" и тире —/– (input rules), `typography-rules.js`, тесты** |
+| **v0.41** | **2026-04-09** | **Экспорт HTML5 + MathJax: `export-html.js`, `editorum-publication.css`, кнопка 📄 HTML в toolbar** |
+| **v0.42** | **2026-04-10** | **Codex: OMML→MathML, MathJax в редакторе, katex убран из deps; `npm test` 12/12 зелёный** |
 
-*Следующая версия (v0.41+): добавлять строку при значимом релизе или по договорённости команды.*
+*Следующая версия (v0.43+): добавлять строку при значимом релизе или по договорённости команды.*
 
 ---
 
@@ -43,6 +45,8 @@
 |---|--------|-----|-------|--------|------|
 | — | Документация: правила, владение файлами, Ticket protocol | Composer | `.context/activeContext.md`, `.context/progress.md` | ✅ | OK |
 | — | COMPOSER-TYPOGRAPHY: кавычки «»„", тире `---`→—, `--`+символ→–; убраны smartQuotes/emDash PM | Composer | `src/typography-rules.js`, `src/main.js`, `tests/typography-rules.test.js` | ✅ | OK |
+| — | COMPOSER-EXPORT: HTML5 + MathJax, article/header/main/footer, figcaption/caption, кнопка скачивания | Composer | `src/export-html.js`, `src/editorum-publication.css`, `public/editorum-publication.css`, `src/toolbar.js` | ✅ | OK |
+| — | Codex: OMML→MathML pipeline, тесты (в т.ч. Semion 32 формулы), MathJax в `index.html`; повторная проверка **`npm test` — 12/12** | Codex / проверка | `word-import.js`, `index.html`, `package.json`, `tests/` | ✅ | `npm test` OK |
 
 ### Ранее в этот день (сводка)
 
@@ -116,8 +120,8 @@
 **Решение:** OMML→MathML (XSLT, почти 1:1) → MathJax (рендер идентичен Word).
 **LaTeX:** для LaTeX есть EdiLaTeX, в WYSIWYG формулы через MathML визуально.
 
-### Новые задачи
-| # | Задача | Кто | Файл тикета |
-|---|--------|-----|-------------|
-| 26 | OMML→MathML + MathJax | Codex | CODEX-TASK-MATHML.md |
-| 27 | Экспорт HTML5 + метаданные | Composer | COMPOSER-TASK-EXPORT.md |
+### Новые задачи → закрыто (10.04.2026)
+| # | Задача | Кто | Файл тикета | Статус |
+|---|--------|-----|-------------|--------|
+| 26 | OMML→MathML + MathJax | Codex | CODEX-TASK-MATHML.md | ✅ v0.42 |
+| 27 | Экспорт HTML5 + метаданные | Composer | COMPOSER-TASK-EXPORT.md | ✅ v0.41 |

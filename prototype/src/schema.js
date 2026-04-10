@@ -1,6 +1,32 @@
 import { Schema } from "prosemirror-model"
 import { tableNodes } from "prosemirror-tables"
-import katex from "katex"
+
+function queueMathJaxTypeset(element) {
+  if (typeof window === "undefined") return
+  const mathJax = window.MathJax
+  if (!mathJax?.typesetPromise) return
+  queueMicrotask(() => {
+    mathJax.typesetPromise([element]).catch((error) => {
+      console.warn("[MathJax] typeset failed", error)
+    })
+  })
+}
+
+function renderMathContent(host, { mathml = "", latex = "", displayMode = false }) {
+  if (mathml) {
+    host.innerHTML = mathml
+    queueMathJaxTypeset(host)
+    return
+  }
+
+  if (latex) {
+    host.textContent = displayMode ? `\\[${latex}\\]` : `\\(${latex}\\)`
+    queueMathJaxTypeset(host)
+    return
+  }
+
+  host.textContent = ""
+}
 
 // === Inline math node ===
 const mathInlineSpec = {
@@ -8,24 +34,30 @@ const mathInlineSpec = {
   content: "text*",
   inline: true,
   atom: true,
-  attrs: { latex: { default: "" } },
+  attrs: {
+    mathml: { default: "" },
+    latex: { default: "" }
+  },
   toDOM(node) {
     const span = document.createElement("span")
     span.classList.add("math-inline")
+    span.setAttribute("data-mathml", node.attrs.mathml || "")
     span.setAttribute("data-latex", node.attrs.latex)
     span.setAttribute("title", "Кликните для редактирования")
     span.style.cursor = "pointer"
-    try {
-      katex.render(node.attrs.latex, span, { throwOnError: false, displayMode: false })
-    } catch {
-      span.textContent = node.attrs.latex
-    }
+    const host = document.createElement("span")
+    host.classList.add("math-render-host")
+    span.appendChild(host)
+    renderMathContent(host, node.attrs)
     return span
   },
   parseDOM: [{
     tag: "span.math-inline",
     getAttrs(dom) {
-      return { latex: dom.getAttribute("data-latex") || dom.textContent }
+      return {
+        mathml: dom.getAttribute("data-mathml") || dom.querySelector("math")?.outerHTML || "",
+        latex: dom.getAttribute("data-latex") || dom.textContent
+      }
     }
   }]
 }
@@ -35,18 +67,22 @@ const mathBlockSpec = {
   group: "block",
   content: "text*",
   atom: true,
-  attrs: { latex: { default: "" }, label: { default: null } },
+  attrs: {
+    mathml: { default: "" },
+    latex: { default: "" },
+    label: { default: null }
+  },
   toDOM(node) {
     const div = document.createElement("div")
     div.classList.add("math-block")
+    div.setAttribute("data-mathml", node.attrs.mathml || "")
     div.setAttribute("data-latex", node.attrs.latex)
     div.setAttribute("title", "Кликните для редактирования формулы")
     div.style.cursor = "pointer"
-    try {
-      katex.render(node.attrs.latex, div, { throwOnError: false, displayMode: true })
-    } catch {
-      div.textContent = node.attrs.latex
-    }
+    const host = document.createElement("div")
+    host.classList.add("math-render-host")
+    div.appendChild(host)
+    renderMathContent(host, { ...node.attrs, displayMode: true })
     if (node.attrs.label) {
       const labelSpan = document.createElement("span")
       labelSpan.classList.add("math-label")
@@ -59,6 +95,7 @@ const mathBlockSpec = {
     tag: "div.math-block",
     getAttrs(dom) {
       return {
+        mathml: dom.getAttribute("data-mathml") || dom.querySelector("math")?.outerHTML || "",
         latex: dom.getAttribute("data-latex") || dom.textContent,
         label: dom.getAttribute("data-label") || dom.querySelector(".math-label")?.textContent || null
       }

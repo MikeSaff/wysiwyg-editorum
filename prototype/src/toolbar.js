@@ -3,6 +3,7 @@ import { undo, redo } from "prosemirror-history"
 import { wrapInList } from "prosemirror-schema-list"
 import { addColumnAfter, addColumnBefore, addRowAfter, addRowBefore, deleteColumn, deleteRow, deleteTable, mergeCells, splitCell, toggleHeaderRow, toggleHeaderColumn } from "prosemirror-tables"
 import { schema } from "./schema.js"
+import { exportToHtml } from "./export-html.js"
 
 function markActive(state, type) {
   const { from, $from, to, empty } = state.selection
@@ -246,6 +247,17 @@ export function buildToolbar(view, toolbarEl) {
     const a = document.createElement("a")
     a.href = url
     a.download = "document.json"
+    a.click()
+    URL.revokeObjectURL(url)
+    return true
+  }, view))
+  groupDoc.appendChild(createButton("📄 HTML", "Экспорт HTML5 + MathJax (скачать)", (state, dispatch) => {
+    const html = exportToHtml(state.doc.toJSON(), schema)
+    const blob = new Blob([html], { type: "text/html;charset=utf-8" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = "document.html"
     a.click()
     URL.revokeObjectURL(url)
     return true

@@ -552,6 +552,7 @@ function init() {
     if (newLatex !== null && newLatex !== node.attrs.latex) {
       const tr = view.state.tr.setNodeMarkup(pos, null, {
         ...node.attrs,
+        mathml: "",
         latex: newLatex
       })
       view.dispatch(tr)

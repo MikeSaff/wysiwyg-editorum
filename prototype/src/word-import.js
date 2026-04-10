@@ -414,6 +414,216 @@ export function ommlToLatex(ommlElement) {
   return processNode(ommlElement).trim()
 }
 
+export function ommlToMathML(ommlElement, options = {}) {
+  const ns = "http://schemas.openxmlformats.org/officeDocument/2006/math"
+  const { display = false, wrap = true } = options
+
+  function processNode(node) {
+    if (!node) return ""
+
+    const localName = node.localName || node.nodeName?.split(":").pop() || ""
+
+    switch (localName) {
+      case "oMath":
+        return wrapMrow(processChildren(node))
+
+      case "r":
+        return textToMathML(getMathRunText(node))
+
+      case "f": {
+        const num = getFirstDirectChildByLocalName(node, "num")
+        const den = getFirstDirectChildByLocalName(node, "den")
+        return `<mfrac>${wrapMrow(processChildren(num))}${wrapMrow(processChildren(den))}</mfrac>`
+      }
+
+      case "sSub": {
+        const base = getFirstDirectChildByLocalName(node, "e")
+        const sub = getFirstDirectChildByLocalName(node, "sub")
+        return `<msub>${wrapMrow(processChildren(base))}${wrapMrow(processChildren(sub))}</msub>`
+      }
+
+      case "sSup": {
+        const base = getFirstDirectChildByLocalName(node, "e")
+        const sup = getFirstDirectChildByLocalName(node, "sup")
+        return `<msup>${wrapMrow(processChildren(base))}${wrapMrow(processChildren(sup))}</msup>`
+      }
+
+      case "sSubSup": {
+        const base = getFirstDirectChildByLocalName(node, "e")
+        const sub = getFirstDirectChildByLocalName(node, "sub")
+        const sup = getFirstDirectChildByLocalName(node, "sup")
+        return `<msubsup>${wrapMrow(processChildren(base))}${wrapMrow(processChildren(sub))}${wrapMrow(processChildren(sup))}</msubsup>`
+      }
+
+      case "rad": {
+        const degree = getFirstDirectChildByLocalName(node, "deg")
+        const radicand = getFirstDirectChildByLocalName(node, "e")
+        const degreeMathML = processChildren(degree)
+        if (normalizeMathMLContent(degreeMathML)) {
+          return `<mroot>${wrapMrow(processChildren(radicand))}${wrapMrow(degreeMathML)}</mroot>`
+        }
+        return `<msqrt>${wrapMrow(processChildren(radicand))}</msqrt>`
+      }
+
+      case "d": {
+        const dPr = getFirstDirectChildByLocalName(node, "dPr")
+        let begChar = "("
+        let endChar = ")"
+        if (dPr) {
+          const beg = dPr.getElementsByTagNameNS(ns, "begChr")[0]
+          const end = dPr.getElementsByTagNameNS(ns, "endChr")[0]
+          if (beg) begChar = beg.getAttribute("m:val") ?? beg.getAttributeNS(ns, "val") ?? "("
+          if (end) endChar = end.getAttribute("m:val") ?? end.getAttributeNS(ns, "val") ?? ")"
+        }
+
+        const parts = []
+        if (begChar && begChar !== " ") {
+          parts.push(`<mo stretchy="true">${escapeXml(begChar)}</mo>`)
+        }
+        parts.push(processChildren(node))
+        if (endChar && endChar !== " ") {
+          parts.push(`<mo stretchy="true">${escapeXml(endChar)}</mo>`)
+        }
+        return wrapMrow(parts.join(""))
+      }
+
+      case "nary": {
+        const naryPr = getFirstDirectChildByLocalName(node, "naryPr")
+        const narySub = getFirstDirectChildByLocalName(node, "sub")
+        const narySup = getFirstDirectChildByLocalName(node, "sup")
+        const naryE = getFirstDirectChildByLocalName(node, "e")
+        let operator = "∫"
+        if (naryPr) {
+          const chr = naryPr.getElementsByTagNameNS(ns, "chr")[0]
+          const val = chr ? (chr.getAttribute("m:val") || chr.getAttributeNS(ns, "val")) : null
+          if (val) operator = val
+        }
+        const op = `<mo>${escapeXml(operator)}</mo>`
+        const sub = processChildren(narySub)
+        const sup = processChildren(narySup)
+        const body = processChildren(naryE)
+        let head = op
+        if (sub && sup) {
+          const scriptedTag = operator === "∑" || operator === "Σ" || operator === "∏" || operator === "Π" ? "munderover" : "msubsup"
+          head = `<${scriptedTag}>${op}${wrapMrow(sub)}${wrapMrow(sup)}</${scriptedTag}>`
+        } else if (sub) {
+          head = `<msub>${op}${wrapMrow(sub)}</msub>`
+        } else if (sup) {
+          head = `<msup>${op}${wrapMrow(sup)}</msup>`
+        }
+        return wrapMrow(`${head}${wrapMrow(body)}`)
+      }
+
+      case "acc": {
+        const accPr = getFirstDirectChildByLocalName(node, "accPr")
+        const accE = getFirstDirectChildByLocalName(node, "e")
+        let accent = "̂"
+        if (accPr) {
+          const accChr = accPr.getElementsByTagNameNS(ns, "chr")[0]
+          accent = accChr ? (accChr.getAttribute("m:val") || accChr.getAttributeNS(ns, "val") || accent) : accent
+        }
+        return `<mover accent="true">${wrapMrow(processChildren(accE))}<mo>${escapeXml(accent)}</mo></mover>`
+      }
+
+      case "m": {
+        const rows = []
+        const directMrs = getDirectChildElementsByLocalName(node, "mr")
+        for (const row of directMrs) {
+          const cells = getDirectChildElementsByLocalName(row, "e")
+            .map((cell) => `<mtd>${wrapMrow(processChildren(cell))}</mtd>`)
+            .join("")
+          rows.push(`<mtr>${cells}</mtr>`)
+        }
+        return `<mtable>${rows.join("")}</mtable>`
+      }
+
+      case "eqArr": {
+        const rows = getDirectChildElementsByLocalName(node, "e")
+          .map((row) => `<mtr><mtd>${wrapMrow(processChildren(row))}</mtd></mtr>`)
+          .join("")
+        return `<mtable>${rows}</mtable>`
+      }
+
+      case "bar": {
+        const barE = getFirstDirectChildByLocalName(node, "e")
+        return `<mover accent="true">${wrapMrow(processChildren(barE))}<mo>¯</mo></mover>`
+      }
+
+      case "box": {
+        const boxE = getFirstDirectChildByLocalName(node, "e")
+        return wrapMrow(processChildren(boxE))
+      }
+
+      case "func": {
+        const fName = getFirstDirectChildByLocalName(node, "fName")
+        const funcE = getFirstDirectChildByLocalName(node, "e")
+        return wrapMrow(`${processChildren(fName)}${wrapMrow(processChildren(funcE))}`)
+      }
+
+      case "groupChr": {
+        const gcE = getFirstDirectChildByLocalName(node, "e")
+        return wrapMrow(processChildren(gcE))
+      }
+
+      case "limLow": {
+        const limBase = getFirstDirectChildByLocalName(node, "e")
+        const limLim = getFirstDirectChildByLocalName(node, "lim")
+        return `<munder>${wrapMrow(processChildren(limBase))}${wrapMrow(processChildren(limLim))}</munder>`
+      }
+
+      case "limUpp": {
+        const limBase = getFirstDirectChildByLocalName(node, "e")
+        const limLim = getFirstDirectChildByLocalName(node, "lim")
+        return `<mover>${wrapMrow(processChildren(limBase))}${wrapMrow(processChildren(limLim))}</mover>`
+      }
+
+      case "e":
+      case "num":
+      case "den":
+      case "sub":
+      case "sup":
+      case "deg":
+      case "lim":
+      case "fName":
+        return wrapMrow(processChildren(node))
+
+      case "t":
+        return textToMathML(node.textContent || "")
+
+      case "rPr": case "ctrlPr": case "sSubPr": case "sSupPr":
+      case "fPr": case "radPr": case "dPr": case "naryPr":
+      case "accPr": case "mPr": case "mcs": case "mc":
+      case "mcPr": case "count": case "mcJc": case "sSubSupPr":
+      case "barPr": case "boxPr": case "funcPr": case "groupChrPr":
+      case "limLowPr": case "limUppPr": case "eqArrPr":
+      case "begChr": case "endChr": case "chr": case "pos":
+      case "vertJc": case "type": case "grow": case "subHide":
+      case "supHide": case "noBreak": case "wrapIndent":
+      case "wrapRight": case "intLim": case "naryLim":
+        return ""
+
+      default:
+        return processChildren(node)
+    }
+  }
+
+  function processChildren(node) {
+    if (!node) return ""
+    let result = ""
+    for (let i = 0; i < node.childNodes.length; i++) {
+      const child = node.childNodes[i]
+      if (child.nodeType === 1) {
+        result += processNode(child)
+      }
+    }
+    return result
+  }
+
+  const content = normalizeMathMLContent(processNode(ommlElement))
+  if (!wrap) return content
+  return `<math xmlns="http://www.w3.org/1998/Math/MathML"${display ? ' display="block"' : ""}>${wrapMrow(content)}</math>`
+}
+
 /**
  * Parse DOCX document.xml and convert to HTML with LaTeX math.
  */
@@ -454,7 +664,8 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
           const oMaths = findElementsByLocalName(omp, "oMath")
           for (const oMath of oMaths) {
             const latex = ommlToLatex(oMath)
-            if (latex) {
+            const mathml = ommlToMathML(oMath, { display: true })
+            if (latex || mathml) {
               // Look ahead: is next element a formula number like (1)?
               let label = null
               if (idx + 1 < bodyChildren.length) {
@@ -476,7 +687,7 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
                 }
               }
               const labelAttr = label ? ` data-label="${escapeAttr(label)}"` : ""
-              html += `<div class="math-block" data-latex="${escapeAttr(latex)}"${labelAttr}>${escapeHtml(latex)}</div>\n`
+              html += renderMathHtml({ display: true, latex, mathml, labelAttr })
             }
           }
         }
@@ -492,8 +703,9 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
       const oMaths = findElementsByLocalName(child, "oMath")
       for (const oMath of oMaths) {
         const latex = ommlToLatex(oMath)
-        if (latex) {
-          html += `<div class="math-block" data-latex="${escapeAttr(latex)}">${escapeHtml(latex)}</div>\n`
+        const mathml = ommlToMathML(oMath, { display: true })
+        if (latex || mathml) {
+          html += renderMathHtml({ display: true, latex, mathml })
         }
       }
     }
@@ -543,8 +755,9 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
       } else if (cName === "oMath") {
         // Inline math
         const latex = ommlToLatex(child)
-        if (latex) {
-          content += `<span class="math-inline" data-latex="${escapeAttr(latex)}">${escapeHtml(latex)}</span>`
+        const mathml = ommlToMathML(child)
+        if (latex || mathml) {
+          content += renderMathHtml({ display: false, latex, mathml }).trim()
           hasContent = true
         }
       } else if (cName === "oMathPara") {
@@ -552,8 +765,9 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
         const oMaths = findElementsByLocalName(child, "oMath")
         for (const oMath of oMaths) {
           const latex = ommlToLatex(oMath)
-          if (latex) {
-            content += `<span class="math-inline" data-latex="${escapeAttr(latex)}">${escapeHtml(latex)}</span>`
+          const mathml = ommlToMathML(oMath)
+          if (latex || mathml) {
+            content += renderMathHtml({ display: false, latex, mathml }).trim()
             hasContent = true
           }
         }
@@ -671,7 +885,7 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
         const rowFormula = extractFormulaFromRow(row)
         if (rowFormula?.latex) {
           const labelAttr = rowFormula.label ? ` data-label="${escapeAttr(rowFormula.label)}"` : ""
-          blocks.push(`<div class="math-block" data-latex="${escapeAttr(rowFormula.latex)}"${labelAttr}>${escapeHtml(rowFormula.latex)}</div>\n`)
+          blocks.push(renderMathHtml({ display: true, latex: rowFormula.latex, mathml: rowFormula.mathml, labelAttr }))
           if (rowFormula.trailingHtml) {
             blocks.push(rowFormula.trailingHtml)
           }
@@ -733,7 +947,12 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
         if (formulaLatex.trim()) {
           // This is a formula table, not a data table
           const labelAttr = label ? ` data-label="${escapeAttr(label)}"` : ""
-          return `<div class="math-block" data-latex="${escapeAttr(formulaLatex.trim())}"${labelAttr}>${escapeHtml(formulaLatex.trim())}</div>\n`
+          return renderMathHtml({
+            display: true,
+            latex: formulaLatex.trim(),
+            mathml: wrapFormulaMathML([{ latex: formulaLatex.trim(), mathml: textToMathML(formulaLatex.trim()) }], false),
+            labelAttr
+          })
         }
       }
     }
@@ -763,7 +982,8 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
               if (pcName === "r") cellContent += processRun(pChild, wNs)
               else if (pcName === "oMath") {
                 const latex = ommlToLatex(pChild)
-                if (latex) cellContent += `<span class="math-inline" data-latex="${escapeAttr(latex)}">${escapeHtml(latex)}</span>`
+                const mathml = ommlToMathML(pChild)
+                if (latex || mathml) cellContent += renderMathHtml({ display: false, latex, mathml }).trim()
               }
             }
             html += cellContent
@@ -800,6 +1020,7 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
 
     return {
       latex: formatFormulaLines(formulaLines),
+      mathml: wrapFormulaMathML(formulaLines, shouldWrapFormulaLinesInCases(formulaLines)),
       label,
       trailingHtml: buildAuxiliaryMathParagraph(auxiliarySegments)
     }
@@ -832,13 +1053,16 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
     }
 
     return {
-      formulaLines: [fallbackMaths.map(m => ommlToLatex(m)).filter(Boolean).join(" ")],
+      formulaLines: fallbackMaths.map((m) => ({
+        latex: ommlToLatex(m),
+        mathml: ommlToMathML(m, { wrap: false })
+      })).filter((line) => line.latex || line.mathml),
       auxiliarySegments: []
     }
   }
 
   function extractFormulaSegmentsFromParagraph(paragraph) {
-    let line = ""
+    let line = { latex: "", mathml: "" }
     let hasMath = false
     const segments = []
     const meaningfulChildren = []
@@ -852,9 +1076,12 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
     }
 
     function flushSegment() {
-      const normalized = normalizeFormulaWhitespace(line)
-      if (normalized) segments.push(normalized)
-      line = ""
+      const normalizedLatex = normalizeFormulaWhitespace(line.latex)
+      const normalizedMathML = normalizeMathMLContent(line.mathml)
+      if (normalizedLatex || normalizedMathML) {
+        segments.push({ latex: normalizedLatex, mathml: normalizedMathML })
+      }
+      line = { latex: "", mathml: "" }
       hasMath = false
     }
 
@@ -864,17 +1091,23 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
       const nextMeaningfulChild = getNextFormulaRelevantChild(meaningfulChildren, i + 1)
 
       if (childName === "oMath") {
-        const latex = ommlToLatex(child)
-        if (!latex) continue
+        const payload = {
+          latex: ommlToLatex(child),
+          mathml: ommlToMathML(child, { wrap: false })
+        }
+        if (!payload.latex && !payload.mathml) continue
         hasMath = true
-        line = appendFormulaMath(line, latex)
+        line = appendFormulaMath(line, payload)
       } else if (childName === "oMathPara") {
         const maths = findElementsByLocalName(child, "oMath")
         for (const math of maths) {
-          const latex = ommlToLatex(math)
-          if (!latex) continue
+          const payload = {
+            latex: ommlToLatex(math),
+            mathml: ommlToMathML(math, { wrap: false })
+          }
+          if (!payload.latex && !payload.mathml) continue
           hasMath = true
-          line = appendFormulaMath(line, latex)
+          line = appendFormulaMath(line, payload)
         }
       } else if (childName === "r") {
         const runText = extractPlainTextFromRun(child)
@@ -885,18 +1118,23 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
       }
     }
 
-    if (hasMath || normalizeFormulaWhitespace(line)) {
+    if (hasMath || normalizeFormulaWhitespace(line.latex)) {
       flushSegment()
     }
 
     return segments
   }
 
-  function appendFormulaMath(current, latex) {
-    if (!current) return latex.trim()
-    if (/[({[\s]$/.test(current)) return `${current}${latex.trim()}`
-    if (/[=+\-*/]\\?$/.test(current)) return `${current}${latex.trim()}`
-    return `${current} ${latex.trim()}`
+  function appendFormulaMath(current, payload) {
+    const nextLatex = payload.latex?.trim() || ""
+    const nextMathML = payload.mathml || ""
+    if (!current.latex) {
+      return { latex: nextLatex, mathml: `${current.mathml}${nextMathML}` }
+    }
+    if (/[({[\s]$/.test(current.latex) || /[=+\-*/]\\?$/.test(current.latex)) {
+      return { latex: `${current.latex}${nextLatex}`, mathml: `${current.mathml}${nextMathML}` }
+    }
+    return { latex: `${current.latex} ${nextLatex}`, mathml: `${current.mathml}${nextMathML}` }
   }
 
   function appendFormulaText(current, text) {
@@ -904,11 +1142,19 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
     if (!normalized) return current
 
     if (/^[,.;:]$/.test(normalized)) {
-      return `${current.replace(/\s+$/u, "")}${normalized}`
+      return {
+        latex: `${current.latex.replace(/\s+$/u, "")}${normalized}`,
+        mathml: `${current.mathml}${textToMathML(normalized)}`
+      }
     }
 
-    if (!current) return normalized
-    return `${current} ${normalized}`
+    if (!current.latex) {
+      return { latex: normalized, mathml: `${current.mathml}${textToMathML(normalized)}` }
+    }
+    return {
+      latex: `${current.latex} ${normalized}`,
+      mathml: `${current.mathml}${textToMathML(normalized)}`
+    }
   }
 
   function shouldSplitFormulaSegment(runText, nextMeaningfulChild) {
@@ -931,18 +1177,18 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
   }
 
   function isAuxiliaryFormulaSegment(segment) {
-    return !segment.includes("=") && /\\in|\\notin|\\subset|\\supset/.test(segment)
+    return !segment.latex.includes("=") && /\\in|\\notin|\\subset|\\supset/.test(segment.latex)
   }
 
   function formatFormulaLines(lines) {
     const normalizedLines = lines
-      .map(line => normalizeFormulaWhitespace(line))
+      .map(line => normalizeFormulaWhitespace(line.latex))
       .filter(Boolean)
 
     if (normalizedLines.length === 0) return ""
 
     const joined = normalizedLines.join(" \\\\ ")
-    if (shouldWrapFormulaLinesInCases(normalizedLines)) {
+    if (shouldWrapFormulaLinesInCases(lines)) {
       return `\\begin{cases} ${joined} \\end{cases}`
     }
     return joined
@@ -950,16 +1196,44 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
 
   function shouldWrapFormulaLinesInCases(lines) {
     if (lines.length < 3) return false
-    if (lines.some(line => /\\begin\{[a-zA-Z*]+\}/.test(line))) return false
-    return /\\(?:tfrac|dfrac|frac)\{d\}\{dt\}/.test(lines[0])
+    if (lines.some(line => /\\begin\{[a-zA-Z*]+\}/.test(line.latex))) return false
+    return /\\(?:tfrac|dfrac|frac)\{d\}\{dt\}/.test(lines[0].latex)
   }
 
   function buildAuxiliaryMathParagraph(segments) {
     if (segments.length === 0) return ""
     const content = segments
-      .map(segment => `<span class="math-inline" data-latex="${escapeAttr(segment)}">${escapeHtml(segment)}</span>`)
+      .map(segment => renderMathHtml({ display: false, latex: segment.latex, mathml: wrapInlineMathML(segment.mathml) }).trim())
       .join(" ")
     return `<p>${content}</p>\n`
+  }
+
+  function renderMathHtml({ display, latex, mathml, labelAttr = "" }) {
+    const attrs = ` data-mathml="${escapeAttr(mathml || "")}" data-latex="${escapeAttr(latex || "")}"`
+    if (display) {
+      return `<div class="math-block"${attrs}${labelAttr}>${mathml || escapeHtml(latex || "")}</div>\n`
+    }
+    return `<span class="math-inline"${attrs}>${mathml || escapeHtml(latex || "")}</span>`
+  }
+
+  function wrapInlineMathML(mathml) {
+    const content = normalizeMathMLContent(mathml)
+    if (!content) return ""
+    return `<math xmlns="http://www.w3.org/1998/Math/MathML">${wrapMrow(content)}</math>`
+  }
+
+  function wrapFormulaMathML(lines, asCases = false) {
+    if (lines.length === 0) return ""
+    if (lines.length === 1 && !asCases) {
+      return `<math xmlns="http://www.w3.org/1998/Math/MathML" display="block">${wrapMrow(normalizeMathMLContent(lines[0].mathml) || textToMathML(lines[0].latex))}</math>`
+    }
+
+    const rows = lines
+      .map((line) => `<mtr><mtd>${wrapMrow(normalizeMathMLContent(line.mathml) || textToMathML(line.latex))}</mtd></mtr>`)
+      .join("")
+    const table = `<mtable>${rows}</mtable>`
+    const content = asCases ? `<mrow><mo stretchy="true">{</mo>${table}</mrow>` : table
+    return `<math xmlns="http://www.w3.org/1998/Math/MathML" display="block">${content}</math>`
   }
 
   function extractPlainTextFromRun(run) {
@@ -1041,6 +1315,84 @@ function getParentElement(node) {
     parent = parent.parentNode || null
   }
   return parent || null
+}
+
+function getMathRunText(node) {
+  const texts = node.getElementsByTagNameNS("http://schemas.openxmlformats.org/officeDocument/2006/math", "t")
+  let result = ""
+  for (let i = 0; i < texts.length; i++) {
+    result += texts[i].textContent || ""
+  }
+  return result
+}
+
+function wrapMrow(content) {
+  const normalized = normalizeMathMLContent(content)
+  if (!normalized) return "<mrow></mrow>"
+  if (/^\s*<mrow[\s>]/.test(normalized) && /<\/mrow>\s*$/.test(normalized)) return normalized
+  return `<mrow>${normalized}</mrow>`
+}
+
+function normalizeMathMLContent(content) {
+  return (content || "").replace(/\s+/gu, " ").trim()
+}
+
+function textToMathML(text) {
+  const normalized = (text || "").trim()
+  if (!normalized) return ""
+
+  const tokens = []
+  let buffer = ""
+  let currentType = ""
+  const chars = Array.from(normalized)
+
+  function flush() {
+    if (!buffer) return
+    if (currentType === "mi") tokens.push(`<mi>${escapeXml(buffer)}</mi>`)
+    else if (currentType === "mn") tokens.push(`<mn>${escapeXml(buffer)}</mn>`)
+    else if (currentType === "mtext") tokens.push(`<mtext>${escapeXml(buffer)}</mtext>`)
+    buffer = ""
+  }
+
+  for (const char of chars) {
+    if (/\s/u.test(char)) {
+      flush()
+      currentType = ""
+      continue
+    }
+
+    const type = classifyMathChar(char)
+    if (type === "mo") {
+      flush()
+      tokens.push(`<mo>${escapeXml(char)}</mo>`)
+      currentType = ""
+      continue
+    }
+
+    if (type !== currentType && buffer) {
+      flush()
+    }
+    currentType = type
+    buffer += char
+  }
+
+  flush()
+  return tokens.join("")
+}
+
+function classifyMathChar(char) {
+  if (/\p{Number}/u.test(char)) return "mn"
+  if (/^[=+\-−*∙•·∞∈∉⊂⊃∀∃≤≥≠≈→←↔≺≻∂∇…⋯,:;()[\]{}|‖/\\]$/u.test(char)) return "mo"
+  if (/\p{Letter}/u.test(char)) return "mi"
+  return "mtext"
+}
+
+function escapeXml(text) {
+  return (text || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
 }
 
 function escapeHtml(text) {

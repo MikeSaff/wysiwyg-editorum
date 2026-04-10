@@ -3,7 +3,7 @@ import assert from "node:assert/strict"
 import fs from "node:fs/promises"
 import JSZip from "jszip"
 import { DOMParser } from "xmldom"
-import { docxXmlToHtml, ommlToLatex } from "../src/word-import.js"
+import { docxXmlToHtml, ommlToLatex, ommlToMathML } from "../src/word-import.js"
 import {
   integralOmml,
   limOmml,
@@ -26,19 +26,28 @@ async function loadDocumentXmlFromDocx(docxPath) {
 }
 
 function collectMathBlocks(html) {
-  return [...html.matchAll(/<div class="math-block" data-latex="([^"]*)"(?: data-label="([^"]*)")?/g)].map((match) => ({
-    latex: match[1].replace(/&quot;/g, "\"").replace(/&amp;/g, "&"),
-    label: match[2] || null
+  return [...html.matchAll(/<div class="math-block" data-mathml="([^"]*)" data-latex="([^"]*)"(?: data-label="([^"]*)")?/g)].map((match) => ({
+    mathml: decodeAttr(match[1]),
+    latex: decodeAttr(match[2]),
+    label: match[3] || null
   }))
 }
 
 function collectInlineMathParagraphs(html) {
   return [...html.matchAll(/<p>(.*?)<\/p>/g)].map((match) => {
     const formulas = [...match[1].matchAll(/data-latex="([^"]+)"/g)].map((inner) =>
-      inner[1].replace(/&quot;/g, "\"").replace(/&amp;/g, "&")
+      decodeAttr(inner[1])
     )
     return formulas
   }).filter((formulas) => formulas.length > 0)
+}
+
+function decodeAttr(value) {
+  return value
+    .replace(/&quot;/g, "\"")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&amp;/g, "&")
 }
 
 test("ommlToLatex keeps the full integrand for n-ary expressions", () => {
@@ -47,6 +56,17 @@ test("ommlToLatex keeps the full integrand for n-ary expressions", () => {
   const latex = ommlToLatex(omml)
 
   assert.equal(latex, "\\int_{t_{0}}^{t_{f}} [x + u]dt")
+})
+
+test("ommlToMathML keeps the full integrand for n-ary expressions", () => {
+  const doc = parseXml(integralOmml)
+  const omml = doc.getElementsByTagName("m:oMath")[0] || doc.documentElement
+  const mathml = ommlToMathML(omml, { display: true })
+
+  assert.match(mathml, /^<math /)
+  assert.match(mathml, /<mo>∫<\/mo>/)
+  assert.match(mathml, /<msub>/)
+  assert.match(mathml, /<mo>\+<\/mo>/)
 })
 
 test("ommlToLatex does not duplicate lim", () => {
@@ -65,6 +85,8 @@ test("docxXmlToHtml splits multiple formula paragraphs in one table cell into se
   assert.equal(blocks.length, 1)
   assert.equal(blocks[0].label, "(25)")
   assert.equal(blocks[0].latex, "a = b, \\\\ c = d,")
+  assert.match(blocks[0].mathml, /^<math /)
+  assert.match(blocks[0].mathml, /<mtable>/)
 })
 
 test("docxXmlToHtml keeps auxiliary membership conditions outside the main formula block", () => {
@@ -96,6 +118,7 @@ test("docxXmlToHtml keeps auxiliary membership conditions outside the main formu
 
   assert.equal(blocks.length, 1)
   assert.equal(blocks[0].latex, "a = b, \\\\ x = 0")
+  assert.match(blocks[0].mathml, /<mtable>/)
   assert.deepEqual(inlineParagraphs, [["u\\in U,", "w\\in W"]])
 })
 
@@ -111,6 +134,7 @@ test("docxXmlToHtml emits separate math blocks for multi-row formula tables", ()
     blocks.map((block) => block.latex),
     ["k_p = 0", "k_e = 0"]
   )
+  assert.ok(blocks.every((block) => block.mathml.startsWith("<math ")))
 })
 
 test("real Semion DOCX yields 32 labeled display formulas with preserved multiline math", async () => {
@@ -128,6 +152,7 @@ test("real Semion DOCX yields 32 labeled display formulas with preserved multili
   assert.ok(byLabel.has("(26)"))
   assert.ok(byLabel.has("(31)"))
   assert.ok(byLabel.has("(32)"))
+  assert.ok([...byLabel.keys()].every((label) => !label || blocks.find((block) => block.label === label)?.mathml.includes("<math")))
 
   assert.match(byLabel.get("(2)"), /^\\begin\{cases\}/)
   assert.doesNotMatch(byLabel.get("(2)"), /u\(t\)\\in U/)
@@ -159,12 +184,16 @@ test("real Semion DOCX yields 32 labeled display formulas with preserved multili
   assert.match(byLabel.get("(32)"), /k_\{e\}/)
 })
 
-test("styles keep KaTeX relation symbols on the surrounding text color", async () => {
-  const cssPath = new URL("../src/styles.css", import.meta.url)
-  const css = await fs.readFile(cssPath, "utf8")
+test("MathJax is configured in index.html and katex is removed from package.json", async () => {
+  const indexPath = new URL("../index.html", import.meta.url)
+  const packagePath = new URL("../package.json", import.meta.url)
+  const [indexHtml, pkg] = await Promise.all([
+    fs.readFile(indexPath, "utf8"),
+    fs.readFile(packagePath, "utf8")
+  ])
 
-  const hasSpecificRule = /\.ProseMirror\s+\.katex\s+\.mrel\s*\{[\s\S]*?color:\s*inherit;/.test(css)
-  const hasGlobalRule = /\.ProseMirror\s+\.katex,\s*[\s\S]*?\.ProseMirror\s+\.katex\s*\*\s*\{[\s\S]*?color:\s*#000\s*!important;/.test(css)
-
-  assert.ok(hasSpecificRule || hasGlobalRule)
+  assert.match(indexHtml, /window\.MathJax/)
+  assert.match(indexHtml, /mathjax@4\/tex-mml-chtml\.js/)
+  assert.doesNotMatch(indexHtml, /katex/i)
+  assert.doesNotMatch(pkg, /"katex"/)
 })

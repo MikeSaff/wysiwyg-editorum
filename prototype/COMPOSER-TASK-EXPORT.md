@@ -59,8 +59,10 @@ export function exportToHtml(doc, schema) {
 - schema.js (Codex меняет для MathML)
 
 ## Acceptance Criteria
-- [ ] Кнопка «📄 HTML» генерирует и скачивает HTML файл
-- [ ] HTML содержит все элементы документа
-- [ ] Формулы рендерятся через MathJax при открытии HTML
-- [ ] npx vite build без ошибок
-- [ ] Записать в .context/progress.md
+- [x] Кнопка «📄 HTML» генерирует и скачивает HTML файл (`toolbar.js` → `exportToHtml`)
+- [x] HTML содержит структуру article / header / main / footer и контент из DocumentJSON
+- [x] Формулы: `\\( \\)` / `\\[ \\]` + MathJax 3 CDN
+- [x] `npx vite build` без ошибок
+- [x] Записать в `.context/progress.md` (v0.41)
+
+Метаданные и библиография — placeholder’ы в шаблоне.
