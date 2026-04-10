@@ -445,14 +445,24 @@ header .hint {
 /* === §13. Математические выражения === */
 /* §13.3 Выравнивание по левому краю, номер справа */
 .ProseMirror .math-block {
-  text-align: left;
+  text-align: center;
   margin: 0.8em 0;
-  padding: 12px 60px 12px 1.25cm;
+  padding: 12px 50px 12px 0;
   background: transparent;
   border-left: none;
   position: relative;
   overflow-x: auto;
   max-width: 100%;
+}
+
+/* MathJax containers — scale to fit */
+.ProseMirror .math-block mjx-container {
+  max-width: 100% !important;
+  overflow-x: auto;
+}
+
+.ProseMirror .math-inline mjx-container {
+  display: inline !important;
 }
 
 .ProseMirror .math-block .katex-display {
@@ -475,12 +485,12 @@ header .hint {
 
 .ProseMirror .math-block .math-label {
   position: absolute;
-  right: 20px;
+  right: 0;
   top: 50%;
   transform: translateY(-50%);
-  color: #333;
+  color: #000;
   font-family: 'PT Serif', serif;
-  font-size: 15px;
+  font-size: 1em;
   font-style: normal;
 }
 
