@@ -11,9 +11,15 @@
         displayMath: [["$$", "$$"], ["\\[", "\\]"]]
       },
       options: {
+        enableMenu: false,
+        menuOptions: { settings: { assistiveMml: false } },
         renderActions: {
-          addMenu: []
+          addMenu: [],
+          assistiveMml: []
         }
+      },
+      chtml: {
+        displayOverflow: 'linebreak'
       }
     };
   </script>

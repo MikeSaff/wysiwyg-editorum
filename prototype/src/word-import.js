@@ -1354,7 +1354,18 @@ function textToMathML(text) {
     buffer = ""
   }
 
-  for (const char of chars) {
+  // Unicode symbol normalization for MathML
+  const symbolMap = {
+    '∙': '⋅',  // bullet operator → dot operator (smaller)
+    '•': '⋅',  // bullet → dot
+    '−': '−',  // minus sign (keep)
+    '⨂': '⊗', // large tensor → normal tensor
+    '⨁': '⊕', // large oplus → normal
+  }
+
+  for (let char of chars) {
+    char = symbolMap[char] || char
+
     if (/\s/u.test(char)) {
       flush()
       currentType = ""
