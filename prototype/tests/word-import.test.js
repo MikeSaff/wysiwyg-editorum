@@ -89,7 +89,7 @@ test("docxXmlToHtml splits multiple formula paragraphs in one table cell into se
   assert.match(blocks[0].mathml, /<mtable>/)
 })
 
-test("docxXmlToHtml keeps auxiliary membership conditions outside the main formula block", () => {
+test("docxXmlToHtml keeps membership conditions inside the same table-based formula block", () => {
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
   <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math">
     <w:body>
@@ -117,9 +117,9 @@ test("docxXmlToHtml keeps auxiliary membership conditions outside the main formu
   const inlineParagraphs = collectInlineMathParagraphs(html)
 
   assert.equal(blocks.length, 1)
-  assert.equal(blocks[0].latex, "a = b, \\\\ x = 0")
+  assert.equal(blocks[0].latex, "a = b, \\\\ x = 0 \\\\ u\\in U, \\\\ w\\in W")
   assert.match(blocks[0].mathml, /<mtable>/)
-  assert.deepEqual(inlineParagraphs, [["u\\in U,", "w\\in W"]])
+  assert.deepEqual(inlineParagraphs, [])
 })
 
 test("docxXmlToHtml emits separate math blocks for multi-row formula tables", () => {
@@ -156,9 +156,10 @@ test("real Semion DOCX yields 32 labeled display formulas with preserved multili
 
   // Formulas (2) and (4) do NOT have { in Word original — no cases
   assert.doesNotMatch(byLabel.get("(2)"), /^\\begin\{cases\}/)
-  assert.doesNotMatch(byLabel.get("(2)"), /u\(t\)\\in U/)
-  assert.doesNotMatch(byLabel.get("(2)"), /w\(t\)\\in W/)
-  assert.doesNotMatch(byLabel.get("(2)"), /t\\in \[t_\{0\},t_\{f\}\]/)
+  assert.match(byLabel.get("(2)"), /u\(t\)\\in U/)
+  assert.match(byLabel.get("(2)"), /w\(t\)\\in W/)
+  assert.match(byLabel.get("(2)"), /t\\in \[t_\{0\},t_\{f\}\]/)
+  assert.match(byLabel.get("(2)"), /\\\\/)
 
   assert.doesNotMatch(byLabel.get("(4)"), /^\\begin\{cases\}/)
   assert.match(byLabel.get("(7)"), /^\\begin\{cases\}/)

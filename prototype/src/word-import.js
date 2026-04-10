@@ -1009,7 +1009,6 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
   function extractFormulaFromRow(row) {
     const cells = getDirectChildElementsByLocalName(row, "tc")
     const formulaLines = []
-    const auxiliarySegments = []
     let label = ""
 
     for (const cell of cells) {
@@ -1019,7 +1018,6 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
       if (hasMath) {
         const cellContent = extractFormulaContentFromCell(cell)
         formulaLines.push(...cellContent.formulaLines)
-        auxiliarySegments.push(...cellContent.auxiliarySegments)
       } else if (!label) {
         label = extractFormulaLabel(cellText) || label
       }
@@ -1031,29 +1029,22 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
       latex: formatFormulaLines(formulaLines),
       mathml: wrapFormulaMathML(formulaLines, shouldWrapFormulaLinesInCases(formulaLines)),
       label,
-      trailingHtml: buildAuxiliaryMathParagraph(auxiliarySegments)
+      trailingHtml: ""
     }
   }
 
   function extractFormulaContentFromCell(cell) {
     const formulaLines = []
-    const auxiliarySegments = []
     const paragraphs = getDirectChildElementsByLocalName(cell, "p")
 
     for (const paragraph of paragraphs) {
       const segments = extractFormulaSegmentsFromParagraph(paragraph)
       if (segments.length === 0) continue
-      for (const segment of segments) {
-        if (isAuxiliaryFormulaSegment(segment)) {
-          auxiliarySegments.push(segment)
-        } else {
-          formulaLines.push(segment)
-        }
-      }
+      formulaLines.push(...segments)
     }
 
-    if (formulaLines.length > 0 || auxiliarySegments.length > 0) {
-      return { formulaLines, auxiliarySegments }
+    if (formulaLines.length > 0) {
+      return { formulaLines, auxiliarySegments: [] }
     }
 
     const fallbackMaths = findElementsByLocalName(cell, "oMath")
@@ -1185,10 +1176,6 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
     return null
   }
 
-  function isAuxiliaryFormulaSegment(segment) {
-    return !segment.latex.includes("=") && /\\in|\\notin|\\subset|\\supset/.test(segment.latex)
-  }
-
   function formatFormulaLines(lines) {
     const normalizedLines = lines
       .map(line => normalizeFormulaWhitespace(line.latex))
@@ -1209,14 +1196,6 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
     // Adding extra { at wrapFormulaMathML level was causing
     // false positives (formulas 2, 4, 11)
     return false
-  }
-
-  function buildAuxiliaryMathParagraph(segments) {
-    if (segments.length === 0) return ""
-    const content = segments
-      .map(segment => renderMathHtml({ display: false, latex: segment.latex, mathml: wrapInlineMathML(segment.mathml) }).trim())
-      .join(" ")
-    return `<p>${content}</p>\n`
   }
 
   function renderMathHtml({ display, latex, mathml, labelAttr = "" }) {
