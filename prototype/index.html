@@ -12,11 +12,15 @@
       },
       options: {
         enableMenu: false,
-        menuOptions: { settings: { assistiveMml: false } },
+        enableExplorer: false,
+        enableAssistiveMml: false,
+        menuOptions: { settings: { assistiveMml: false, explorer: false } },
         renderActions: {
           addMenu: [],
-          assistiveMml: []
-        }
+          assistiveMml: [],
+          addExplorer: []
+        },
+        a11y: { speech: false, braille: false, explorer: false }
       },
       chtml: {
         displayOverflow: 'scroll'

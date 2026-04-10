@@ -471,8 +471,21 @@ header .hint {
   display: inline !important;
 }
 
-/* Hide MathJax overflow arrows */
+/* Hide MathJax overflow arrows and context menu */
 .ProseMirror .math-block mjx-container[overflow] > svg {
+  display: none !important;
+}
+
+/* Block MathJax context menu */
+mjx-container:focus {
+  outline: none !important;
+}
+
+#MathJax_MenuFrame,
+#MathJax_About,
+.MathJax_Menu,
+.MathJax_MenuClose,
+mjx-assistive-mml {
   display: none !important;
 }
 
