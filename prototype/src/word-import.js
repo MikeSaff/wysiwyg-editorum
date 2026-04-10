@@ -470,10 +470,16 @@ export function ommlToMathML(ommlElement, options = {}) {
         let begChar = "("
         let endChar = ")"
         if (dPr) {
-          const beg = dPr.getElementsByTagNameNS(ns, "begChr")[0]
-          const end = dPr.getElementsByTagNameNS(ns, "endChr")[0]
-          if (beg) begChar = beg.getAttribute("m:val") ?? beg.getAttributeNS(ns, "val") ?? "("
-          if (end) endChar = end.getAttribute("m:val") ?? end.getAttributeNS(ns, "val") ?? ")"
+          const beg = getFirstDirectChildByLocalName(dPr, "begChr")
+          const end = getFirstDirectChildByLocalName(dPr, "endChr")
+          if (beg) {
+            const bv = beg.getAttribute("m:val") ?? beg.getAttributeNS(ns, "val")
+            if (bv !== null && bv !== undefined) begChar = bv
+          }
+          if (end) {
+            const ev = end.getAttribute("m:val") ?? end.getAttributeNS(ns, "val")
+            if (ev !== null && ev !== undefined) endChar = ev
+          }
         }
 
         const parts = []
