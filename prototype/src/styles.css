@@ -446,13 +446,14 @@ header .hint {
 /* §13.3 Выравнивание по левому краю, номер справа */
 .ProseMirror .math-block {
   text-align: center;
-  margin: 0.8em 0;
-  padding: 12px 50px 12px 0;
+  margin: 1em 0;
+  padding: 16px 50px 16px 0;
   background: transparent;
   border-left: none;
   position: relative;
   overflow-x: auto;
   max-width: 100%;
+  line-height: 2;
 }
 
 /* MathJax containers */

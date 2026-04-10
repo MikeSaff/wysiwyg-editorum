@@ -481,8 +481,11 @@ export function ommlToMathML(ommlElement, options = {}) {
           parts.push(`<mo stretchy="true">${escapeXml(begChar)}</mo>`)
         }
         parts.push(processChildren(node))
-        if (endChar && endChar !== " ") {
+        if (endChar && endChar !== " " && endChar !== "") {
           parts.push(`<mo stretchy="true">${escapeXml(endChar)}</mo>`)
+        } else if (begChar && begChar !== " ") {
+          // Invisible closing delimiter for balance (MathML requires pairs)
+          parts.push(`<mo stretchy="true" fence="true" form="postfix" style="visibility:hidden">.</mo>`)
         }
         return wrapMrow(parts.join(""))
       }
