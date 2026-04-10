@@ -455,14 +455,25 @@ header .hint {
   max-width: 100%;
 }
 
-/* MathJax containers — scale to fit */
+/* MathJax containers */
 .ProseMirror .math-block mjx-container {
   max-width: 100% !important;
   overflow-x: auto;
+  overflow-y: hidden;
 }
 
 .ProseMirror .math-inline mjx-container {
   display: inline !important;
+}
+
+/* Hide MathJax overflow arrows */
+.ProseMirror .math-block mjx-container[overflow] > svg {
+  display: none !important;
+}
+
+/* Scale long formulas to fit */
+.ProseMirror .math-block mjx-container[jax="CHTML"] {
+  font-size: inherit !important;
 }
 
 .ProseMirror .math-block .katex-display {
