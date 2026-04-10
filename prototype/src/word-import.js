@@ -825,7 +825,7 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
       } else if (cName === "br") {
         text += "<br>"
       } else if (cName === "tab") {
-        text += "    "
+        text += " "
       } else if (cName === "footnoteReference") {
         const fnId = child.getAttribute("w:id") || child.getAttributeNS(wNs, "id")
         if (fnId && footnotes && footnotes[fnId]) {
