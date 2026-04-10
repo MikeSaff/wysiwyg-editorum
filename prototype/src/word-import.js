@@ -1204,9 +1204,13 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
   }
 
   function shouldWrapFormulaLinesInCases(lines) {
-    if (lines.length < 3) return false
-    if (lines.some(line => /\\begin\{[a-zA-Z*]+\}/.test(line.latex))) return false
-    return /\\(?:tfrac|dfrac|frac)\{d\}\{dt\}/.test(lines[0].latex)
+    if (lines.length < 2) return false
+    // Only wrap in cases if the OMML MathML already contains a { delimiter
+    // (detected by presence of mfenced with open="{" or <mo>{</mo> in first line)
+    const firstMathml = lines[0].mathml || ''
+    if (firstMathml.includes('open="{') || firstMathml.includes('>{</mo>')) return true
+    // Don't guess — if OMML didn't have {, don't add it
+    return false
   }
 
   function buildAuxiliaryMathParagraph(segments) {
