@@ -1242,7 +1242,7 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
       .join("")
     const table = `<mtable>${rows}</mtable>`
     const content = asCases
-      ? `<mrow><mo stretchy="true" fence="true">{</mo>${table}<mo fence="true" stretchy="true" style="visibility:hidden;">}</mo></mrow>`
+      ? `<mfenced open="{" close="" separators=""><mrow>${table}</mrow></mfenced>`
       : table
     return `<math xmlns="http://www.w3.org/1998/Math/MathML" display="block">${content}</math>`
   }
