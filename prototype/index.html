@@ -4,35 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>WYSIWYG Editorum — Прототип</title>
-  <script>
-    window.MathJax = {
-      tex: {
-        inlineMath: { "[+]": [["$", "$"], ["\\(", "\\)"]] },
-        displayMath: [["$$", "$$"], ["\\[", "\\]"]]
-      },
-      options: {
-        enableMenu: false,
-        enableExplorer: false,
-        enableAssistiveMml: false,
-        menuOptions: { settings: { assistiveMml: false, explorer: false } },
-        renderActions: {
-          addMenu: [],
-          assistiveMml: [],
-          addExplorer: []
-        },
-        a11y: { speech: false, braille: false, explorer: false }
-      },
-      chtml: {
-        displayOverflow: 'scroll'
-      }
-    };
-  </script>
-  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js"></script>
+  <!-- Math: MathLive (рендер src/math-render.js, модалка src/mathlive-setup.js, подключение в src/main.js) -->
 </head>
 <body>
   <div id="app">
     <header>
-      <h1>WYSIWYG Editorum <span class="version">prototype v0.1</span></h1>
+      <h1>WYSIWYG Editorum <span class="version">prototype v0.43</span></h1>
       <p class="hint">Вставьте текст из Word (Ctrl+V) или начните печатать. Формула: оберните LaTeX в $...$ (inline) или $$...$$ (block).</p>
     </header>
     <div id="toolbar"></div>
@@ -78,6 +55,18 @@
   </div>
   <div id="lightbox-overlay">
     <img id="lightbox-img" src="" alt="">
+  </div>
+  <div id="math-edit-modal" class="math-edit-modal" aria-hidden="true">
+    <div class="math-edit-dialog" role="dialog" aria-modal="true" aria-labelledby="math-edit-title">
+      <h3 id="math-edit-title">Редактирование формулы</h3>
+      <math-field id="math-edit-field"></math-field>
+      <div class="math-edit-latex-label">LaTeX</div>
+      <pre id="math-edit-latex" class="math-edit-latex-out"></pre>
+      <div class="math-edit-actions">
+        <button type="button" id="math-edit-cancel" class="math-edit-btn math-edit-btn-secondary">Отмена</button>
+        <button type="button" id="math-edit-save" class="math-edit-btn math-edit-btn-primary">Сохранить</button>
+      </div>
+    </div>
   </div>
   <script type="module" src="/src/main.js"></script>
 </body>

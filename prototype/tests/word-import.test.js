@@ -89,7 +89,7 @@ test("docxXmlToHtml splits multiple formula paragraphs in one table cell into se
   assert.match(blocks[0].mathml, /<mtable>/)
 })
 
-test("docxXmlToHtml keeps membership conditions inside the same table-based formula block", () => {
+test("docxXmlToHtml keeps auxiliary membership conditions outside the main formula block", () => {
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
   <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math">
     <w:body>
@@ -117,9 +117,9 @@ test("docxXmlToHtml keeps membership conditions inside the same table-based form
   const inlineParagraphs = collectInlineMathParagraphs(html)
 
   assert.equal(blocks.length, 1)
-  assert.equal(blocks[0].latex, "a = b, \\\\ x = 0 \\\\ u\\in U, \\\\ w\\in W")
+  assert.equal(blocks[0].latex, "a = b, \\\\ x = 0")
   assert.match(blocks[0].mathml, /<mtable>/)
-  assert.deepEqual(inlineParagraphs, [])
+  assert.deepEqual(inlineParagraphs, [["u\\in U,", "w\\in W"]])
 })
 
 test("docxXmlToHtml emits separate math blocks for multi-row formula tables", () => {
@@ -156,10 +156,9 @@ test("real Semion DOCX yields 32 labeled display formulas with preserved multili
 
   // Formulas (2) and (4) do NOT have { in Word original — no cases
   assert.doesNotMatch(byLabel.get("(2)"), /^\\begin\{cases\}/)
-  assert.match(byLabel.get("(2)"), /u\(t\)\\in U/)
-  assert.match(byLabel.get("(2)"), /w\(t\)\\in W/)
-  assert.match(byLabel.get("(2)"), /t\\in \[t_\{0\},t_\{f\}\]/)
-  assert.match(byLabel.get("(2)"), /\\\\/)
+  assert.doesNotMatch(byLabel.get("(2)"), /u\(t\)\\in U/)
+  assert.doesNotMatch(byLabel.get("(2)"), /w\(t\)\\in W/)
+  assert.doesNotMatch(byLabel.get("(2)"), /t\\in \[t_\{0\},t_\{f\}\]/)
 
   assert.doesNotMatch(byLabel.get("(4)"), /^\\begin\{cases\}/)
   assert.match(byLabel.get("(7)"), /^\\begin\{cases\}/)
@@ -186,7 +185,7 @@ test("real Semion DOCX yields 32 labeled display formulas with preserved multili
   assert.match(byLabel.get("(32)"), /k_\{e\}/)
 })
 
-test("MathJax is configured in index.html and katex is removed from package.json", async () => {
+test("MathLive is bundled from npm (no MathJax CDN, no KaTeX) in package.json / index", async () => {
   const indexPath = new URL("../index.html", import.meta.url)
   const packagePath = new URL("../package.json", import.meta.url)
   const [indexHtml, pkg] = await Promise.all([
@@ -194,8 +193,9 @@ test("MathJax is configured in index.html and katex is removed from package.json
     fs.readFile(packagePath, "utf8")
   ])
 
-  assert.match(indexHtml, /window\.MathJax/)
-  assert.match(indexHtml, /mathjax@4\/tex-mml-chtml\.js/)
+  assert.match(pkg, /"mathlive"/)
+  assert.doesNotMatch(indexHtml, /mathjax@4\/tex-mml-chtml/)
+  assert.doesNotMatch(indexHtml, /window\.MathJax/)
   assert.doesNotMatch(indexHtml, /katex/i)
   assert.doesNotMatch(pkg, /"katex"/)
 })

@@ -1,0 +1,49 @@
+# Правила для Cursor AI — WYSIWYG Editorum
+
+## Кодировка
+- Все файлы: UTF-8
+- PowerShell: устанавливать UTF-8 перед выводом текста
+
+## Контекст проекта
+- Научный WYSIWYG-редактор на ProseMirror + Vite
+- Формулы: MathLive (рендер + редактирование), вход MathML/LaTeX
+- Типографика: ГОСТ Р 7.0.110-2025
+- Импорт: OMML → MathML (из Word DOCX)
+- Тесты: npm test
+
+## Текущая задача
+Смотри `.context/activeContext.md` — там актуальный tocket с acceptance criteria.
+
+## File ownership
+| Файл | Владелец |
+|------|----------|
+| src/schema.js | Claude |
+| src/word-import.js | Codex |
+| src/context-menu.js | Composer |
+| src/typography-rules.js | Composer |
+| src/export-html.js | Composer |
+| src/toolbar.js | Claude |
+| src/main.js | Claude |
+| src/styles.css | Claude (Composer — свои секции) |
+| index.html | Claude |
+
+## ОБЯЗАТЕЛЬНО после каждой задачи — ТОКЕТ
+
+После выполнения ЛЮБОЙ задачи — НЕМЕДЛЕННО дописать в начало файла
+`.context/progress.md`:
+
+```
+## YYYY-MM-DD - vX.XX — {название} — DONE ({Composer|Codex|Claude})
+
+- {что сделано, файлы}
+- Сборка: npx vite build OK
+- npm test: N/N passed
+- Commit: {message или "pending"}
+```
+
+Без записи в progress.md задача считается невыполненной.
+
+## Сборка
+- `npx vite build` — должен проходить без ошибок
+- `npm test` — 12 тестов должны проходить
+- НЕ коммитить — коммиты делает Claude Code

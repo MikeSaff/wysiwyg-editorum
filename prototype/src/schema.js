@@ -1,31 +1,15 @@
 import { Schema } from "prosemirror-model"
 import { tableNodes } from "prosemirror-tables"
 
-function queueMathJaxTypeset(element) {
-  if (typeof window === "undefined") return
-  const mathJax = window.MathJax
-  if (!mathJax?.typesetPromise) return
-  queueMicrotask(() => {
-    mathJax.typesetPromise([element]).catch((error) => {
-      console.warn("[MathJax] typeset failed", error)
-    })
-  })
-}
+import { renderMathLive } from "./math-render.js"
 
-function renderMathContent(host, { mathml = "", latex = "", displayMode = false }) {
-  if (mathml) {
-    host.innerHTML = mathml
-    queueMathJaxTypeset(host)
+function renderMathContent(host, { mathml = "", latex = "" }) {
+  if (!String(mathml ?? "").trim() && !String(latex ?? "").trim()) {
+    host.textContent = ""
     return
   }
-
-  if (latex) {
-    host.textContent = displayMode ? `\\[${latex}\\]` : `\\(${latex}\\)`
-    queueMathJaxTypeset(host)
-    return
-  }
-
-  host.textContent = ""
+  host.innerHTML = ""
+  queueMicrotask(() => renderMathLive(host))
 }
 
 // === Inline math node ===
@@ -82,7 +66,7 @@ const mathBlockSpec = {
     const host = document.createElement("div")
     host.classList.add("math-render-host")
     div.appendChild(host)
-    renderMathContent(host, { ...node.attrs, displayMode: true })
+    renderMathContent(host, node.attrs)
     if (node.attrs.label) {
       const labelSpan = document.createElement("span")
       labelSpan.classList.add("math-label")

@@ -47,7 +47,7 @@
 | — | COMPOSER-TYPOGRAPHY: кавычки «»„", тире `---`→—, `--`+символ→–; убраны smartQuotes/emDash PM | Composer | `src/typography-rules.js`, `src/main.js`, `tests/typography-rules.test.js` | ✅ | OK |
 | — | COMPOSER-EXPORT: HTML5 + MathJax, article/header/main/footer, figcaption/caption, кнопка скачивания | Composer | `src/export-html.js`, `src/editorum-publication.css`, `public/editorum-publication.css`, `src/toolbar.js` | ✅ | OK |
 | — | Codex: OMML→MathML pipeline, тесты (в т.ч. Semion 32 формулы), MathJax в `index.html`; повторная проверка **`npm test` — 12/12** | Codex / проверка | `word-import.js`, `index.html`, `package.json`, `tests/` | ✅ | `npm test` OK |
-| — | Codex: формула (2) из `docs/test_semion_full.docx` больше не выносит `u(t) ∈ U, w(t) ∈ W, t ∈ [t₀, tf]` в отдельный абзац; membership-строки остаются внутри `math-block`, тесты обновлены | Codex | `src/word-import.js`, `tests/word-import.test.js`, `.context/progress.md` | ✅ | OK |
+| — | ~~Codex: membership внутри одного math-block~~ **(10.04 откат):** v0.43 fix — снова `auxiliarySegments` + `trailingHtml` для условий (∈, ⊂); основной блок без membership-строк | Composer | `src/word-import.js`, `tests/word-import.test.js` | ✅ | OK |
 
 ### Ранее в этот день (сводка)
 
@@ -126,3 +126,21 @@
 |---|--------|-----|-------------|--------|
 | 26 | OMML→MathML + MathJax | Codex | CODEX-TASK-MATHML.md | ✅ v0.42 |
 | 27 | Экспорт HTML5 + метаданные | Composer | COMPOSER-TASK-EXPORT.md | ✅ v0.41 |
+
+---
+
+## [2026-04-10] Задача v0.43 fix: восстановить auxiliarySegments в `word-import.js`
+
+**СТАТУС:** done
+
+**ИЗМЕНЕНИЯ:** `prototype/src/word-import.js` — возвращены `isAuxiliaryFormulaSegment()`, `buildAuxiliaryMathParagraph()`, сбор `auxiliarySegments` в `extractFormulaFromRow()` / `extractFormulaContentFromCell()`, `trailingHtml: buildAuxiliaryMathParagraph(...)` вместо пустой строки. `prototype/tests/word-import.test.js` — снова проверка вынесения membership в отдельный `<p>` с inline math; Semion (2): membership не в основном `data-latex`.
+
+**ТЕСТЫ:** `npm test` — 12/12 pass
+
+**ПРОБЛЕМЫ:** нет
+
+**БИЛД:** `npx vite build` — OK
+
+**СЛЕДУЮЩИЙ ШАГ:** при необходимости уточнить эвристику `isAuxiliaryFormulaSegment` (другие операторы условий).
+
+**Не трогали:** `math-render.js`, `mathlive-setup.js`, `main.js`, `schema.js`, `index.html` (по задаче).

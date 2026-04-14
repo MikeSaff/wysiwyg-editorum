@@ -16,6 +16,9 @@ import { setupContextMenu } from "./context-menu.js"
 import { cleanWordHtml } from "./word-paste.js"
 import { importDocx } from "./word-import.js"
 import { typographyQuoteAndDashRules } from "./typography-rules.js"
+import "mathlive/fonts.css"
+import "mathlive"
+import { openMathEditModal } from "./mathlive-setup.js"
 import "./styles.css"
 
 // === Non-breaking space plugin (ГОСТ §9.4-9.5) ===
@@ -527,27 +530,25 @@ function init() {
     openLightbox(src, img.alt || "")
   })
 
-  // === Formula editing on click ===
-  editorEl.addEventListener("click", (e) => {
-    const mathBlock = e.target.closest(".math-block")
-    const mathInline = e.target.closest(".math-inline")
-    const mathEl = mathBlock || mathInline
+  // === Formula editing on click (MathLive modal) ===
+  editorEl.addEventListener("click", async (e) => {
+    const mathEl = e.target.closest(".math-block") || e.target.closest(".math-inline")
     if (!mathEl) return
 
-    const currentLatex = mathEl.getAttribute("data-latex") || ""
-    const isBlock = !!mathBlock
+    e.preventDefault()
+    e.stopPropagation()
 
-    // Find the ProseMirror position of this node
+    const currentLatex = mathEl.getAttribute("data-latex") || ""
+    const isBlock = mathEl.classList.contains("math-block")
+
     const pos = view.posAtDOM(mathEl, 0)
     if (pos === undefined) return
 
     const node = view.state.doc.nodeAt(pos)
     if (!node) return
 
-    const newLatex = prompt(
-      isBlock ? "Редактирование блочной формулы (LaTeX):" : "Редактирование inline формулы (LaTeX):",
-      node.attrs.latex || currentLatex
-    )
+    const initial = node.attrs.latex || currentLatex
+    const newLatex = await openMathEditModal(initial, isBlock)
 
     if (newLatex !== null && newLatex !== node.attrs.latex) {
       const tr = view.state.tr.setNodeMarkup(pos, null, {
