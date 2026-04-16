@@ -4,7 +4,28 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>WYSIWYG Editorum — Прототип</title>
-  <!-- Math: MathLive (рендер src/math-render.js, модалка src/mathlive-setup.js, подключение в src/main.js) -->
+  <script>
+    window.MathJax = {
+      tex: { inlineMath: [], displayMath: [] },
+      chtml: {
+        displayOverflow: 'linebreak'
+      },
+      options: { enableMenu: false },
+      startup: { typeset: false }
+    };
+  </script>
+  <script>
+    (function () {
+      var t = window.MathJax && window.MathJax.tex;
+      if (!t) return;
+      t.inlineMath = [["\\(", "\\)"]];
+      t.displayMath = [["\\[", "\\]"]];
+      t.processEscapes = true;
+      t.packages = { "[+]": ["mhchem"] };
+    })();
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js" async></script>
+  <!-- Math: v0.45c MathJax 4 CDN + src/math-render.js; MathLive модалка mathlive-setup.js + main.js -->
 </head>
 <body>
   <div id="app">

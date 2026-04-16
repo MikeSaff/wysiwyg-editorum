@@ -299,21 +299,36 @@ header .hint {
   text-indent: 1.25cm;
 }
 
-/* §8.2 Первый абзац после заголовка, формулы, рисунка — без отступа */
+/* v0.44t2: ГОСТ §8.2 — абзацный отступ одинаков везде, включая после формул/рисунков/таблиц.
+   Убираем отступ только после заголовков (классическая типографика для заголовочной структуры). */
 .ProseMirror h1 + p,
 .ProseMirror h2 + p,
 .ProseMirror h3 + p,
 .ProseMirror h4 + p,
-.ProseMirror p:first-child,
-.ProseMirror blockquote + p,
-.ProseMirror .math-block + p,
-.ProseMirror figure + p,
-.ProseMirror table + p {
+.ProseMirror p:first-child {
   text-indent: 0;
 }
 
-/* Paragraphs with explicit alignment override */
-.ProseMirror p[style*="text-align"] {
+/* v0.44t2: нумерованные пункты списка (без обёртки <ol>) — начинаются с "1)", "2)" и т.д. —
+   без красной строки, чтобы номер начинался от левого края */
+.ProseMirror p.list-item-numbered {
+  text-indent: 0;
+}
+
+/* v0.44t: Абзацы с центровкой/выравниванием по правому краю — без красной строки
+   (justify и left сохраняют отступ по ГОСТ §8.2). Word-импорт ставит align="center"
+   на титульные/табличные строки — им красная строка визуально ломает центрирование. */
+.ProseMirror p[style*="text-align: center"],
+.ProseMirror p[style*="text-align: right"],
+.ProseMirror p[style*="text-align:center"],
+.ProseMirror p[style*="text-align:right"] {
+  text-indent: 0;
+}
+
+/* Captions — без красной строки */
+.ProseMirror p.style-fig-caption,
+.ProseMirror p.style-table-caption,
+.ProseMirror p.style-table-number {
   text-indent: 0;
 }
 
@@ -451,8 +466,127 @@ header .hint {
   background: transparent;
   border-left: none;
   position: relative;
-  overflow-x: auto;
+  overflow-x: visible;
   max-width: 100%;
+  /* v0.44q: unified subpixel AA for all = signs and operators */
+  text-rendering: geometricPrecision;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transform: translateZ(0);
+  will-change: transform;
+}
+
+.ProseMirror .math-inline {
+  text-rendering: geometricPrecision;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* === Math edit modal (v0.43 MathLive editor — overlay with <math-field>) === */
+.math-edit-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 99998;
+  background: rgba(0, 0, 0, 0.5);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  font-family: 'PT Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.math-edit-modal.active {
+  display: flex;
+}
+
+.math-edit-dialog {
+  background: #fff;
+  border-radius: 10px;
+  padding: 22px 26px;
+  max-width: 900px;
+  width: calc(100% - 48px);
+  max-height: calc(100vh - 60px);
+  overflow: auto;
+  box-shadow: 0 16px 56px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.math-edit-dialog h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0;
+}
+
+#math-edit-field {
+  min-height: 60px;
+  border: 1px solid #bdbdbd;
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: 20px;
+  background: #fafafa;
+}
+
+#math-edit-field:focus {
+  outline: 2px solid #1976d2;
+  outline-offset: -1px;
+  background: #fff;
+}
+
+.math-edit-latex-label {
+  font-size: 12px;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 4px;
+}
+
+.math-edit-latex-out {
+  background: #f5f5f5;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  padding: 8px 10px;
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 13px;
+  color: #333;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 120px;
+  overflow-y: auto;
+  margin: 0;
+}
+
+.math-edit-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
+.math-edit-btn {
+  padding: 9px 20px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-family: inherit;
+  cursor: pointer;
+  border: 1px solid #bdbdbd;
+  background: #fafafa;
+}
+
+.math-edit-btn-secondary:hover {
+  background: #eeeeee;
+}
+
+.math-edit-btn-primary {
+  background: #1976d2;
+  color: #fff;
+  border-color: #1976d2;
+}
+
+.math-edit-btn-primary:hover {
+  background: #0d47a1;
+  border-color: #0d47a1;
 }
 
 /* MathJax table rows spacing for cases/matrices */
@@ -460,11 +594,12 @@ header .hint {
   padding: 2px 0 !important;
 }
 
-/* MathJax containers */
-.ProseMirror .math-block mjx-container {
+/* MathJax containers (v0.45: linebreak via MathJax `displayOverflow`, без горизонтального scroll) */
+.ProseMirror .math-block mjx-container,
+.ProseMirror .math-inline mjx-container {
+  color: #000;
   max-width: 100% !important;
-  overflow-x: auto;
-  overflow-y: hidden;
+  overflow: visible !important;
 }
 
 .ProseMirror .math-inline mjx-container {
@@ -524,9 +659,17 @@ mjx-assistive-mml {
 }
 
 .ProseMirror .math-inline {
-  display: inline;
+  display: inline-block;
   padding: 0 2px;
   vertical-align: baseline;
+  white-space: nowrap;
+  text-indent: 0;  /* v0.44a2: inline-block наследует text-indent от <p>, это создаёт ложный отступ внутри формулы */
+}
+
+/* Не разрывать формулу между внутренними span'ами MathLive */
+.ProseMirror .math-inline .ML__latex,
+.ProseMirror .math-inline .ML__base {
+  white-space: nowrap;
 }
 
 .ProseMirror .math-inline .katex {
@@ -672,13 +815,19 @@ mjx-assistive-mml {
   padding: 8px;
 }
 
-/* Paragraph containing an image — collapse extra spacing */
+/* §10.3 Paragraph containing an image — center + vertical spacing = кегль */
 .ProseMirror p:has(> img.inline-image) {
   text-indent: 0;
-  margin: 0;
+  text-align: center;
+  margin: 1rem 0;    /* ГОСТ §10.3: интервал = размеру кегля основного текста */
   padding: 0;
   line-height: 0;
-  font-size: 0;
+  font-size: 0;      /* скрыть ProseMirror separator-img */
+}
+
+/* Рисунок перед подписью — нижний отступ убираем (подпись имеет свой margin-top) */
+.ProseMirror p:has(> img.inline-image) + p.style-fig-caption {
+  margin-top: 0.5rem;  /* §10.7 половина кегля */
 }
 
 /* ProseMirror internal elements after images — hide */
@@ -934,6 +1083,8 @@ mjx-assistive-mml {
 .pm-floating-toolbar-btn.mark-italic { font-style: italic; }
 .pm-floating-toolbar-btn.mark-underline { text-decoration: underline; }
 .pm-floating-toolbar-btn.mark-strike { text-decoration: line-through; }
+.pm-floating-toolbar-btn.copy-btn,
+.pm-floating-toolbar-btn.cut-btn { font-size: 14px; }
 
 /* Выравнивание inline-изображения через абзац (контекстное меню) */
 .ProseMirror p[style*="text-align: left"] > img.inline-image {
@@ -947,4 +1098,214 @@ mjx-assistive-mml {
 .ProseMirror p[style*="text-align: center"] > img.inline-image {
   margin-left: auto !important;
   margin-right: auto !important;
+}
+
+/* === Find / replace (v0.44g) — floating bottom panel, match decorations === */
+.pm-find-replace-panel {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 500;
+  display: none;
+  justify-content: center;
+  padding: 10px 12px 14px;
+  pointer-events: none;
+  font-family: 'PT Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.pm-find-replace-panel.pm-find-replace-visible {
+  display: flex;
+  pointer-events: auto;
+}
+
+.pm-find-replace-inner {
+  background: #fff;
+  border: 1px solid #c5cae9;
+  border-radius: 8px;
+  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.12);
+  padding: 10px 12px;
+  max-width: min(960px, 100%);
+  width: 100%;
+}
+
+.pm-find-replace-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.pm-find-replace-row:last-of-type {
+  margin-bottom: 0;
+}
+
+.pm-find-label {
+  font-size: 13px;
+  color: #444;
+  min-width: 52px;
+}
+
+.pm-find-input,
+.pm-find-replace-input {
+  flex: 1;
+  min-width: 140px;
+  padding: 6px 10px;
+  font-size: 14px;
+  border: 1px solid #bdbdbd;
+  border-radius: 4px;
+  font-family: inherit;
+}
+
+.pm-find-count {
+  font-size: 12px;
+  color: #666;
+  min-width: 42px;
+  text-align: center;
+}
+
+.pm-find-prev,
+.pm-find-next,
+.pm-find-close {
+  border: 1px solid #bdbdbd;
+  background: #fafafa;
+  border-radius: 4px;
+  padding: 4px 10px;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1.2;
+}
+
+.pm-find-close {
+  font-size: 18px;
+  padding: 2px 10px;
+  line-height: 1;
+}
+
+.pm-find-prev:hover,
+.pm-find-next:hover,
+.pm-find-close:hover {
+  background: #e3f2fd;
+  border-color: #90caf9;
+}
+
+.pm-replace-one,
+.pm-replace-all {
+  border: 1px solid #1976d2;
+  background: #1976d2;
+  color: #fff;
+  border-radius: 4px;
+  padding: 6px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.pm-replace-all {
+  background: #0d47a1;
+  border-color: #0d47a1;
+}
+
+.pm-replace-one:hover,
+.pm-replace-all:hover {
+  filter: brightness(1.08);
+}
+
+.pm-find-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 6px;
+  font-size: 12px;
+  color: #555;
+}
+
+.pm-find-opt {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.pm-find-opt input {
+  margin: 0;
+}
+
+.pm-find-match {
+  background: rgba(255, 235, 59, 0.45);
+  border-radius: 2px;
+}
+
+.pm-find-match-current {
+  background: rgba(255, 152, 0, 0.55);
+  outline: 1px solid #f57c00;
+}
+
+/* === Confirm modal (replaces native confirm() intercepted by CDP) === */
+.pm-confirm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'PT Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.pm-confirm-dialog {
+  background: #fff;
+  border-radius: 10px;
+  padding: 20px 24px;
+  max-width: 440px;
+  width: calc(100% - 48px);
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.25);
+}
+
+.pm-confirm-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0 0 8px;
+}
+
+.pm-confirm-message {
+  font-size: 14px;
+  color: #555;
+  margin: 0 0 20px;
+  line-height: 1.5;
+}
+
+.pm-confirm-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.pm-confirm-cancel,
+.pm-confirm-ok {
+  padding: 8px 18px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-family: inherit;
+  cursor: pointer;
+  border: 1px solid #bdbdbd;
+  background: #fafafa;
+}
+
+.pm-confirm-ok {
+  background: #d32f2f;
+  color: #fff;
+  border-color: #d32f2f;
+}
+
+.pm-confirm-cancel:hover {
+  background: #eeeeee;
+}
+
+.pm-confirm-ok:hover {
+  background: #b71c1c;
+  border-color: #b71c1c;
 }

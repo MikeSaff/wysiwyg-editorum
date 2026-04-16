@@ -1,6 +1,7 @@
 import JSZip from "jszip"
 import { schema } from "./schema.js"
 import { DOMParser as ProseDOMParser } from "prosemirror-model"
+import { normalizeTypographyPlainText } from "./typography-rules.js"
 
 /**
  * Import a .docx file directly, parsing OMML formulas into LaTeX.
@@ -16,8 +17,9 @@ import { DOMParser as ProseDOMParser } from "prosemirror-model"
  * Handles common OMML structures: fractions, subscripts, superscripts,
  * square roots, matrices, integrals, summations.
  */
-export function ommlToLatex(ommlElement) {
+export function ommlToLatex(ommlElement, options = {}) {
   const ns = "http://schemas.openxmlformats.org/officeDocument/2006/math"
+  const { display = false } = options
 
   function processNode(node) {
     if (!node) return ""
@@ -127,18 +129,18 @@ export function ommlToLatex(ommlElement) {
       case "sSub": // Subscript
         const subBase = getFirstDirectChildByLocalName(node, "e")
         const sub = getFirstDirectChildByLocalName(node, "sub")
-        return `${processChildren(subBase)}_{${processChildren(sub)}}`
+        return `${processChildren(subBase)}_{${formatIndexLatex(sub, processChildren(sub))}}`
 
       case "sSup": // Superscript
         const supBase = getFirstDirectChildByLocalName(node, "e")
         const sup = getFirstDirectChildByLocalName(node, "sup")
-        return `${processChildren(supBase)}^{${processChildren(sup)}}`
+        return `${processChildren(supBase)}^{${formatIndexLatex(sup, processChildren(sup))}}`
 
       case "sSubSup": // Sub-superscript
         const ssbBase = getFirstDirectChildByLocalName(node, "e")
         const ssbSub = getFirstDirectChildByLocalName(node, "sub")
         const ssbSup = getFirstDirectChildByLocalName(node, "sup")
-        return `${processChildren(ssbBase)}_{${processChildren(ssbSub)}}^{${processChildren(ssbSup)}}`
+        return `${processChildren(ssbBase)}_{${formatIndexLatex(ssbSub, processChildren(ssbSub))}}^{${formatIndexLatex(ssbSup, processChildren(ssbSup))}}`
 
       case "rad": // Radical/square root
         const radDeg = getFirstDirectChildByLocalName(node, "deg")
@@ -172,14 +174,21 @@ export function ommlToLatex(ommlElement) {
           // System of equations with { on the left only
           if (dElements.length === 1) {
             const innerContent = processChildren(dElements[0])
-            // If matrix already wrapped in \begin{cases}, return as-is
-            if (innerContent.includes("\\begin{cases}")) {
+            // If matrix already wrapped in left-brace aligned form, return as-is
+            if (innerContent.includes("\\left\\{\\begin{aligned}")) {
               return innerContent
             }
-            // If content has line breaks but not yet wrapped in cases
+            // If content has line breaks but is not yet wrapped
             if (innerContent.includes("\\\\")) {
-              return `\\begin{cases} ${innerContent} \\end{cases}`
+              return buildLeftBraceAlignedLatex(innerContent)
             }
+          }
+        }
+
+        if (dElements.length === 1) {
+          const innerContent = processChildren(dElements[0]).trim()
+          if (isDelimitedMatrixAlreadyWrapped(innerContent, begChar, endChar)) {
+            return innerContent
           }
         }
 
@@ -314,9 +323,9 @@ export function ommlToLatex(ommlElement) {
         })
 
         if (isSystemOfEq) {
-          // System of equations: matrix handles cases directly,
+          // System of equations: matrix handles left brace + aligned directly,
           // parent delimiter (d) should not wrap again
-          return `\\begin{cases} ${rows.join(" \\\\ ")} \\end{cases}`
+          return buildLeftBraceAlignedLatex(rows.join(" \\\\ "))
         }
         return `\\begin{${matrixEnv}} ${rows.join(" \\\\ ")} \\end{${matrixEnv}}`
 
@@ -411,7 +420,8 @@ export function ommlToLatex(ommlElement) {
     return result
   }
 
-  return processNode(ommlElement).trim()
+  const latex = normalizeGeneratedLatex(processNode(ommlElement).trim())
+  return display ? applyDisplayFractionLatex(latex) : latex
 }
 
 export function ommlToMathML(ommlElement, options = {}) {
@@ -439,20 +449,20 @@ export function ommlToMathML(ommlElement, options = {}) {
       case "sSub": {
         const base = getFirstDirectChildByLocalName(node, "e")
         const sub = getFirstDirectChildByLocalName(node, "sub")
-        return `<msub>${wrapMrow(processChildren(base))}${wrapMrow(processChildren(sub))}</msub>`
+        return `<msub>${wrapMrow(processChildren(base))}${formatIndexMathML(sub, processChildren(sub))}</msub>`
       }
 
       case "sSup": {
         const base = getFirstDirectChildByLocalName(node, "e")
         const sup = getFirstDirectChildByLocalName(node, "sup")
-        return `<msup>${wrapMrow(processChildren(base))}${wrapMrow(processChildren(sup))}</msup>`
+        return `<msup>${wrapMrow(processChildren(base))}${formatIndexMathML(sup, processChildren(sup))}</msup>`
       }
 
       case "sSubSup": {
         const base = getFirstDirectChildByLocalName(node, "e")
         const sub = getFirstDirectChildByLocalName(node, "sub")
         const sup = getFirstDirectChildByLocalName(node, "sup")
-        return `<msubsup>${wrapMrow(processChildren(base))}${wrapMrow(processChildren(sub))}${wrapMrow(processChildren(sup))}</msubsup>`
+        return `<msubsup>${wrapMrow(processChildren(base))}${formatIndexMathML(sub, processChildren(sub))}${formatIndexMathML(sup, processChildren(sup))}</msubsup>`
       }
 
       case "rad": {
@@ -482,11 +492,18 @@ export function ommlToMathML(ommlElement, options = {}) {
           }
         }
 
+        const isLeftBraceSystem = begChar === "{" && (endChar === "" || endChar === " ")
+        const content = processChildren(node)
+        if (isLeftBraceSystem && /<mtable\b/.test(content)) {
+          const displayTable = content.replace(/<mtable(?![^>]*displaystyle=)/, '<mtable displaystyle="true"')
+          return `<mfenced open="{" close="" separators="">${displayTable}</mfenced>`
+        }
+
         const parts = []
         if (begChar && begChar !== " ") {
           parts.push(`<mo stretchy="true">${escapeXml(begChar)}</mo>`)
         }
-        parts.push(processChildren(node))
+        parts.push(content)
         if (endChar && endChar !== " " && endChar !== "") {
           parts.push(`<mo stretchy="true">${escapeXml(endChar)}</mo>`)
         } else if (begChar && begChar !== " ") {
@@ -629,8 +646,9 @@ export function ommlToMathML(ommlElement, options = {}) {
   }
 
   const content = normalizeMathMLContent(processNode(ommlElement))
-  if (!wrap) return content
-  return `<math xmlns="http://www.w3.org/1998/Math/MathML"${display ? ' display="block"' : ""}>${wrapMrow(content)}</math>`
+  const normalizedContent = display ? applyDisplayFractionMathML(content) : content
+  if (!wrap) return normalizedContent
+  return `<math xmlns="http://www.w3.org/1998/Math/MathML"${display ? ' display="block"' : ""}>${wrapMrow(normalizedContent)}</math>`
 }
 
 /**
@@ -672,7 +690,7 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
         for (const omp of oMathParas) {
           const oMaths = findElementsByLocalName(omp, "oMath")
           for (const oMath of oMaths) {
-            const latex = ommlToLatex(oMath)
+            const latex = ommlToLatex(oMath, { display: true })
             const mathml = ommlToMathML(oMath, { display: true })
             if (latex || mathml) {
               // Look ahead: is next element a formula number like (1)?
@@ -711,7 +729,7 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
       // Display math paragraph (top-level)
       const oMaths = findElementsByLocalName(child, "oMath")
       for (const oMath of oMaths) {
-        const latex = ommlToLatex(oMath)
+        const latex = ommlToLatex(oMath, { display: true })
         const mathml = ommlToMathML(oMath, { display: true })
         if (latex || mathml) {
           html += renderMathHtml({ display: true, latex, mathml })
@@ -766,19 +784,23 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
         const latex = ommlToLatex(child)
         const mathml = ommlToMathML(child)
         if (latex || mathml) {
-          content += renderMathHtml({ display: false, latex, mathml }).trim()
+          content = appendInlineMathWithSpacing(content, p.childNodes, i, renderMathHtml({ display: false, latex, mathml }).trim(), wNs)
           hasContent = true
         }
       } else if (cName === "oMathPara") {
         // Display math inside paragraph
+        let inlineMathContent = ""
         const oMaths = findElementsByLocalName(child, "oMath")
         for (const oMath of oMaths) {
           const latex = ommlToLatex(oMath)
           const mathml = ommlToMathML(oMath)
           if (latex || mathml) {
-            content += renderMathHtml({ display: false, latex, mathml }).trim()
+            inlineMathContent += renderMathHtml({ display: false, latex, mathml }).trim()
             hasContent = true
           }
+        }
+        if (inlineMathContent) {
+          content = appendInlineMathWithSpacing(content, p.childNodes, i, inlineMathContent, wNs)
         }
       } else if (cName === "hyperlink") {
         // Hyperlink
@@ -938,7 +960,7 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
             // Only use top-level oMath (not nested inside other oMath)
             const topMaths = mathEls.length > 0 ? mathEls : mathElements
             for (const m of topMaths) {
-              formulaLatex += ommlToLatex(m) + " "
+              formulaLatex += ommlToLatex(m, { display: true }) + " "
             }
           } else {
             // Check for formula label: (1), (2) or Word SEQ field: ( SEQ Формула \* ARABIC 1)
@@ -992,7 +1014,9 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
               else if (pcName === "oMath") {
                 const latex = ommlToLatex(pChild)
                 const mathml = ommlToMathML(pChild)
-                if (latex || mathml) cellContent += renderMathHtml({ display: false, latex, mathml }).trim()
+                if (latex || mathml) {
+                  cellContent = appendInlineMathWithSpacing(cellContent, child.childNodes, pi, renderMathHtml({ display: false, latex, mathml }).trim(), wNs)
+                }
               }
             }
             html += cellContent
@@ -1043,6 +1067,11 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
     for (const paragraph of paragraphs) {
       const segments = extractFormulaSegmentsFromParagraph(paragraph)
       if (segments.length === 0) continue
+      const auxiliaryOnly = segments.every((segment) => isAuxiliaryFormulaSegment(segment))
+      if (auxiliaryOnly && shouldMergeAuxiliarySegmentsIntoFormula(formulaLines, segments)) {
+        formulaLines.push(combineAuxiliarySegmentsIntoLine(segments))
+        continue
+      }
       for (const segment of segments) {
         if (isAuxiliaryFormulaSegment(segment)) {
           auxiliarySegments.push(segment)
@@ -1189,9 +1218,28 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
     return !segment.latex.includes("=") && /\\in|\\notin|\\subset|\\supset/.test(segment.latex)
   }
 
+  function shouldMergeAuxiliarySegmentsIntoFormula(formulaLines, segments) {
+    if (formulaLines.length >= 2) return true
+    if (formulaLines.length >= 1 && segments.length >= 2) return true
+    return false
+  }
+
+  function combineAuxiliarySegmentsIntoLine(segments) {
+    return {
+      latex: segments
+        .map((segment) => normalizeFormulaWhitespace(segment.latex))
+        .filter(Boolean)
+        .join("\\; "),
+      mathml: segments
+        .map((segment) => normalizeMathMLContent(segment.mathml))
+        .filter(Boolean)
+        .join('<mspace width="0.2778em"/>')
+    }
+  }
+
   function formatFormulaLines(lines) {
     const normalizedLines = lines
-      .map(line => normalizeFormulaWhitespace(line.latex))
+      .map(line => applyDisplayFractionLatex(normalizeFormulaWhitespace(line.latex)))
       .filter(Boolean)
 
     if (normalizedLines.length === 0) return ""
@@ -1199,6 +1247,9 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
     const joined = normalizedLines.join(" \\\\ ")
     if (shouldWrapFormulaLinesInCases(lines)) {
       return `\\begin{cases} ${joined} \\end{cases}`
+    }
+    if (normalizedLines.length > 1) {
+      return buildLeftAlignedArrayLatex(joined)
     }
     return joined
   }
@@ -1220,11 +1271,13 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
   }
 
   function renderMathHtml({ display, latex, mathml, labelAttr = "" }) {
-    const attrs = ` data-mathml="${escapeAttr(mathml || "")}" data-latex="${escapeAttr(latex || "")}"`
+    const finalLatex = (latex || "").trim()
+    const finalMathml = mathml || ""
+    const attrs = ` data-mathml="${escapeAttr(finalMathml)}" data-latex="${escapeAttr(finalLatex)}"`
     if (display) {
-      return `<div class="math-block"${attrs}${labelAttr}>${mathml || escapeHtml(latex || "")}</div>\n`
+      return `<div class="math-block"${attrs}${labelAttr}>${finalMathml || escapeHtml(finalLatex)}</div>\n`
     }
-    return `<span class="math-inline"${attrs}>${mathml || escapeHtml(latex || "")}</span>`
+    return `<span class="math-inline"${attrs}>${finalMathml || escapeHtml(finalLatex)}</span>`
   }
 
   function wrapInlineMathML(mathml) {
@@ -1236,13 +1289,17 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
   function wrapFormulaMathML(lines, asCases = false) {
     if (lines.length === 0) return ""
     if (lines.length === 1 && !asCases) {
-      return `<math xmlns="http://www.w3.org/1998/Math/MathML" display="block">${wrapMrow(normalizeMathMLContent(lines[0].mathml) || textToMathML(lines[0].latex))}</math>`
+      const mathml = normalizeMathMLContent(lines[0].mathml) || textToMathML(lines[0].latex)
+      return `<math xmlns="http://www.w3.org/1998/Math/MathML" display="block">${wrapMrow(applyDisplayFractionMathML(mathml))}</math>`
     }
 
     const rows = lines
-      .map((line) => `<mtr><mtd>${wrapMrow(normalizeMathMLContent(line.mathml) || textToMathML(line.latex))}</mtd></mtr>`)
+      .map((line) => {
+        const mathml = normalizeMathMLContent(line.mathml) || textToMathML(line.latex)
+        return `<mtr><mtd>${wrapMrow(applyDisplayFractionMathML(mathml))}</mtd></mtr>`
+      })
       .join("")
-    const table = `<mtable>${rows}</mtable>`
+    const table = asCases ? `<mtable>${rows}</mtable>` : `<mtable columnalign="left">${rows}</mtable>`
     const content = asCases
       ? `<mfenced open="{" close="" separators=""><mrow>${table}</mrow></mfenced>`
       : table
@@ -1282,6 +1339,65 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
       .replace(/\s+([,.;:])/gu, "$1")
       .trim()
   }
+
+  function appendInlineMathWithSpacing(content, siblings, index, mathHtml, wNs) {
+    let nextContent = content
+    const prevText = getAdjacentInlineText(siblings, index, -1, wNs)
+    const nextText = getAdjacentInlineText(siblings, index, 1, wNs)
+
+    if (shouldInsertSpaceBeforeInlineMath(prevText) && !/\s$/u.test(nextContent)) {
+      nextContent += " "
+    }
+
+    nextContent += mathHtml
+
+    if (shouldInsertSpaceAfterInlineMath(nextText) && !/\s$/u.test(nextContent)) {
+      nextContent += " "
+    }
+
+    return nextContent
+  }
+
+  function getAdjacentInlineText(siblings, index, direction, wNs) {
+    for (let i = index + direction; i >= 0 && i < siblings.length; i += direction) {
+      const sibling = siblings[i]
+      if (sibling.nodeType !== 1) continue
+      const siblingName = sibling.localName || sibling.nodeName?.split(":").pop()
+      if (siblingName === "pPr") continue
+      if (siblingName === "r") return extractPlainTextFromRun(sibling)
+      if (siblingName === "hyperlink") return extractPlainTextFromHyperlink(sibling)
+      return ""
+    }
+    return ""
+  }
+
+  function shouldInsertSpaceBeforeInlineMath(prevText) {
+    const trimmed = (prevText || "").replace(/\s+$/u, "")
+    if (!trimmed) return false
+    const lastChar = Array.from(trimmed).pop() || ""
+    return /[\p{Letter}\p{Number},;]/u.test(lastChar)
+  }
+
+  function shouldInsertSpaceAfterInlineMath(nextText) {
+    if (!nextText) return false
+    if (/^\s/u.test(nextText)) return false
+    const firstChar = Array.from(nextText)[0] || ""
+    if (/^[,.;:!?)\]}»"]$/u.test(firstChar)) return false
+    return true
+  }
+}
+
+export function normalizeImportedHtml(html) {
+  if (!html) return ""
+
+  return html.replace(/<p([^>]*)>([\s\S]*?)<\/p>\n?/gu, (match, attrs = "", inner = "") => {
+    const normalizedInner = normalizeImportedParagraphHtml(inner, attrs)
+    const normalizedAttrs = normalizeImportedParagraphAttrs(attrs, normalizedInner)
+    if (shouldDropImportedParagraph(normalizedInner)) {
+      return ""
+    }
+    return `<p${normalizedAttrs}>${normalizedInner}</p>\n`
+  })
 }
 
 /**
@@ -1337,6 +1453,31 @@ function getMathRunText(node) {
     result += texts[i].textContent || ""
   }
   return result
+}
+
+function extractPlainTextFromHyperlink(node) {
+  let text = ""
+  for (let i = 0; i < node.childNodes.length; i++) {
+    const child = node.childNodes[i]
+    if (child.nodeType !== 1) continue
+    const childName = child.localName || child.nodeName?.split(":").pop()
+    if (childName === "r") {
+      for (let j = 0; j < child.childNodes.length; j++) {
+        const runChild = child.childNodes[j]
+        const runChildName = runChild.localName || runChild.nodeName?.split(":").pop()
+        if (runChildName === "t" || runChildName === "instrText") {
+          text += runChild.textContent || ""
+        } else if (runChildName === "br" || runChildName === "tab") {
+          text += " "
+        }
+      }
+    } else if (childName === "t") {
+      text += child.textContent || ""
+    } else if (childName === "br" || childName === "tab") {
+      text += " "
+    }
+  }
+  return text
 }
 
 function wrapMrow(content) {
@@ -1427,6 +1568,302 @@ function escapeAttr(text) {
   return text.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
 }
 
+function normalizeImportedParagraphHtml(inner, attrs = "") {
+  const normalizedAttrText = attrs || ""
+  const protectedSegments = []
+  let nextInner = protectImportedHtmlSegments(inner || "", protectedSegments)
+  nextInner = normalizeImportedTextSegments(nextInner)
+  nextInner = restoreImportedHtmlSegments(nextInner, protectedSegments)
+
+  if (/style-fig-caption/.test(normalizedAttrText) || isFigureCaptionText(nextInner)) {
+    nextInner = fixFigureCaptionDot(nextInner)
+  }
+
+  return nextInner
+}
+
+function normalizeImportedParagraphAttrs(attrs, inner) {
+  let nextAttrs = attrs || ""
+  const plainText = getImportedParagraphPlainText(inner)
+  if (/^\d+[.)]\s/u.test(plainText)) {
+    nextAttrs = addClassToHtmlAttrs(nextAttrs, "list-item-numbered")
+  }
+  return nextAttrs
+}
+
+function getImportedParagraphPlainText(inner) {
+  return (inner || "")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;|&#160;/g, "\u00A0")
+    .trim()
+}
+
+function addClassToHtmlAttrs(attrs, className) {
+  const nextAttrs = attrs || ""
+  const classPattern = /\bclass="([^"]*)"/u
+  const classMatch = nextAttrs.match(classPattern)
+
+  if (!classMatch) {
+    return `${nextAttrs} class="${className}"`
+  }
+
+  const classes = classMatch[1]
+    .split(/\s+/u)
+    .map((value) => value.trim())
+    .filter(Boolean)
+
+  if (classes.includes(className)) {
+    return nextAttrs
+  }
+
+  classes.push(className)
+  return nextAttrs.replace(classPattern, `class="${classes.join(" ")}"`)
+}
+
+function protectImportedHtmlSegments(html, protectedSegments) {
+  return (html || "").replace(
+    /<span\b(?=[^>]*\bclass="[^"]*\bmath-inline\b[^"]*")[^>]*>[\s\S]*?<\/span>|<div\b(?=[^>]*\bclass="[^"]*\bmath-block\b[^"]*")[^>]*>[\s\S]*?<\/div>|<img\b[^>]*>/giu,
+    (segment) => {
+      const token = `__IMPORTED_SEGMENT_${protectedSegments.length}__`
+      protectedSegments.push(segment)
+      return token
+    }
+  )
+}
+
+function restoreImportedHtmlSegments(html, protectedSegments) {
+  return protectedSegments.reduce(
+    (nextHtml, segment, index) => nextHtml.replace(`__IMPORTED_SEGMENT_${index}__`, segment),
+    html || ""
+  )
+}
+
+function normalizeImportedTextSegments(html) {
+  const parts = (html || "").split(/(<[^>]+>)/gu)
+  const textIndexes = []
+
+  for (let index = 0; index < parts.length; index++) {
+    if (/^<[^>]+>$/u.test(parts[index])) continue
+    parts[index] = normalizeImportedTextNode(parts[index])
+    textIndexes.push(index)
+  }
+
+  const firstIndex = textIndexes.find((index) => parts[index].length > 0)
+  const lastIndex = [...textIndexes].reverse().find((index) => parts[index].length > 0)
+
+  if (firstIndex !== undefined) {
+    parts[firstIndex] = parts[firstIndex].replace(/^[ \t]+/u, "")
+  }
+
+  if (lastIndex !== undefined) {
+    parts[lastIndex] = parts[lastIndex].replace(/[ \t]+$/u, "")
+  }
+
+  normalizeImportedTextSegmentBoundaries(parts, textIndexes)
+
+  return parts.join("")
+}
+
+function normalizeImportedTextSegmentBoundaries(parts, textIndexes) {
+  for (let index = 0; index < textIndexes.length; index++) {
+    const currentPartIndex = textIndexes[index]
+    let currentText = parts[currentPartIndex]
+
+    if (!currentText) continue
+
+    currentText = currentText.replace(/^[ \t]+([,.;:!?)\]}»"])/u, "$1")
+
+    if (index > 0) {
+      const previousPartIndex = textIndexes[index - 1]
+      const previousText = parts[previousPartIndex] || ""
+
+      if (/[ \t]$/u.test(previousText) && /^[ \t]+/u.test(currentText)) {
+        currentText = currentText.replace(/^[ \t]+/u, "")
+      } else if (!/[ \t]$/u.test(previousText) && /^[ \t]{2,}/u.test(currentText)) {
+        currentText = currentText.replace(/^[ \t]+/u, " ")
+      }
+    }
+
+    parts[currentPartIndex] = currentText
+  }
+}
+
+function normalizeImportedTextNode(text) {
+  let nextText = text || ""
+  nextText = nextText.replace(/[ \t]{2,}/gu, " ")
+  nextText = nextText.replace(/[ \t]+([,.;:!?)\]}»"])/gu, "$1")
+  nextText = normalizeTypographyPlainText(nextText)
+  nextText = nextText.replace(/([А-ЯA-Z])\.\s([А-ЯA-Z][а-яa-zёЁ]+)/gu, "$1.\u00A0$2")
+  nextText = nextText.replace(/([А-ЯA-Z])\.\s([А-ЯA-Z])\./gu, "$1.\u00A0$2.")
+  return nextText
+}
+
+function shouldDropImportedParagraph(inner) {
+  if (!inner) return true
+  if (/<span class="math-inline"/.test(inner) || /<img\b/i.test(inner)) return false
+  const plainText = inner
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;|&#160;/g, " ")
+    .replace(/[\s\u00A0]+/gu, "")
+  return plainText.length === 0
+}
+
+function isFigureCaptionText(text) {
+  const plainText = (text || "")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;|&#160;/g, " ")
+    .trim()
+  return /^(Рис(?:унок)?\.?\s*\d+)\s+[А-ЯA-Zа-яa-zЁё]/u.test(plainText)
+}
+
+function fixFigureCaptionDot(text) {
+  return (text || "").replace(
+    /^(.*?)(Рис(?:унок)?\.?\s*\d+)\s+([А-ЯA-Zа-яa-zЁё])/u,
+    (_, prefix, label, firstLetter) => `${prefix}${label}. ${firstLetter}`
+  )
+}
+
+function normalizeGeneratedLatex(text) {
+  return (text || "")
+    .replace(/(\\[A-Za-z]+)\s+([,.;:!?])/g, "$1$2")
+    .replace(/\s+/gu, " ")
+    .trim()
+}
+
+function applyDisplayFractionLatex(text) {
+  return (text || "").replace(/\\tfrac\b/g, "\\dfrac")
+}
+
+function applyDisplayFractionMathML(mathml) {
+  return (mathml || "").replace(/<mfrac(?![^>]*displaystyle=)/g, '<mfrac displaystyle="true"')
+}
+
+function buildLeftBraceAlignedLatex(content) {
+  return `\\left\\{${buildAlignedLatex(content)}\\right.`
+}
+
+function buildAlignedLatex(content) {
+  return `\\begin{aligned} ${addAlignedEqualityMarkers(content)} \\end{aligned}`
+}
+
+function buildLeftAlignedArrayLatex(content) {
+  return `\\begin{array}{l} ${normalizeArrayRows(content)} \\end{array}`
+}
+
+function normalizeArrayRows(content) {
+  return (content || "")
+    .split(/\s*\\\\\s*/u)
+    .map((line) => normalizeArrayLine(line))
+    .filter(Boolean)
+    .join(" \\\\ ")
+}
+
+function normalizeArrayLine(line) {
+  return (line || "")
+    .replace(/\s+/gu, " ")
+    .replace(/\s+([,.;:])/gu, "$1")
+    .trim()
+}
+
+function addAlignedEqualityMarkers(content) {
+  return (content || "")
+    .split(/\s*\\\\\s*/u)
+    .map((line) => alignFirstEquality(line))
+    .filter(Boolean)
+    .join(" \\\\ ")
+}
+
+function alignFirstEquality(line) {
+  const normalized = (line || "")
+    .replace(/\s+/gu, " ")
+    .replace(/\s+([,.;:])/gu, "$1")
+    .trim()
+  if (!normalized) return ""
+  if (normalized.includes("&=")) return normalized
+  if (/&\\(?:in|notin|subset|supset|leq|geq|neq|approx)\b/.test(normalized)) return normalized
+  const index = normalized.indexOf("=")
+  if (index !== -1) {
+    return `${normalized.slice(0, index)}&=${normalized.slice(index + 1)}`
+  }
+  const relationMatch = normalized.match(/\\(?:in|notin|subset|supset|leq|geq|neq|approx)\b/)
+  if (relationMatch?.index !== undefined) {
+    const beforeRelation = normalized.slice(0, relationMatch.index).replace(/\s+$/u, "")
+    return `${beforeRelation} &${normalized.slice(relationMatch.index)}`
+  }
+  return normalized
+}
+
+function extractPlainIndexText(node) {
+  if (!node) return null
+  let text = ""
+
+  function walk(current) {
+    for (let i = 0; i < current.childNodes.length; i++) {
+      const child = current.childNodes[i]
+      if (child.nodeType === 3) {
+        text += child.nodeValue || ""
+        continue
+      }
+      if (child.nodeType !== 1) continue
+      const childName = child.localName || child.nodeName?.split(":").pop() || ""
+      if (["sub", "sup", "e", "r", "t", "rPr"].includes(childName)) {
+        walk(child)
+        continue
+      }
+      text = ""
+      throw new Error("__non_plain_index__")
+    }
+  }
+
+  try {
+    walk(node)
+  } catch (error) {
+    if (error?.message === "__non_plain_index__") return null
+    throw error
+  }
+
+  const normalized = (text || "").replace(/\s+/gu, "")
+  return normalized || null
+}
+
+function shouldTextStyleIndex(text) {
+  if (!text) return false
+  if (!/^\p{Letter}+$/u.test(text)) return false
+  if (/\p{Script=Cyrillic}/u.test(text)) return true
+  return /^[A-Za-z]{2,}$/u.test(text)
+}
+
+function formatIndexLatex(node, fallback) {
+  const plainText = extractPlainIndexText(node)
+  if (plainText && shouldTextStyleIndex(plainText)) {
+    return `\\text{${plainText}}`
+  }
+  return fallback
+}
+
+function formatIndexMathML(node, fallbackContent) {
+  const plainText = extractPlainIndexText(node)
+  if (plainText && shouldTextStyleIndex(plainText)) {
+    return `<mtext>${escapeXml(plainText)}</mtext>`
+  }
+  return wrapMrow(fallbackContent)
+}
+
+function isDelimitedMatrixAlreadyWrapped(innerContent, begChar, endChar) {
+  if (!innerContent) return false
+  const matrixEnvByDelimiter = new Map([
+    ["[]", "bmatrix"],
+    ["()", "pmatrix"],
+    ["{}", "Bmatrix"],
+    ["||", "vmatrix"],
+    ["‖‖", "Vmatrix"]
+  ])
+  const env = matrixEnvByDelimiter.get(`${begChar || ""}${endChar || ""}`)
+  if (!env) return false
+  const pattern = new RegExp(String.raw`^\\begin\{${env}\}[\s\S]*\\end\{${env}\}$`)
+  return pattern.test(innerContent.trim())
+}
+
 /**
  * Main import function: reads .docx file, returns ProseMirror doc.
  */
@@ -1508,7 +1945,8 @@ export async function importDocx(file) {
   }
 
   // Convert to HTML
-  const html = docxXmlToHtml(xmlString, images, imageRels, footnotes)
+  const rawHtml = docxXmlToHtml(xmlString, images, imageRels, footnotes)
+  const html = normalizeImportedHtml(rawHtml)
 
   // Parse HTML into ProseMirror doc
   const tempDiv = document.createElement("div")

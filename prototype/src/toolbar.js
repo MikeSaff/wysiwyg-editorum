@@ -5,6 +5,46 @@ import { addColumnAfter, addColumnBefore, addRowAfter, addRowBefore, deleteColum
 import { schema } from "./schema.js"
 import { exportToHtml } from "./export-html.js"
 
+// === Custom confirm modal (replaces native confirm() — Chrome DevTools intercepts native dialogs) ===
+function showConfirmModal(title, message, onConfirm) {
+  // Remove existing modal if any
+  const existing = document.getElementById("pm-confirm-modal")
+  if (existing) existing.remove()
+
+  const overlay = document.createElement("div")
+  overlay.id = "pm-confirm-modal"
+  overlay.className = "pm-confirm-overlay"
+  overlay.innerHTML = `
+    <div class="pm-confirm-dialog" role="dialog" aria-modal="true">
+      <h3 class="pm-confirm-title"></h3>
+      <p class="pm-confirm-message"></p>
+      <div class="pm-confirm-actions">
+        <button class="pm-confirm-cancel" type="button">Отмена</button>
+        <button class="pm-confirm-ok" type="button">OK</button>
+      </div>
+    </div>
+  `
+  overlay.querySelector(".pm-confirm-title").textContent = title
+  overlay.querySelector(".pm-confirm-message").textContent = message
+
+  const okBtn = overlay.querySelector(".pm-confirm-ok")
+  const cancelBtn = overlay.querySelector(".pm-confirm-cancel")
+
+  const close = () => overlay.remove()
+
+  okBtn.addEventListener("click", () => {
+    close()
+    onConfirm()
+  })
+  cancelBtn.addEventListener("click", close)
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay) close()
+  })
+
+  document.body.appendChild(overlay)
+  queueMicrotask(() => okBtn.focus())
+}
+
 function markActive(state, type) {
   const { from, $from, to, empty } = state.selection
   if (empty) return !!type.isInSet(state.storedMarks || $from.marks())
@@ -234,10 +274,10 @@ export function buildToolbar(view, toolbarEl) {
   groupDoc.appendChild(createButton("↩", "Отменить (Ctrl+Z)", undo, view))
   groupDoc.appendChild(createButton("↪", "Вернуть (Ctrl+Y)", redo, view))
   groupDoc.appendChild(createButton("🗑", "Новый документ (очистить всё)", (state, dispatch) => {
-    if (confirm("Очистить документ? Автосохранение будет удалено.")) {
+    showConfirmModal("Очистить документ?", "Автосохранение будет удалено безвозвратно.", () => {
       localStorage.removeItem("wysiwyg-editorum-autosave")
       location.reload()
-    }
+    })
     return true
   }, view))
   groupDoc.appendChild(createButton("💾", "Сохранить документ (скачать JSON)", (state, dispatch) => {

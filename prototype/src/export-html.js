@@ -4,7 +4,7 @@ export function exportToHtml(doc, schema) {
   const root = doc && doc.type && doc.type.name === "doc" ? doc : schema.nodeFromJSON(doc)
   const title = findFirstHeadingTitle(root) || "Document"
   const bodyInner = serializeDocumentBody(root, schema)
-  const mathJax = "https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"
+  const mathJax = "https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js"
   return (
     "<!DOCTYPE html>\n" +
     '<html lang="ru">\n<head>\n' +
@@ -13,7 +13,7 @@ export function exportToHtml(doc, schema) {
     "<title>" +
     escapeHtml(title) +
     "</title>\n" +
-    "<script>\nwindow.MathJax={tex:{inlineMath:[['\\\\(','\\\\)']],displayMath:[['\\\\[','\\\\]']],processEscapes:true}};\n</script>\n" +
+    "<script>\nwindow.MathJax={tex:{inlineMath:[['\\\\(','\\\\)']],displayMath:[['\\\\[','\\\\]']],processEscapes:true},chtml:{displayOverflow:'linebreak'},options:{enableMenu:false}};\n</script>\n" +
     '<script defer src="' +
     mathJax +
     '"></script>\n' +

@@ -621,6 +621,9 @@ function init() {
     console.warn("Autosave restore failed:", e)
   }
 
+  // v0.44z3: auto-shrink removed. Formulas must wrap (ГОСТ §13.10), not scale-down.
+  // Long formulas — задача Codex: разбивать на строки по знакам операций (=, +, −, ×).
+
   // === DOCX Import ===
   async function handleDocxImport(file, editorView) {
     const statusEl = document.getElementById("import-status")
@@ -681,8 +684,8 @@ function init() {
     }
   })
 
-  // Clipboard debug button
-  document.getElementById("btn-show-clipboard").addEventListener("click", async () => {
+  // Clipboard debug button (optional — only exists in dev mode)
+  document.getElementById("btn-show-clipboard")?.addEventListener("click", async () => {
     try {
       const items = await navigator.clipboard.read()
       let debugOutput = ""

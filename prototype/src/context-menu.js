@@ -74,6 +74,16 @@ function toggleLink(state, dispatch) {
   return toggleMark(schema.marks.link, { href })(state, dispatch)
 }
 
+function copyCommand(state, dispatch, view) {
+  document.execCommand("copy")
+  return true
+}
+
+function cutCommand(state, dispatch, view) {
+  document.execCommand("cut")
+  return true
+}
+
 function setParagraphAlign(align) {
   return (state, dispatch) => {
     const { from, to } = state.selection
@@ -383,6 +393,8 @@ function buildFloatingToolbar(view) {
     ["S̶", "Зачёркнутый", toggleMark(schema.marks.strikethrough), "mark-strike"],
     ["🔗", "Ссылка", toggleLink, null],
     ["𝛼", "Формула inline", insertMathInline, null],
+    ["📋", "Копировать (Ctrl+C)", copyCommand, "copy-btn"],
+    ["✂", "Вырезать (Ctrl+X)", cutCommand, "cut-btn"],
   ]
 
   marks.forEach(([label, title, cmd, cls]) => {

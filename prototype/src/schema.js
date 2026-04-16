@@ -178,7 +178,10 @@ export const schema = new Schema({
         const classes = []
         if (node.attrs.id) attrs.id = node.attrs.id
         if (node.attrs.align) attrs.style = `text-align: ${node.attrs.align}`
-        if (node.attrs.styleType) classes.push(`style-${node.attrs.styleType}`)
+        if (node.attrs.styleType) {
+          // list-item-numbered keeps its original class name (compat with import CSS); others get "style-" prefix
+          classes.push(node.attrs.styleType === "list-item-numbered" ? "list-item-numbered" : `style-${node.attrs.styleType}`)
+        }
         if (classes.length) attrs.class = classes.join(" ")
         return ["p", attrs, 0]
       },
@@ -190,6 +193,7 @@ export const schema = new Schema({
           if (cls.includes("style-fig-caption")) styleType = "fig-caption"
           else if (cls.includes("style-table-caption")) styleType = "table-caption"
           else if (cls.includes("style-table-number")) styleType = "table-number"
+          else if (cls.includes("list-item-numbered")) styleType = "list-item-numbered"
           return {
             id: dom.getAttribute("id"),
             align: dom.style?.textAlign || dom.getAttribute("align") || null,

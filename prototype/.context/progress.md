@@ -34,10 +34,36 @@
 | **v0.40** | **2026-04-09** | **ГОСТ §16: кавычки «»„" и тире —/– (input rules), `typography-rules.js`, тесты** |
 | **v0.41** | **2026-04-09** | **Экспорт HTML5 + MathJax: `export-html.js`, `editorum-publication.css`, кнопка 📄 HTML в toolbar** |
 | **v0.42** | **2026-04-10** | **Codex: OMML→MathML, MathJax в редакторе, katex убран из deps; `npm test` 12/12 зелёный** |
+| **v0.44** | **2026-04-15** | **Composer: приоритет `data-latex` над MathML (`math-render.js`); пост-импорт `createTypographyNormalizationTransaction` — двойные пробелы, пустые `<p>`** |
+| **v0.45** | **2026-04-15** | **MathJax v3 `mathjax-full` (npm): lazy `tex-mml-chtml`, `chtml.displayOverflow: 'linebreak'`, приоритет `data-mathml` для рендера, `resolveTexSource` без MathML→TeX; MathLive только модалка; стили `mjx-container`** |
+| **v0.45c** | **2026-04-15** | **MathJax v4 с CDN (jsDelivr `mathjax@4/tex-mml-chtml.js`): `displayOverflow: 'linebreak'` (v3 npm не поддерживал); `math-render.js` только `window.MathJax`; убран `mathjax-full`** |
+| **v0.45b** | **2026-04-15** | **Codex: без static split и без `{\displaystyle}` в block LaTeX; см. сессию** |
+| **v0.44b–h** | **2026-04-15** | **Codex: OMML/импорт — `cdots`, `bmatrix`, пробелы вокруг inline math, прямой шрифт индексов (см. сессию 2026-04-15)** |
+| **v0.44d** | **2026-04-15** | **Пробелы перед `,.;:!?)]}»"` — input rule + `normalizeSpaceBeforePunctuation`** |
+| **v0.44e** | **2026-04-15** | **Короткое тире → длинное вне диапазонов `5–10` — `normalizeEnDashToEmDash`, input rules** |
+| **v0.44f** | **2026-04-15** | **Висячие предлоги (RU + EN): `normalizeHangingPrepositions`, input rules** |
+| **v0.44g** | **2026-04-15** | **Поиск/замена: `find-replace.js`, `openFindPanel` / `openReplacePanel`, декорации, стили панели** |
+| **v0.44o** | **2026-04-15** | **MathLive: `mathstyle: 'displaystyle' | 'textstyle'` в `convertLatexToMarkup` для block/inline (`math-render.js`)** |
+| **v0.44p** | **2026-04-15** | **MathLive: рендер через `<math-div>` / `<math-span>` вместо `convertLatexToMarkup` (настоящий displaystyle для block; `escapeXml`)** |
+| **v0.44u** | **2026-04-15** | **Block-формулы: auto-shrink по ширине `.math-block` (`transform: scale`, min 0.7; повторное измерение после 50ms для shadow DOM)** |
+| **v0.44u2** | **2026-04-15** | **Auto-shrink: ширина по `container.scrollWidth` (родитель `.math-block`), не `math-div`; сброс transform перед замером; тайминг 50ms + 100ms** |
+| **v0.44u3** | **2026-04-15** | **Auto-shrink: `font-size` на `math-div` вместо `transform: scale` — уменьшается реальный `scrollWidth`, без лишнего scrollbar** |
+| **v0.44u4** | **2026-04-15** | **Auto-shrink: не сбрасывать `font-size` между повторами; наращивать em от текущего; тайминги 50/200/500ms** |
+| **v0.44u5** | **2026-04-15** | **Auto-shrink: замер только при `parentWidth > 0`; `load` + `ResizeObserver` на `.math-block`; тайминги до 1000ms (`math-render.js`)** |
+| **v0.44t2** | **2026-04-15** | **ГОСТ §8.2: красная строка после формул/рисунков/таблиц; `text-indent: 0` только после заголовков (`styles.css`)** |
+| **v0.44x** | **2026-04-15** | **Floating toolbar: кнопки 📋 Копировать и ✂ Вырезать (`execCommand`), `context-menu.js`** |
 
 *Следующая версия (v0.43+): добавлять строку при значимом релизе или по договорённости команды.*
 
 ---
+
+## Сессия 2026-04-15 — v0.44 пакет (типографика, поиск, math priority)
+
+| # | Задача | Кто | Файлы | Статус | Билд |
+|---|--------|-----|-------|--------|------|
+| — | v0.44–v0.44g: math `data-latex` приоритет; типографика d/e/f + нормализатор; find-replace панель + тесты | Composer | `math-render.js`, `typography-rules.js`, `find-replace.js`, `styles.css`, `tests/*.test.js` | ✅ | OK (`npm test`, `npx vite build`) |
+| v0.45 | MathJax `mathjax-full`: lazy `tex-mml-chtml`, `displayOverflow: linebreak`, рендер по `data-mathml` / `data-latex`; `resolveTexSource`; CSS `mjx-container`; тесты `math-render` | Composer | `math-render.js`, `styles.css`, `index.html`, `tests/math-render.test.js`, `.context/progress.md` | ✅ | OK (`npm test`, `npx vite build`) |
+| v0.45c | MathJax v4 CDN вместо `mathjax-full`; `index.html` + `math-render.js` через `window.MathJax`; тесты mock + проверка `mathjax@4`; `export-html.js` на v4 | Composer | `index.html`, `math-render.js`, `export-html.js`, `package.json`, `tests/*.test.js`, `.context/progress.md` | ✅ | OK (`npm test`, `npx vite build`) |
 
 ## Сессия 2026-04-09 (продолжение)
 
@@ -48,6 +74,26 @@
 | — | COMPOSER-EXPORT: HTML5 + MathJax, article/header/main/footer, figcaption/caption, кнопка скачивания | Composer | `src/export-html.js`, `src/editorum-publication.css`, `public/editorum-publication.css`, `src/toolbar.js` | ✅ | OK |
 | — | Codex: OMML→MathML pipeline, тесты (в т.ч. Semion 32 формулы), MathJax в `index.html`; повторная проверка **`npm test` — 12/12** | Codex / проверка | `word-import.js`, `index.html`, `package.json`, `tests/` | ✅ | `npm test` OK |
 | — | ~~Codex: membership внутри одного math-block~~ **(10.04 откат):** v0.43 fix — снова `auxiliarySegments` + `trailingHtml` для условий (∈, ⊂); основной блок без membership-строк | Composer | `src/word-import.js`, `tests/word-import.test.js` | ✅ | OK |
+
+## Сессия 2026-04-15
+
+| # | Задача | Кто | Файлы | Статус | Билд |
+|---|--------|-----|-------|--------|------|
+| v0.44b | Inline OMML: убран лишний пробел в `i=1,\\cdots,n`; при `dPr` + `bmatrix` больше нет двойной обёртки `\\left[ ... \\right]` | Codex | `src/word-import.js`, `tests/word-import.test.js`, `.context/progress.md` | ✅ | OK |
+| v0.44c | Склейка текста и inline math: добавлены безопасные пробелы до/после `<span class="math-inline">` без лишнего пробела перед `,.;:!?)]}»"` | Codex | `src/word-import.js`, `tests/word-import.test.js`, `.context/progress.md` | ✅ | OK |
+| v0.44h | Индексы-аббревиатуры и кириллица рендерятся прямым шрифтом: `\\text{...}` в LaTeX и `<mtext>` в MathML; в `importDocx()` оставлен TODO на `typographyNormalizer(html)` до экспорта Composer v0.44d/e/f | Codex | `src/word-import.js`, `tests/word-import.test.js`, `.context/activeContext.md`, `.context/progress.md` | ✅ | OK |
+| v0.44j | Многострочные block-формулы без `cases` теперь оборачиваются в `\\begin{aligned} ... \\end{aligned}`; обновлены synthetic/real DOCX тесты для Semion labels `(2)`, `(4)`, `(25)` | Codex | `src/word-import.js`, `tests/word-import.test.js`, `.context/progress.md` | ✅ | OK |
+| v0.44k | Дроби в display-блоках теперь идут как `\\dfrac`, в inline остаются `\\tfrac`; для block MathML добавлен `displaystyle="true"` на `<mfrac>`, тесты покрывают оба контекста | Codex | `src/word-import.js`, `tests/word-import.test.js`, `.context/progress.md` | ✅ | OK |
+| v0.44l | Системы с фигурной скобкой больше не используют `\\begin{cases}`: теперь `\\left\\{\\begin{aligned} ... \\end{aligned}\\right.`; MathML-ветка использует `mfenced` + `mtable displaystyle="true"`, тесты обновлены для Semion `(7)` и `(9)` | Codex | `src/word-import.js`, `tests/word-import.test.js`, `.context/progress.md` | ✅ | OK |
+| v0.44n | Все block-формулы теперь получают внешний `{\displaystyle ...}`, а строки в `aligned` выравниваются по первому `=` через `&=`; inline-формулы не тронуты, тесты обновлены на displaystyle-wrapper и alignment markers | Codex | `src/word-import.js`, `tests/word-import.test.js`, `.context/progress.md` | ✅ | OK |
+| v0.44r | Формула `(2)` из `test_semion_full.docx`: relation-only 4-я строка (`u(t)∈U, w(t)∈W, t∈[t₀,t_f]`) больше не уходит в отдельный `<p>`, а склеивается в тот же `aligned`; добавлены synthetic тесты на 3/4 строки system-table и обновлена проверка реального DOCX | Codex | `src/word-import.js`, `tests/word-import.test.js`, `.context/progress.md` | ✅ | OK |
+| v0.44s | Многострочные block-формулы без `\\left\\{` теперь генерируются как left-aligned `\\begin{array}{l} ... \\end{array}` без `&=`; системы с `\\left\\{` сохраняют `aligned + &=`; MathML для non-brace multiline получает `columnalign="left"` | Codex | `src/word-import.js`, `tests/word-import.test.js`, `.context/progress.md` | ✅ | OK |
+| v0.44v | Post-import HTML-нормализация в `importDocx()`: удаление пустых `<p>` без текста/math/image и автокоррекция подписей `Рисунок N` / `Рис. N` без точки; используется `normalizeTypographyPlainText` из `typography-rules.js`, добавлены тесты на cleanup и caption-fix | Codex | `src/word-import.js`, `tests/word-import.test.js`, `.context/progress.md` | ✅ | OK |
+| v0.44w | Post-import cleanup теперь проходит по текстовым сегментам абзацев вне формул: схлопываются двойные пробелы/табы, убираются пробелы перед пунктуацией, тримятся края `<p>`, инициалы переводятся на NBSP; пустые `<p>` по-прежнему удаляются без затрагивания `math-inline` и `img` | Codex | `src/word-import.js`, `tests/word-import.test.js`, `.context/progress.md` | ✅ | OK |
+| v0.44w2 | Добавлен второй проход по text-сегментам абзаца на границах вокруг `math-inline`/`img`: убираются двойные пробелы и пробелы перед пунктуацией, которые раньше оставались между соседними text-node через inline-элементы; добавлен регрессионный тест на стык `text + inline-math + text` | Codex | `src/word-import.js`, `tests/word-import.test.js`, `.context/progress.md` | ✅ | OK |
+| v0.44z | Импортёр теперь помечает plain-text нумерованные абзацы вида `1)` / `2.` классом `list-item-numbered`, сохраняя существующие классы `<p>`; добавлен регрессионный тест на добавление класса и совместимость с уже заданным `class` | Codex | `src/word-import.js`, `tests/word-import.test.js`, `.context/progress.md` | ✅ | OK |
+| v0.44aa | Длинные однострочные block-формулы теперь автоматически разбиваются по top-level операциям `= + - \\cdot \\times / :` в `\\begin{array}{l} ... \\end{array}` с повтором знака на новой строке; для разбитых формул block MathML перестраивается в `<mtable columnalign="left">`, добавлены unit и integration тесты на long/small/fraction cases | Codex | `src/word-import.js`, `tests/word-import.test.js`, `.context/progress.md` | ✅ | OK |
+| v0.45b | Убран static split длинных display-формул и внешняя LaTeX-обёртка `{\displaystyle ...}`: block `data-latex` теперь сохраняет исходный display LaTeX как есть, MathML display-mode остаётся основным сигналом для MathJax; сохранены existing multiline `array/aligned` и гигиенические нормализаторы, тесты обновлены под несбитый long-line и новые ожидания без `{\displaystyle}` | Codex | `src/word-import.js`, `tests/word-import.test.js`, `.context/progress.md` | ✅ | OK |
 
 ### Ранее в этот день (сводка)
 
