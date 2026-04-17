@@ -37,6 +37,7 @@
 | **v0.44** | **2026-04-15** | **Composer: приоритет `data-latex` над MathML (`math-render.js`); пост-импорт `createTypographyNormalizationTransaction` — двойные пробелы, пустые `<p>`** |
 | **v0.45** | **2026-04-15** | **MathJax v3 `mathjax-full` (npm): lazy `tex-mml-chtml`, `chtml.displayOverflow: 'linebreak'`, приоритет `data-mathml` для рендера, `resolveTexSource` без MathML→TeX; MathLive только модалка; стили `mjx-container`** |
 | **v0.45c** | **2026-04-15** | **MathJax v4 с CDN (jsDelivr `mathjax@4/tex-mml-chtml.js`): `displayOverflow: 'linebreak'` (v3 npm не поддерживал); `math-render.js` только `window.MathJax`; убран `mathjax-full`** |
+| **v0.46** | **2026-04-16** | **Schema v2: `heading` + id/sectionType, `paragraph` + lang, `math_block` + id; `figure_block`/`figure_image`, `table_block`/`table_caption`; `citation_ref`, `footnote_ref`, mark `lang`; `newNodeId`; legacy JSON OK; тулбар + `export-html`** |
 | **v0.45b** | **2026-04-15** | **Codex: без static split и без `{\displaystyle}` в block LaTeX; см. сессию** |
 | **v0.44b–h** | **2026-04-15** | **Codex: OMML/импорт — `cdots`, `bmatrix`, пробелы вокруг inline math, прямой шрифт индексов (см. сессию 2026-04-15)** |
 | **v0.44d** | **2026-04-15** | **Пробелы перед `,.;:!?)]}»"` — input rule + `normalizeSpaceBeforePunctuation`** |
@@ -64,6 +65,7 @@
 | — | v0.44–v0.44g: math `data-latex` приоритет; типографика d/e/f + нормализатор; find-replace панель + тесты | Composer | `math-render.js`, `typography-rules.js`, `find-replace.js`, `styles.css`, `tests/*.test.js` | ✅ | OK (`npm test`, `npx vite build`) |
 | v0.45 | MathJax `mathjax-full`: lazy `tex-mml-chtml`, `displayOverflow: linebreak`, рендер по `data-mathml` / `data-latex`; `resolveTexSource`; CSS `mjx-container`; тесты `math-render` | Composer | `math-render.js`, `styles.css`, `index.html`, `tests/math-render.test.js`, `.context/progress.md` | ✅ | OK (`npm test`, `npx vite build`) |
 | v0.45c | MathJax v4 CDN вместо `mathjax-full`; `index.html` + `math-render.js` через `window.MathJax`; тесты mock + проверка `mathjax@4`; `export-html.js` на v4 | Composer | `index.html`, `math-render.js`, `export-html.js`, `package.json`, `tests/*.test.js`, `.context/progress.md` | ✅ | OK (`npm test`, `npx vite build`) |
+| v0.46 | Schema v2: новые block/inline узлы и mark `lang`; обёртки `figure_block` / `table_block`; расширенные attrs; `toolbar.js` + `export-html.js`; тесты `schema-v2.test.js` | Composer | `schema.js`, `toolbar.js`, `export-html.js`, `tests/schema-v2.test.js`, `.context/progress.md` | ✅ | OK (`npm test`, `npx vite build`) |
 
 ## Сессия 2026-04-09 (продолжение)
 
@@ -94,6 +96,7 @@
 | v0.44z | Импортёр теперь помечает plain-text нумерованные абзацы вида `1)` / `2.` классом `list-item-numbered`, сохраняя существующие классы `<p>`; добавлен регрессионный тест на добавление класса и совместимость с уже заданным `class` | Codex | `src/word-import.js`, `tests/word-import.test.js`, `.context/progress.md` | ✅ | OK |
 | v0.44aa | Длинные однострочные block-формулы теперь автоматически разбиваются по top-level операциям `= + - \\cdot \\times / :` в `\\begin{array}{l} ... \\end{array}` с повтором знака на новой строке; для разбитых формул block MathML перестраивается в `<mtable columnalign="left">`, добавлены unit и integration тесты на long/small/fraction cases | Codex | `src/word-import.js`, `tests/word-import.test.js`, `.context/progress.md` | ✅ | OK |
 | v0.45b | Убран static split длинных display-формул и внешняя LaTeX-обёртка `{\displaystyle ...}`: block `data-latex` теперь сохраняет исходный display LaTeX как есть, MathML display-mode остаётся основным сигналом для MathJax; сохранены existing multiline `array/aligned` и гигиенические нормализаторы, тесты обновлены под несбитый long-line и новые ожидания без `{\displaystyle}` | Codex | `src/word-import.js`, `tests/word-import.test.js`, `.context/progress.md` | ✅ | OK |
+| v0.46b | DOCX-import подготовлен под schema v2: heading/paragraph/math-block получают auto-UUID `id`, headings получают `data-section-type` по эвристике секций, `img + fig-caption` объединяются в `<figure id><img><figcaption>`, а `table-number/table-caption + table` — в `<div class="table-wrap" id>...`; добавлены synthetic тесты на ids, sectionType, figure-wrap и table-wrap | Codex | `src/word-import.js`, `tests/word-import.test.js`, `.context/progress.md` | ✅ | OK |
 
 ### Ранее в этот день (сводка)
 

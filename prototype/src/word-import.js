@@ -719,7 +719,28 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
           }
         }
       } else {
-        html += processParagraph(child, wNs, mNs)
+        const paragraph = processParagraphDescriptor(child, wNs, mNs)
+        if (!paragraph) continue
+
+        if (paragraph.tag === "p" && paragraph.isImageOnly) {
+          const nextParagraph = getBodyParagraphDescriptor(bodyChildren, idx + 1, wNs, mNs)
+          if (nextParagraph?.styleType === "fig-caption") {
+            html += renderFigureBlockHtml(paragraph, nextParagraph)
+            skipIndices.add(idx + 1)
+            continue
+          }
+        }
+
+        if (paragraph.tag === "p" && (paragraph.styleType === "table-number" || paragraph.styleType === "table-caption")) {
+          const tableWrap = getFollowingTableWrap(bodyChildren, idx, paragraph, wNs, mNs)
+          if (tableWrap) {
+            html += tableWrap.html
+            tableWrap.skipIndices.forEach((skipIndex) => skipIndices.add(skipIndex))
+            continue
+          }
+        }
+
+        html += paragraph.html
       }
     } else if (localName === "tbl") {
       // Check if table is actually a formula container (Word trick)
@@ -740,7 +761,7 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
 
   return html
 
-  function processParagraph(p, wNs, mNs) {
+  function processParagraphDescriptor(p, wNs, mNs) {
     const pPr = p.getElementsByTagNameNS(wNs, "pPr")[0]
     let tag = "p"
     let level = 0
@@ -824,14 +845,92 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
 
     // Auto-detect caption styles by text pattern
     const plainText = content.replace(/<[^>]+>/g, "").trim()
-    let styleClass = ""
+    let styleType = null
     if (/^(Рис\.|Рисунок)\s*\d/i.test(plainText)) {
-      styleClass = ' class="style-fig-caption"'
+      styleType = "fig-caption"
     } else if (/^(Табл\.|Таблица)\s*\d/i.test(plainText)) {
-      styleClass = ' class="style-table-caption"'
+      styleType = /^(Табл\.|Таблица)\s*\d+\s*$/i.test(plainText) ? "table-number" : "table-caption"
     }
 
-    return `<${tag}${styleClass}>${content}</${tag}>\n`
+    const id = createImportedNodeId()
+    const sectionType = tag.startsWith("h") ? detectSectionType(plainText) : null
+    const attrs = buildImportedElementAttrs({
+      id,
+      className: styleType ? `style-${styleType}` : "",
+      sectionType
+    })
+
+    return {
+      id,
+      tag,
+      level,
+      content,
+      plainText,
+      styleType,
+      isImageOnly: tag === "p" && /^\s*<img\b[^>]*>\s*$/iu.test(content),
+      html: `<${tag}${attrs}>${content}</${tag}>\n`
+    }
+  }
+
+  function getBodyParagraphDescriptor(children, index, wNs, mNs) {
+    const next = children[index]
+    if (!next) return null
+    const nextName = next.localName || next.nodeName?.split(":").pop()
+    if (nextName !== "p") return null
+    if (findElementsByLocalName(next, "oMathPara").length > 0) return null
+    return processParagraphDescriptor(next, wNs, mNs) || null
+  }
+
+  function getFollowingTableWrap(children, index, firstParagraph, wNs, mNs) {
+    const next = children[index + 1]
+    const nextName = next?.localName || next?.nodeName?.split(":").pop()
+
+    if (firstParagraph.styleType === "table-caption" && nextName === "tbl") {
+      return {
+        html: renderTableBlockHtml({ numberParagraph: null, captionParagraph: firstParagraph, tableHtml: processTable(next, wNs, mNs) }),
+        skipIndices: [index + 1]
+      }
+    }
+
+    if (firstParagraph.styleType !== "table-number") return null
+
+    if (nextName === "tbl") {
+      return {
+        html: renderTableBlockHtml({ numberParagraph: firstParagraph, captionParagraph: null, tableHtml: processTable(next, wNs, mNs) }),
+        skipIndices: [index + 1]
+      }
+    }
+
+    const secondParagraph = getBodyParagraphDescriptor(children, index + 1, wNs, mNs)
+    const third = children[index + 2]
+    const thirdName = third?.localName || third?.nodeName?.split(":").pop()
+    if (secondParagraph?.styleType === "table-caption" && thirdName === "tbl") {
+      return {
+        html: renderTableBlockHtml({
+          numberParagraph: firstParagraph,
+          captionParagraph: secondParagraph,
+          tableHtml: processTable(third, wNs, mNs)
+        }),
+        skipIndices: [index + 1, index + 2]
+      }
+    }
+
+    return null
+  }
+
+  function renderFigureBlockHtml(imageParagraph, captionParagraph) {
+    const figureId = createImportedNodeId()
+    const captionContent = normalizeImportedParagraphHtml(captionParagraph.content, ' class="style-fig-caption"')
+    return `<figure id="${escapeAttr(figureId)}">${imageParagraph.content}<figcaption>${captionContent}</figcaption></figure>\n`
+  }
+
+  function renderTableBlockHtml({ numberParagraph, captionParagraph, tableHtml }) {
+    const tableId = createImportedNodeId()
+    const parts = []
+    if (numberParagraph) parts.push(numberParagraph.html.trim())
+    if (captionParagraph) parts.push(captionParagraph.html.trim())
+    parts.push(tableHtml.trim())
+    return `<div class="table-wrap" id="${escapeAttr(tableId)}">${parts.join("")}</div>\n`
   }
 
   function processRun(r, wNs) {
@@ -993,7 +1092,7 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
   }
 
   function processTable(tbl, wNs, mNs) {
-    let html = "<table>"
+    let html = `<table id="${escapeAttr(createImportedNodeId())}">`
     const rows = findElementsByLocalName(tbl, "tr")
     for (const row of rows) {
       html += "<tr>"
@@ -1275,7 +1374,7 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
     const finalMathml = mathml || ""
     const attrs = ` data-mathml="${escapeAttr(finalMathml)}" data-latex="${escapeAttr(finalLatex)}"`
     if (display) {
-      return `<div class="math-block"${attrs}${labelAttr}>${finalMathml || escapeHtml(finalLatex)}</div>\n`
+      return `<div class="math-block"${attrs}${labelAttr} id="${escapeAttr(createImportedNodeId())}">${finalMathml || escapeHtml(finalLatex)}</div>\n`
     }
     return `<span class="math-inline"${attrs}>${finalMathml || escapeHtml(finalLatex)}</span>`
   }
@@ -1566,6 +1665,58 @@ function escapeHtml(text) {
 
 function escapeAttr(text) {
   return text.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+}
+
+function createImportedNodeId() {
+  if (globalThis.crypto?.randomUUID) {
+    return globalThis.crypto.randomUUID()
+  }
+  return `import-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
+}
+
+function buildImportedElementAttrs({ id = null, className = "", sectionType = null }) {
+  let attrs = ""
+  if (id) attrs += ` id="${escapeAttr(id)}"`
+  if (className) attrs += ` class="${escapeAttr(className)}"`
+  if (sectionType) attrs += ` data-section-type="${escapeAttr(sectionType)}"`
+  return attrs
+}
+
+function detectSectionType(text) {
+  const normalized = normalizeSectionHeadingText(text)
+  if (!normalized) return null
+  // Standard IMRAD
+  if (/^(введение|introduction)$/iu.test(normalized)) return "introduction"
+  if (/^(методы|материалы и методы|methods|materials and methods)$/iu.test(normalized)) return "methods"
+  if (/^(результаты|results)$/iu.test(normalized)) return "results"
+  if (/^(обсуждение|discussion)$/iu.test(normalized)) return "discussion"
+  if (/^(заключение|выводы|conclusion|conclusions)$/iu.test(normalized)) return "conclusion"
+  if (/^(благодарности|acknowledgements|acknowledgments)$/iu.test(normalized)) return "acknowledgements"
+  if (/^(список литературы|литература|references|bibliography)$/iu.test(normalized)) return "references"
+  if (/^(приложение(?:\s+[a-zа-яё0-9]+)?|appendix(?:\s+[a-z0-9]+)?)$/iu.test(normalized)) return "appendix"
+  if (/^(аннотация|abstract|реферат)$/iu.test(normalized)) return "abstract"
+  // Extended: dissertations, theses, non-IMRAD articles
+  if (/актуальност|relevance|significance/iu.test(normalized)) return "introduction"
+  if (/краткое содержание|summary|overview|обзор/iu.test(normalized)) return "abstract"
+  if (/основные результат|main results|key findings/iu.test(normalized)) return "results"
+  if (/публикации|publications|список.*(работ|трудов)/iu.test(normalized)) return "references"
+  if (/общая характеристика|general description|характеристика работы/iu.test(normalized)) return "introduction"
+  if (/научная новизна|novelty|новизна/iu.test(normalized)) return "results"
+  if (/практическая (ценность|значимость)|practical (value|significance)/iu.test(normalized)) return "results"
+  if (/постановка задач|problem statement|задач[аи]\s/iu.test(normalized)) return "methods"
+  if (/предмет исследования|subject|объект исследования/iu.test(normalized)) return "methods"
+  if (/цел[ьи] исследования|objectives|aims/iu.test(normalized)) return "methods"
+  return null
+}
+
+function normalizeSectionHeadingText(text) {
+  return (text || "")
+    .replace(/\u00A0/gu, " ")
+    .replace(/^[\s\d.()]+/u, "")
+    .replace(/[.:]+$/u, "")
+    .replace(/\s+/gu, " ")
+    .trim()
+    .toLowerCase()
 }
 
 function normalizeImportedParagraphHtml(inner, attrs = "") {

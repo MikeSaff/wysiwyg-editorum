@@ -374,6 +374,146 @@ header .hint {
   margin-bottom: 6pt;
 }
 
+/* === v0.46c: Section type visual markers ===
+   Цветовая полоска слева + badge с типом секции. Клик на badge → dropdown смены типа. */
+
+/* Base: ВСЕ headings получают clickable zone слева для назначения типа */
+.ProseMirror h1, .ProseMirror h2, .ProseMirror h3, .ProseMirror h4 {
+  position: relative;
+  padding-left: 12px;
+  margin-left: -15px;
+  border-left: 3px solid transparent;
+  cursor: default;
+}
+
+/* Headings без sectionType — серая пунктирная полоска + «§» */
+.ProseMirror h1:not([data-section-type])::before,
+.ProseMirror h2:not([data-section-type])::before,
+.ProseMirror h3:not([data-section-type])::before,
+.ProseMirror h4:not([data-section-type])::before {
+  content: "§";
+  position: absolute;
+  left: -12px;
+  top: 2px;
+  font-size: 12px;
+  color: #bbb;
+  cursor: pointer;
+  font-family: 'PT Sans', sans-serif;
+}
+.ProseMirror h1:not([data-section-type]):hover,
+.ProseMirror h2:not([data-section-type]):hover,
+.ProseMirror h3:not([data-section-type]):hover,
+.ProseMirror h4:not([data-section-type]):hover {
+  border-left-color: #e0e0e0;
+}
+
+/* Headings с sectionType — цветовая полоска */
+.ProseMirror [data-section-type] {
+  border-left: 3px solid #9e9e9e;
+}
+
+/* Badge с типом секции */
+.ProseMirror [data-section-type]::before {
+  content: attr(data-section-label);
+  position: absolute;
+  left: -15px;
+  top: -14px;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  padding: 1px 6px;
+  border-radius: 3px;
+  color: #fff;
+  background: #9e9e9e;
+  white-space: nowrap;
+  pointer-events: none;
+  font-family: 'PT Sans', sans-serif;
+}
+
+/* Абзацы между headings наследуют полоску — через JS-class pm-section-body */
+.ProseMirror .pm-section-body {
+  border-left: 3px solid #9e9e9e;
+  padding-left: 12px;
+  margin-left: -15px;
+}
+
+/* Цвета по типам */
+.ProseMirror [data-section-type="introduction"],
+.ProseMirror .pm-section-body[data-parent-section="introduction"] { border-left-color: #1976d2; }
+.ProseMirror [data-section-type="introduction"]::before { background: #1976d2; }
+
+.ProseMirror [data-section-type="methods"],
+.ProseMirror .pm-section-body[data-parent-section="methods"] { border-left-color: #388e3c; }
+.ProseMirror [data-section-type="methods"]::before { background: #388e3c; }
+
+.ProseMirror [data-section-type="results"],
+.ProseMirror .pm-section-body[data-parent-section="results"] { border-left-color: #f57c00; }
+.ProseMirror [data-section-type="results"]::before { background: #f57c00; }
+
+.ProseMirror [data-section-type="discussion"],
+.ProseMirror .pm-section-body[data-parent-section="discussion"] { border-left-color: #7b1fa2; }
+.ProseMirror [data-section-type="discussion"]::before { background: #7b1fa2; }
+
+.ProseMirror [data-section-type="conclusion"],
+.ProseMirror .pm-section-body[data-parent-section="conclusion"] { border-left-color: #c62828; }
+.ProseMirror [data-section-type="conclusion"]::before { background: #c62828; }
+
+.ProseMirror [data-section-type="acknowledgements"],
+.ProseMirror .pm-section-body[data-parent-section="acknowledgements"] { border-left-color: #78909c; }
+.ProseMirror [data-section-type="acknowledgements"]::before { background: #78909c; }
+
+.ProseMirror [data-section-type="references"],
+.ProseMirror .pm-section-body[data-parent-section="references"] { border-left-color: #5d4037; }
+.ProseMirror [data-section-type="references"]::before { background: #5d4037; }
+
+.ProseMirror [data-section-type="appendix"],
+.ProseMirror .pm-section-body[data-parent-section="appendix"] { border-left-color: #546e7a; }
+.ProseMirror [data-section-type="appendix"]::before { background: #546e7a; }
+
+.ProseMirror [data-section-type="abstract"],
+.ProseMirror .pm-section-body[data-parent-section="abstract"] { border-left-color: #00838f; }
+.ProseMirror [data-section-type="abstract"]::before { background: #00838f; }
+
+/* Section type dropdown (opened on click) */
+.pm-section-dropdown {
+  position: absolute;
+  z-index: 100;
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+  padding: 4px 0;
+  min-width: 180px;
+  font-family: 'PT Sans', sans-serif;
+  font-size: 13px;
+}
+
+.pm-section-dropdown-item {
+  padding: 6px 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pm-section-dropdown-item:hover {
+  background: #f5f5f5;
+}
+
+.pm-section-dropdown-item .pm-section-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* Foreign language inline mark */
+.ProseMirror span.lang-foreign {
+  font-style: italic;
+  color: #333;
+}
+
 .ProseMirror strong { font-weight: 700; }
 .ProseMirror em { font-style: italic; }
 .ProseMirror u { text-decoration: underline; }

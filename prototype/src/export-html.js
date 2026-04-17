@@ -82,6 +82,9 @@ function wrapMark(html, mark) {
   if (n === "superscript") return "<sup>" + html + "</sup>"
   if (n === "subscript") return "<sub>" + html + "</sub>"
   if (n === "code") return "<code>" + html + "</code>"
+  if (n === "lang") {
+    return '<span lang="' + escapeAttr(mark.attrs.lang || "") + '" class="lang-foreign">' + html + "</span>"
+  }
   if (n === "link") {
     const href = escapeAttr(mark.attrs.href || "#")
     const title = mark.attrs.title ? ' title="' + escapeAttr(mark.attrs.title) + '"' : ""
@@ -102,6 +105,12 @@ function serializeInlineFragment(node) {
     } else if (child.type.name === "math_inline") {
       const tex = escapeHtml(child.attrs.latex || "")
       html += '<span class="math-inline">\\(' + tex + "\\)</span>"
+    } else if (child.type.name === "citation_ref") {
+      const ids = child.attrs.ref_ids || []
+      const label = ids.length ? `[${ids.map((_, i) => i + 1).join(",")}]` : "[]"
+      html += '<span class="citation-ref" data-refs="' + escapeAttr(ids.join(",")) + '">' + escapeHtml(label) + "</span>"
+    } else if (child.type.name === "footnote_ref") {
+      html += '<sup class="footnote-ref" data-fn="' + escapeAttr(child.attrs.footnote_id || "") + '">*</sup>'
     }
   })
   return html
@@ -112,6 +121,13 @@ function serializeImageNode(node) {
   const alt = escapeAttr(node.attrs.alt || "")
   const title = node.attrs.title ? ' title="' + escapeAttr(node.attrs.title) + '"' : ""
   return '<img class="inline-image" src="' + src + '" alt="' + alt + '"' + title + ">"
+}
+
+function serializeFigureImageNode(node) {
+  const src = escapeAttr(node.attrs.src || "")
+  const alt = escapeAttr(node.attrs.alt || "")
+  const title = node.attrs.title ? ' title="' + escapeAttr(node.attrs.title) + '"' : ""
+  return '<img class="figure-block-img" src="' + src + '" alt="' + alt + '"' + title + ">"
 }
 
 let headingCounter = 0
@@ -137,7 +153,10 @@ function serializeBlock(node, schema) {
     const id = nextHeadingId(text || "h", level)
     const align = node.attrs.align ? ' style="text-align:' + escapeAttr(node.attrs.align) + '"' : ""
     const hid = node.attrs.id ? String(node.attrs.id) : id
-    return "<h" + level + ' id="' + escapeAttr(hid) + '"' + align + ">" + serializeInlineFragment(node) + "</h" + level + ">"
+    const sec = node.attrs.sectionType
+      ? ' data-section-type="' + escapeAttr(node.attrs.sectionType) + '"'
+      : ""
+    return "<h" + level + ' id="' + escapeAttr(hid) + '"' + sec + align + ">" + serializeInlineFragment(node) + "</h" + level + ">"
   }
   if (n === "blockquote") {
     let inner = ""
@@ -165,16 +184,46 @@ function serializeBlock(node, schema) {
   if (n === "math_block") {
     const tex = escapeHtml(node.attrs.latex || "")
     const label = node.attrs.label
+    const mid = node.attrs.id ? ' id="' + escapeAttr(String(node.attrs.id)) + '"' : ""
     const labelHtml = label
       ? '<span class="formula-label">' + escapeHtml(String(label)) + "</span>"
       : ""
     return (
-      '<div class="formula"><div class="formula-body">\\[' +
+      '<div class="formula"' +
+      mid +
+      "><div class=\"formula-body\">\\[" +
       tex +
       "\\]</div>" +
       labelHtml +
       "</div>"
     )
+  }
+  if (n === "figure_block") {
+    const fid = node.attrs.id ? ' id="' + escapeAttr(String(node.attrs.id)) + '"' : ""
+    let inner = ""
+    node.forEach((ch) => {
+      if (ch.type.name === "figure_image") {
+        inner += serializeFigureImageNode(ch)
+      } else if (ch.type.name === "figcaption") {
+        inner += "<figcaption>" + serializeInlineFragment(ch) + "</figcaption>"
+      }
+    })
+    return "<figure data-schema-v2" + fid + ">" + inner + "</figure>"
+  }
+  if (n === "table_block") {
+    let capHtml = ""
+    let tableNode = null
+    node.forEach((ch) => {
+      if (ch.type.name === "table_caption") {
+        capHtml = '<div class="table-caption">' + serializeInlineFragment(ch) + "</div>"
+      } else if (ch.type.name === "table") {
+        tableNode = ch
+      }
+    })
+    if (!tableNode) return ""
+    const wrapId = node.attrs.id ? ' id="' + escapeAttr(String(node.attrs.id)) + '"' : ""
+    const inner = serializeTable(tableNode, null, schema)
+    return '<div class="table-wrap"' + wrapId + ">" + capHtml + inner + "</div>"
   }
   if (n === "figure") {
     let img = ""
@@ -224,8 +273,9 @@ function serializeParagraph(node) {
   }
   const cls = st ? ' class="style-' + escapeAttr(st) + '"' : ""
   const id = node.attrs.id ? ' id="' + escapeAttr(node.attrs.id) + '"' : ""
+  const lang = node.attrs.lang ? ' lang="' + escapeAttr(node.attrs.lang) + '"' : ""
   const align = node.attrs.align ? ' style="text-align:' + escapeAttr(node.attrs.align) + '"' : ""
-  return "<p" + id + cls + align + ">" + inner + "</p>"
+  return "<p" + id + lang + cls + align + ">" + inner + "</p>"
 }
 
 function serializeTable(tableNode, captionHtml, schema) {

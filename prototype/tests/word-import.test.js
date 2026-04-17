@@ -34,7 +34,7 @@ function collectMathBlocks(html) {
 }
 
 function collectInlineMathParagraphs(html) {
-  return [...html.matchAll(/<p>(.*?)<\/p>/g)].map((match) => {
+  return [...html.matchAll(/<p[^>]*>(.*?)<\/p>/g)].map((match) => {
     const formulas = [...match[1].matchAll(/data-latex="([^"]+)"/g)].map((inner) =>
       decodeAttr(inner[1])
     )
@@ -137,6 +137,89 @@ test("normalizeImportedHtml marks numbered paragraphs with list-item-numbered", 
 
   assert.match(normalizedPlain, /<p class="list-item-numbered">1\) Первый пункт<\/p>/u)
   assert.match(normalizedStyled, /<p class="style-normal list-item-numbered">2\. Второй пункт<\/p>/u)
+})
+
+test("docxXmlToHtml adds ids to imported headings paragraphs and math blocks plus section type on headings", () => {
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+  <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math">
+    <w:body>
+      <w:p>
+        <w:pPr><w:pStyle w:val="Heading1"/></w:pPr>
+        <w:r><w:t>Введение</w:t></w:r>
+      </w:p>
+      <w:p>
+        <w:r><w:t>Обычный текст</w:t></w:r>
+      </w:p>
+      <w:p>
+        <m:oMathPara>
+          <m:oMath>
+            <m:r><m:t>x</m:t></m:r>
+            <m:r><m:t>=</m:t></m:r>
+            <m:r><m:t>0</m:t></m:r>
+          </m:oMath>
+        </m:oMathPara>
+      </w:p>
+    </w:body>
+  </w:document>`
+
+  const html = docxXmlToHtml(xml, {}, {}, {})
+
+  assert.match(html, /<h1 id="[^"]+" data-section-type="introduction">Введение<\/h1>/u)
+  assert.match(html, /<p id="[^"]+">Обычный текст<\/p>/u)
+  assert.match(html, /<div class="math-block"[^>]* id="[^"]+">/u)
+})
+
+test("docxXmlToHtml wraps image-only paragraph with following figure caption into figure", () => {
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+  <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+              xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+              xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
+    <w:body>
+      <w:p>
+        <w:r>
+          <w:drawing>
+            <a:graphic>
+              <a:graphicData>
+                <a:pic>
+                  <a:blipFill>
+                    <a:blip r:embed="rId1"/>
+                  </a:blipFill>
+                </a:pic>
+              </a:graphicData>
+            </a:graphic>
+          </w:drawing>
+        </w:r>
+      </w:p>
+      <w:p>
+        <w:r><w:t>Рисунок 3 Блок-схема алгоритма</w:t></w:r>
+      </w:p>
+    </w:body>
+  </w:document>`
+
+  const html = docxXmlToHtml(xml, {}, { rId1: "img.png" }, {})
+
+  assert.match(html, /<figure id="[^"]+"><img src="img\.png" alt="image" class="inline-image"><figcaption>Рисунок 3\. Блок-схема алгоритма<\/figcaption><\/figure>/u)
+  assert.doesNotMatch(html, /style-fig-caption/u)
+})
+
+test("docxXmlToHtml wraps table number and caption before table into table-wrap", () => {
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+  <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+    <w:body>
+      <w:p><w:r><w:t>Таблица 1</w:t></w:r></w:p>
+      <w:p><w:r><w:t>Таблица 1 Подпись таблицы</w:t></w:r></w:p>
+      <w:tbl>
+        <w:tr>
+          <w:tc><w:p><w:r><w:t>A</w:t></w:r></w:p></w:tc>
+          <w:tc><w:p><w:r><w:t>B</w:t></w:r></w:p></w:tc>
+        </w:tr>
+      </w:tbl>
+    </w:body>
+  </w:document>`
+
+  const html = docxXmlToHtml(xml, {}, {}, {})
+
+  assert.match(html, /<div class="table-wrap" id="[^"]+"><p id="[^"]+" class="style-table-number">Таблица 1<\/p><p id="[^"]+" class="style-table-caption">Таблица 1 Подпись таблицы<\/p><table id="[^"]+">/u)
 })
 
 test("ommlToLatex keeps the full integrand for n-ary expressions", () => {

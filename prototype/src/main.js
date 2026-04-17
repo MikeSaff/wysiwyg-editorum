@@ -10,7 +10,7 @@ import { gapCursor } from "prosemirror-gapcursor"
 import { tableEditing, columnResizing, goToNextCell, fixTables } from "prosemirror-tables"
 import { splitListItem, liftListItem, sinkListItem } from "prosemirror-schema-list"
 
-import { schema } from "./schema.js"
+import { schema, sectionTypeLabels, sectionTypeColors } from "./schema.js"
 import { buildToolbar, updateTableToolbar } from "./toolbar.js"
 import { setupContextMenu } from "./context-menu.js"
 import { cleanWordHtml } from "./word-paste.js"
@@ -340,6 +340,58 @@ function setupTabs() {
   })
 }
 
+// === Section type dropdown ===
+function showSectionTypeDropdown(headingEl, view) {
+  // Remove existing dropdown
+  document.querySelector(".pm-section-dropdown")?.remove()
+
+  const dropdown = document.createElement("div")
+  dropdown.className = "pm-section-dropdown"
+
+  const types = [
+    [null, "Без типа", "#9e9e9e"],
+    ...Object.entries(sectionTypeLabels).map(([key, label]) => [key, label, sectionTypeColors[key] || "#616161"])
+  ]
+
+  types.forEach(([type, label, color]) => {
+    const item = document.createElement("div")
+    item.className = "pm-section-dropdown-item"
+    const dot = document.createElement("span")
+    dot.className = "pm-section-dot"
+    dot.style.background = color
+    item.appendChild(dot)
+    item.appendChild(document.createTextNode(label))
+    item.addEventListener("click", (e) => {
+      e.stopPropagation()
+      // Find ProseMirror pos of heading
+      const pos = view.posAtDOM(headingEl, 0)
+      if (pos === undefined) return
+      const node = view.state.doc.nodeAt(pos)
+      if (!node || node.type !== schema.nodes.heading) return
+      const tr = view.state.tr.setNodeMarkup(pos, null, { ...node.attrs, sectionType: type })
+      view.dispatch(tr)
+      dropdown.remove()
+      view.focus()
+    })
+    dropdown.appendChild(item)
+  })
+
+  const rect = headingEl.getBoundingClientRect()
+  dropdown.style.position = "fixed"
+  dropdown.style.left = `${rect.left}px`
+  dropdown.style.top = `${rect.bottom + 4}px`
+  document.body.appendChild(dropdown)
+
+  // Close on outside click
+  const close = (e) => {
+    if (!dropdown.contains(e.target)) {
+      dropdown.remove()
+      document.removeEventListener("click", close, true)
+    }
+  }
+  setTimeout(() => document.addEventListener("click", close, true), 0)
+}
+
 // === Init ===
 function init() {
   const toolbarEl = document.getElementById("toolbar")
@@ -528,6 +580,18 @@ function init() {
     e.preventDefault()
     e.stopPropagation()
     openLightbox(src, img.alt || "")
+  })
+
+  // === Section type selector on heading click ===
+  editorEl.addEventListener("click", (e) => {
+    const heading = e.target.closest("h1, h2, h3, h4")
+    if (!heading || !editorEl.contains(heading)) return
+    // Only trigger on left side (where the badge is)
+    const headingRect = heading.getBoundingClientRect()
+    if (e.clientX > headingRect.left + 30) return
+    e.preventDefault()
+    e.stopPropagation()
+    showSectionTypeDropdown(heading, view)
   })
 
   // === Formula editing on click (MathLive modal) ===

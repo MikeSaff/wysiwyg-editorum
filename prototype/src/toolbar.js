@@ -1,8 +1,9 @@
+import { Fragment } from "prosemirror-model"
 import { toggleMark, setBlockType, wrapIn, lift } from "prosemirror-commands"
 import { undo, redo } from "prosemirror-history"
 import { wrapInList } from "prosemirror-schema-list"
 import { addColumnAfter, addColumnBefore, addRowAfter, addRowBefore, deleteColumn, deleteRow, deleteTable, mergeCells, splitCell, toggleHeaderRow, toggleHeaderColumn } from "prosemirror-tables"
-import { schema } from "./schema.js"
+import { schema, newNodeId } from "./schema.js"
 import { exportToHtml } from "./export-html.js"
 
 // === Custom confirm modal (replaces native confirm() — Chrome DevTools intercepts native dialogs) ===
@@ -86,10 +87,24 @@ function createSeparator() {
   return sep
 }
 
+function headingAttrs(state, level) {
+  const { $from } = state.selection
+  const block = $from.node($from.depth)
+  if (block.type === schema.nodes.heading) {
+    return {
+      level,
+      id: block.attrs.id || newNodeId(),
+      align: block.attrs.align ?? null,
+      sectionType: block.attrs.sectionType ?? null
+    }
+  }
+  return { level, id: newNodeId(), align: null, sectionType: null }
+}
+
 function insertMathBlock(state, dispatch) {
   const latex = prompt("LaTeX формула:", "E = mc^2")
   if (!latex) return false
-  const node = schema.nodes.math_block.create({ latex })
+  const node = schema.nodes.math_block.create({ latex, id: newNodeId() })
   if (dispatch) dispatch(state.tr.replaceSelectionWith(node))
   return true
 }
@@ -112,7 +127,8 @@ function insertImage(state, dispatch) {
 }
 
 function insertTable(state, dispatch) {
-  const rows = 3, cols = 3
+  const rows = 3
+  const cols = 3
   const cells = []
   for (let r = 0; r < rows; r++) {
     const rowCells = []
@@ -123,7 +139,32 @@ function insertTable(state, dispatch) {
     cells.push(schema.nodes.table_row.create(null, rowCells))
   }
   const table = schema.nodes.table.create(null, cells)
-  if (dispatch) dispatch(state.tr.replaceSelectionWith(table))
+  const wrap = schema.nodes.table_block.create({ id: newNodeId() }, Fragment.from(table))
+  if (dispatch) dispatch(state.tr.replaceSelectionWith(wrap))
+  return true
+}
+
+function insertFigureBlock(state, dispatch) {
+  const src = prompt("URL изображения:", "https://via.placeholder.com/400x300")
+  if (!src) return false
+  const img = schema.nodes.figure_image.create({ src, alt: "" })
+  const fb = schema.nodes.figure_block.create({ id: newNodeId() }, img)
+  if (dispatch) dispatch(state.tr.replaceSelectionWith(fb))
+  return true
+}
+
+function insertCitationRef(state, dispatch) {
+  const raw = prompt("ID цитат (через запятую):", "1,2")
+  const ref_ids = raw ? raw.split(",").map((s) => s.trim()).filter(Boolean) : []
+  const node = schema.nodes.citation_ref.create({ ref_ids })
+  if (dispatch) dispatch(state.tr.replaceSelectionWith(node))
+  return true
+}
+
+function insertFootnoteRef(state, dispatch) {
+  const footnote_id = prompt("ID сноски:", "fn1") || ""
+  const node = schema.nodes.footnote_ref.create({ footnote_id })
+  if (dispatch) dispatch(state.tr.replaceSelectionWith(node))
   return true
 }
 
@@ -158,6 +199,11 @@ export function buildToolbar(view, toolbarEl) {
   marks.forEach(([label, title, cmd, opts]) => {
     groupFormat.appendChild(createButton(label, title, cmd, view, opts || {}))
   })
+  groupFormat.appendChild(createButton("🌐", "Язык фрагмента (lang)", (state, dispatch) => {
+    const lang = prompt("Код языка (BCP 47), напр. en:", "en")
+    if (!lang) return false
+    return toggleMark(schema.marks.lang, { lang })(state, dispatch)
+  }, view))
   toolbarEl.appendChild(groupFormat)
 
   toolbarEl.appendChild(createSeparator())
@@ -165,9 +211,9 @@ export function buildToolbar(view, toolbarEl) {
   // === Group: Структура ===
   const groupStruct = createGroup("Блок")
   const blocks = [
-    ["H1", "Заголовок 1-го уровня", setBlockType(schema.nodes.heading, { level: 1 })],
-    ["H2", "Заголовок 2-го уровня", setBlockType(schema.nodes.heading, { level: 2 })],
-    ["H3", "Заголовок 3-го уровня", setBlockType(schema.nodes.heading, { level: 3 })],
+    ["H1", "Заголовок 1-го уровня", (s, d) => setBlockType(schema.nodes.heading, headingAttrs(s, 1))(s, d)],
+    ["H2", "Заголовок 2-го уровня", (s, d) => setBlockType(schema.nodes.heading, headingAttrs(s, 2))(s, d)],
+    ["H3", "Заголовок 3-го уровня", (s, d) => setBlockType(schema.nodes.heading, headingAttrs(s, 3))(s, d)],
     ["¶", "Обычный абзац", setBlockType(schema.nodes.paragraph)],
     ["❝", "Цитата", wrapIn(schema.nodes.blockquote)],
     ["⌨", "Блок кода", setBlockType(schema.nodes.code_block)],
@@ -263,7 +309,10 @@ export function buildToolbar(view, toolbarEl) {
     input.click()
     return true
   }, view))
-  groupInsert.appendChild(createButton("⊞", "Таблицу 3×3", insertTable, view))
+  groupInsert.appendChild(createButton("⊞", "Таблицу 3×3 (обёртка table_block)", insertTable, view))
+  groupInsert.appendChild(createButton("🖼‍⬚", "Рисунок (figure_block)", insertFigureBlock, view))
+  groupInsert.appendChild(createButton("[·]", "Цитирование (citation_ref)", insertCitationRef, view))
+  groupInsert.appendChild(createButton("⁎", "Сноска (footnote_ref)", insertFootnoteRef, view))
   groupInsert.appendChild(createButton("―", "Горизонтальную линию", insertHR, view))
   toolbarEl.appendChild(groupInsert)
 
