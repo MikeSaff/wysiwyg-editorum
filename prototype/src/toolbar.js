@@ -5,6 +5,7 @@ import { wrapInList } from "prosemirror-schema-list"
 import { addColumnAfter, addColumnBefore, addRowAfter, addRowBefore, deleteColumn, deleteRow, deleteTable, mergeCells, splitCell, toggleHeaderRow, toggleHeaderColumn } from "prosemirror-tables"
 import { schema, newNodeId } from "./schema.js"
 import { exportToHtml } from "./export-html.js"
+import { insertFormulaImageTransaction, isValidFormulaImageSrc } from "./formula-image-insert.js"
 
 // === Custom confirm modal (replaces native confirm() — Chrome DevTools intercepts native dialogs) ===
 function showConfirmModal(title, message, onConfirm) {
@@ -44,6 +45,150 @@ function showConfirmModal(title, message, onConfirm) {
 
   document.body.appendChild(overlay)
   queueMicrotask(() => okBtn.focus())
+}
+
+/**
+ * @returns {Promise<{ src: string, alt: string, number: string | null, latex_hint: string, block: boolean } | null>}
+ */
+function openFormulaImageModal() {
+  return new Promise((resolve) => {
+    document.getElementById("pm-formula-image-modal")?.remove()
+
+    const overlay = document.createElement("div")
+    overlay.id = "pm-formula-image-modal"
+    overlay.className = "pm-confirm-overlay pm-formula-image-overlay"
+    overlay.setAttribute("role", "dialog")
+    overlay.setAttribute("aria-modal", "true")
+    overlay.innerHTML = `
+      <div class="pm-formula-image-dialog">
+        <h3 class="pm-formula-image-title">Формула-картинка</h3>
+        <div class="pm-formula-image-tabs">
+          <button type="button" class="pm-formula-image-tab active" data-tab="file">Загрузить файл</button>
+          <button type="button" class="pm-formula-image-tab" data-tab="url">По URL</button>
+        </div>
+        <div class="pm-formula-image-panel" data-panel="file">
+          <input type="file" class="pm-formula-image-file" accept="image/*" />
+        </div>
+        <div class="pm-formula-image-panel" data-panel="url" style="display:none">
+          <label class="pm-formula-image-label">URL (https://… или data:image/…)</label>
+          <input type="text" class="pm-formula-image-url" placeholder="https://..." />
+        </div>
+        <label class="pm-formula-image-label">Alt (доступность)</label>
+        <input type="text" class="pm-formula-image-alt" placeholder="Описание" />
+        <label class="pm-formula-image-label">Номер формулы (необязательно)</label>
+        <input type="text" class="pm-formula-image-number" placeholder="напр. 1 или 2.3" />
+        <label class="pm-formula-image-label">LaTeX-hint (необязательно)</label>
+        <input type="text" class="pm-formula-image-latex" placeholder="\\alpha+\\beta" />
+        <div class="pm-formula-image-mode">
+          <label><input type="radio" name="fi-mode" value="block" checked /> Блок (display)</label>
+          <label><input type="radio" name="fi-mode" value="inline" /> Инлайн</label>
+        </div>
+        <p class="pm-formula-image-error" style="display:none;color:#c62828;font-size:13px;margin:8px 0 0;"></p>
+        <div class="pm-confirm-actions">
+          <button type="button" class="pm-formula-image-cancel pm-confirm-cancel">Отмена</button>
+          <button type="button" class="pm-formula-image-ok pm-confirm-ok">OK</button>
+        </div>
+      </div>
+    `
+
+    const tabBtns = overlay.querySelectorAll(".pm-formula-image-tab")
+    const panels = overlay.querySelectorAll(".pm-formula-image-panel")
+    const fileInput = overlay.querySelector(".pm-formula-image-file")
+    const urlInput = overlay.querySelector(".pm-formula-image-url")
+    const altInput = overlay.querySelector(".pm-formula-image-alt")
+    const numInput = overlay.querySelector(".pm-formula-image-number")
+    const latexInput = overlay.querySelector(".pm-formula-image-latex")
+    const errEl = overlay.querySelector(".pm-formula-image-error")
+    let activeTab = "file"
+    let fileDataUrl = ""
+
+    const showTab = (name) => {
+      activeTab = name
+      tabBtns.forEach((b) => {
+        b.classList.toggle("active", b.getAttribute("data-tab") === name)
+      })
+      panels.forEach((p) => {
+        p.style.display = p.getAttribute("data-panel") === name ? "block" : "none"
+      })
+    }
+
+    tabBtns.forEach((btn) => {
+      btn.addEventListener("click", () => showTab(btn.getAttribute("data-tab") || "file"))
+    })
+
+    fileInput.addEventListener("change", () => {
+      const f = fileInput.files?.[0]
+      if (!f) {
+        fileDataUrl = ""
+        return
+      }
+      const r = new FileReader()
+      r.onload = () => {
+        fileDataUrl = String(r.result || "")
+        if (!altInput.value) altInput.value = f.name || ""
+      }
+      r.readAsDataURL(f)
+    })
+
+    const done = (payload) => {
+      overlay.remove()
+      resolve(payload)
+    }
+
+    overlay.querySelector(".pm-formula-image-cancel").addEventListener("click", () => done(null))
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) done(null)
+    })
+
+    overlay.querySelector(".pm-formula-image-ok").addEventListener("click", () => {
+      errEl.style.display = "none"
+      errEl.textContent = ""
+      let src = ""
+      if (activeTab === "file") {
+        src = fileDataUrl
+        if (!src) {
+          errEl.textContent = "Выберите файл изображения."
+          errEl.style.display = "block"
+          return
+        }
+      } else {
+        src = (urlInput.value || "").trim()
+        if (!isValidFormulaImageSrc(src)) {
+          errEl.textContent = "Нужен URL http(s) или data:image/…"
+          errEl.style.display = "block"
+          return
+        }
+      }
+      const block = overlay.querySelector('input[name="fi-mode"]:checked')?.value !== "inline"
+      const numRaw = (numInput.value || "").trim()
+      done({
+        src,
+        alt: (altInput.value || "").trim(),
+        number: numRaw ? numRaw : null,
+        latex_hint: (latexInput.value || "").trim(),
+        block
+      })
+    })
+
+    document.body.appendChild(overlay)
+    queueMicrotask(() => fileInput.focus())
+  })
+}
+
+function insertFormulaImageFromToolbar(view) {
+  openFormulaImageModal().then((result) => {
+    if (!result) return
+    const tr = insertFormulaImageTransaction(view.state, view.state.selection.from, {
+      src: result.src,
+      alt: result.alt,
+      number: result.number,
+      latex_hint: result.latex_hint,
+      block: result.block,
+      fromToolbar: true
+    })
+    if (tr) view.dispatch(tr)
+    view.focus()
+  })
 }
 
 function markActive(state, type) {
@@ -290,6 +435,10 @@ export function buildToolbar(view, toolbarEl) {
   const groupInsert = createGroup("Вставить")
   groupInsert.appendChild(createButton("∑", "Формулу (блок, LaTeX)", insertMathBlock, view))
   groupInsert.appendChild(createButton("𝛼", "Формулу (в строке)", insertMathInline, view))
+  groupInsert.appendChild(createButton("🖼∑", "Формула-картинка (скрин / ChemDraw)", () => {
+    insertFormulaImageFromToolbar(view)
+    return true
+  }, view))
   groupInsert.appendChild(createButton("🖼", "Изображение (URL)", insertImage, view))
   groupInsert.appendChild(createButton("📁", "Изображение (файл)", (state, dispatch) => {
     const input = document.createElement("input")

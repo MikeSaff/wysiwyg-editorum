@@ -156,6 +156,8 @@ const figureImageSpec = {
       return { src: dom.getAttribute("src"), alt: dom.getAttribute("alt") || "", title: dom.getAttribute("title") || "" }
     }},
     { tag: "figure > img", getAttrs(dom) {
+      const fig = dom.parentElement
+      if (fig?.classList?.contains("formula-image-block")) return false
       return { src: dom.getAttribute("src"), alt: dom.getAttribute("alt") || "", title: dom.getAttribute("title") || "" }
     }}
   ]
@@ -176,6 +178,8 @@ const figureBlockSpec = {
   parseDOM: [{
     tag: "figure",
     getAttrs(dom) {
+      if (dom.classList.contains("formula-image-block")) return false
+      if (!dom.hasAttribute("data-schema-v2")) return false
       return { id: dom.getAttribute("id") || null }
     }
   }]
@@ -253,6 +257,75 @@ const footnoteRefSpec = {
   }]
 }
 
+/** Formula as raster (screenshot / ChemDraw / handwritten); not editable like math_block */
+const formulaImageBlockSpec = {
+  group: "block",
+  atom: true,
+  draggable: true,
+  attrs: {
+    id: { default: null },
+    src: { default: "" },
+    alt: { default: "" },
+    latex_hint: { default: "" },
+    number: { default: null }
+  },
+  toDOM(node) {
+    const fig = { class: "formula-image-block" }
+    if (node.attrs.id) fig["data-id"] = node.attrs.id
+    if (node.attrs.number) fig["data-number"] = node.attrs.number
+    if (node.attrs.latex_hint) fig["data-latex-hint"] = node.attrs.latex_hint
+    const img = {
+      src: node.attrs.src,
+      alt: node.attrs.alt || ""
+    }
+    return ["figure", fig, ["img", img]]
+  },
+  parseDOM: [{
+    tag: "figure.formula-image-block",
+    getAttrs(dom) {
+      const img = dom.querySelector("img")
+      return {
+        id: dom.getAttribute("data-id") || null,
+        src: img?.getAttribute("src") || "",
+        alt: img?.getAttribute("alt") || "",
+        latex_hint: dom.getAttribute("data-latex-hint") || "",
+        number: dom.getAttribute("data-number") || null
+      }
+    }
+  }]
+}
+
+const formulaImageInlineSpec = {
+  group: "inline",
+  inline: true,
+  atom: true,
+  draggable: true,
+  attrs: {
+    src: { default: "" },
+    alt: { default: "" },
+    latex_hint: { default: "" }
+  },
+  toDOM(node) {
+    const img = {
+      src: node.attrs.src,
+      alt: node.attrs.alt || "",
+      class: "formula-image-inline"
+    }
+    if (node.attrs.latex_hint) img["data-latex-hint"] = node.attrs.latex_hint
+    return ["img", img]
+  },
+  parseDOM: [{
+    tag: "img.formula-image-inline",
+    getAttrs(dom) {
+      return {
+        src: dom.getAttribute("src") || "",
+        alt: dom.getAttribute("alt") || "",
+        latex_hint: dom.getAttribute("data-latex-hint") || ""
+      }
+    }
+  }]
+}
+
 // === Image (standalone inline) ===
 const imageSpec = {
   inline: true,
@@ -267,7 +340,7 @@ const imageSpec = {
     return ["img", { src: node.attrs.src, alt: node.attrs.alt, title: node.attrs.title, class: "inline-image" }]
   },
   parseDOM: [{
-    tag: "img[src]",
+    tag: "img.inline-image",
     getAttrs(dom) {
       return {
         src: dom.getAttribute("src"),
@@ -450,6 +523,8 @@ export const schema = new Schema({
     table_block: tableBlockSpec,
     citation_ref: citationRefSpec,
     footnote_ref: footnoteRefSpec,
+    formula_image_block: formulaImageBlockSpec,
+    formula_image_inline: formulaImageInlineSpec,
     image: imageSpec,
 
     ...tableNodeSpecs,

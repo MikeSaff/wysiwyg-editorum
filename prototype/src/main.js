@@ -1,6 +1,7 @@
 import { EditorState, Plugin } from "prosemirror-state"
 import { EditorView } from "prosemirror-view"
-import { DOMParser as ProseDOMParser, DOMSerializer, Slice } from "prosemirror-model"
+import { DOMParser as ProseDOMParser, DOMSerializer, Fragment, Slice } from "prosemirror-model"
+import { dropPoint } from "prosemirror-transform"
 import { keymap } from "prosemirror-keymap"
 import { baseKeymap, toggleMark } from "prosemirror-commands"
 import { history, undo, redo } from "prosemirror-history"
@@ -19,6 +20,7 @@ import { typographyQuoteAndDashRules } from "./typography-rules.js"
 import "mathlive/fonts.css"
 import "mathlive"
 import { openMathEditModal } from "./mathlive-setup.js"
+import { insertFormulaImageTransaction } from "./formula-image-insert.js"
 import "./styles.css"
 
 // === Non-breaking space plugin (ГОСТ §9.4-9.5) ===
@@ -475,14 +477,31 @@ function init() {
           return true
         }
 
-        // Handle image drops
+        // Handle image drops (Shift = formula-image; иначе inline image)
         if (file.type.startsWith("image/")) {
           event.preventDefault()
+          const coords = view.posAtCoords({ left: event.clientX, top: event.clientY })
+          const pos = coords ? coords.pos : view.state.selection.from
           const reader = new FileReader()
           reader.onload = (e) => {
-            const node = schema.nodes.image.create({ src: e.target.result, alt: file.name })
-            const tr = view.state.tr.replaceSelectionWith(node)
-            view.dispatch(tr)
+            const src = e.target.result
+            let tr
+            if (event.shiftKey) {
+              tr = insertFormulaImageTransaction(view.state, pos, {
+                src,
+                alt: file.name,
+                number: null,
+                latex_hint: "",
+                block: true,
+                fromToolbar: false
+              })
+            } else {
+              const node = schema.nodes.image.create({ src, alt: file.name })
+              const slice = new Slice(Fragment.from(node), 0, 0)
+              const at = dropPoint(view.state.doc, pos, slice) ?? pos
+              tr = view.state.tr.replace(at, at, slice)
+            }
+            if (tr) view.dispatch(tr)
           }
           reader.readAsDataURL(file)
           return true
@@ -573,8 +592,10 @@ function init() {
   }
 
   editorEl.addEventListener("click", (e) => {
-    // v0.46c: match .inline-image (legacy) OR .figure-block-img (Schema v2) OR any img inside <figure>
-    const img = e.target.closest(".inline-image, .figure-block-img, figure img")
+    // v0.46c + v0.47: lightbox targets
+    const img = e.target.closest(
+      ".inline-image, .figure-block-img, figure img, .formula-image-block img, .formula-image-inline"
+    )
     if (!img || resizeState) return
     const src = img.src || ""
     if (isLightboxPlaceholder(src)) return

@@ -1451,3 +1451,96 @@ mjx-assistive-mml {
   background: #b71c1c;
   border-color: #b71c1c;
 }
+
+/* === v0.47: formula-image (raster formula) modal + editor === */
+.pm-formula-image-dialog {
+  background: #fff;
+  border-radius: 10px;
+  padding: 20px 24px;
+  max-width: 480px;
+  width: calc(100% - 48px);
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.25);
+  font-family: 'PT Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.pm-formula-image-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0 0 12px;
+}
+
+.pm-formula-image-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.pm-formula-image-tab {
+  flex: 1;
+  padding: 8px 10px;
+  border: 1px solid #bdbdbd;
+  border-radius: 6px;
+  background: #f5f5f5;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.pm-formula-image-tab.active {
+  background: #e3f2fd;
+  border-color: #1976d2;
+  color: #0d47a1;
+}
+
+.pm-formula-image-label {
+  display: block;
+  font-size: 12px;
+  color: #666;
+  margin: 10px 0 4px;
+}
+
+.pm-formula-image-dialog input[type="text"],
+.pm-formula-image-file {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border: 1px solid #bdbdbd;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.pm-formula-image-mode {
+  display: flex;
+  gap: 16px;
+  margin-top: 12px;
+  font-size: 14px;
+}
+
+.ProseMirror .formula-image-block {
+  display: block;
+  margin: 1em 0;
+  text-align: center;
+  position: relative;
+}
+
+.ProseMirror .formula-image-block img {
+  max-width: 100%;
+  height: auto;
+}
+
+.ProseMirror .formula-image-block[data-number]::after {
+  content: "(" attr(data-number) ")";
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #555;
+  font-family: 'PT Serif', serif;
+}
+
+.ProseMirror .formula-image-inline {
+  display: inline-block;
+  vertical-align: middle;
+  max-height: 1.8em;
+  margin: 0 0.2em;
+}

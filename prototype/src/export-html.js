@@ -1,5 +1,9 @@
 import publicationCss from "./editorum-publication.css?raw"
 
+// TODO v0.47 JATS export (when implemented):
+// formula_image_block → <disp-formula id="…"><graphic xlink:href="…"/><alt-text>…</alt-text><label>(N)</label></disp-formula>
+// formula_image_inline → <inline-graphic xlink:href="…"/><alt-text>…</alt-text>
+
 export function exportToHtml(doc, schema) {
   const root = doc && doc.type && doc.type.name === "doc" ? doc : schema.nodeFromJSON(doc)
   const title = findFirstHeadingTitle(root) || "Document"
@@ -111,6 +115,13 @@ function serializeInlineFragment(node) {
       html += '<span class="citation-ref" data-refs="' + escapeAttr(ids.join(",")) + '">' + escapeHtml(label) + "</span>"
     } else if (child.type.name === "footnote_ref") {
       html += '<sup class="footnote-ref" data-fn="' + escapeAttr(child.attrs.footnote_id || "") + '">*</sup>'
+    } else if (child.type.name === "formula_image_inline") {
+      const src = escapeAttr(child.attrs.src || "")
+      const alt = escapeAttr(child.attrs.alt || "")
+      const lh = child.attrs.latex_hint
+        ? ' data-latex-hint="' + escapeAttr(child.attrs.latex_hint) + '"'
+        : ""
+      html += '<img class="formula-image-inline" src="' + src + '" alt="' + alt + '"' + lh + ">"
     }
   })
   return html
@@ -180,6 +191,15 @@ function serializeBlock(node, schema) {
       li += serializeListItem(item, schema)
     })
     return "<" + tag + start + ">" + li + "</" + tag + ">"
+  }
+  if (n === "formula_image_block") {
+    const figAttrs = ['class="formula-image-block"']
+    if (node.attrs.id) figAttrs.push('data-id="' + escapeAttr(String(node.attrs.id)) + '"')
+    if (node.attrs.number) figAttrs.push('data-number="' + escapeAttr(String(node.attrs.number)) + '"')
+    if (node.attrs.latex_hint) figAttrs.push('data-latex-hint="' + escapeAttr(node.attrs.latex_hint) + '"')
+    const src = escapeAttr(node.attrs.src || "")
+    const alt = escapeAttr(node.attrs.alt || "")
+    return "<figure " + figAttrs.join(" ") + '><img src="' + src + '" alt="' + alt + '" /></figure>'
   }
   if (n === "math_block") {
     const tex = escapeHtml(node.attrs.latex || "")
