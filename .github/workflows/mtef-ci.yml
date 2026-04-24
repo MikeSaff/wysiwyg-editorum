@@ -1,0 +1,28 @@
+name: mtef-to-mathml
+
+on:
+  push:
+    paths:
+      - 'mtef-to-mathml/**'
+      - '.github/workflows/mtef-ci.yml'
+  pull_request:
+    paths:
+      - 'mtef-to-mathml/**'
+      - '.github/workflows/mtef-ci.yml'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mtef-to-mathml
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mtef-to-mathml/package-lock.json
+      - run: npm install
+      - run: npm test
+      - run: npm run build
