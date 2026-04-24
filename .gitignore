@@ -2,3 +2,26 @@ node_modules/
 dist/
 *.lock
 .DS_Store
+
+# Local environment / IDE
+.claude/
+*.code-workspace
+
+# Working notes and scratch files (not for publication)
+manual_*.txt
+rag_candidates.txt
+
+# Large test corpus (Nauka archive, ~700MB — kept locally only)
+Docx/
+
+# Large binary test artifacts and transcripts (kept locally, not needed on GitHub)
+docs/*.pdf
+docs/*.docx
+docs/*.jpg
+docs/WYSIWYG_FULL_CHAT.md
+docs/WYSIWYG_SESSION_FULL.md
+docs/WYSIWYG_SESSION_SUMMARY.md
+docs/WYSIWYG_SESSION_TRANSCRIPT.md
+docs/package.json
+docs/package-lock.json
+docs/create_docx.js
