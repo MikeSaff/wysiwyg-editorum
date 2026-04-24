@@ -1,0 +1,27 @@
+<math xmlns="http://www.w3.org/1998/Math/MathML">
+  <msub>
+    <mi>&#x03BB;</mi>
+    <mi>D</mi>
+  </msub>
+  <mo>=</mo>
+  <msqrt>
+    <mfrac>
+      <msub>
+        <mi>T</mi>
+        <mi>e</mi>
+      </msub>
+      <mrow>
+        <mn>4</mn>
+        <mi>&#x03C0;</mi>
+        <msup>
+          <mi>e</mi>
+          <mn>2</mn>
+        </msup>
+        <msub>
+          <mi>n</mi>
+          <mn>0</mn>
+        </msub>
+      </mrow>
+    </mfrac>
+  </msqrt>
+</math>

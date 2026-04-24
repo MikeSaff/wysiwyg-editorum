@@ -25,3 +25,10 @@ docs/WYSIWYG_SESSION_TRANSCRIPT.md
 docs/package.json
 docs/package-lock.json
 docs/create_docx.js
+
+# MTEF fixtures — scratch folders (raw bins/WMFs extracted from DOCX + PNG previews + selection montages).
+# The 10 curated golden fixtures (01-..10-..) are committed; these scratch dirs are not.
+docs/mtef-test-fixtures/_raw/
+docs/mtef-test-fixtures/_preview/
+docs/mtef-test-fixtures/_mont_*.png
+docs/mtef-test-fixtures/_montage_*.png

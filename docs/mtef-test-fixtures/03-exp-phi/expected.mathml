@@ -1,0 +1,13 @@
+<math xmlns="http://www.w3.org/1998/Math/MathML">
+  <msub>
+    <mi>N</mi>
+    <mi>s</mi>
+  </msub>
+  <mo>=</mo>
+  <mi>exp</mi>
+  <mrow>
+    <mo>(</mo>
+    <mi>&#x03A6;</mi>
+    <mo>)</mo>
+  </mrow>
+</math>
