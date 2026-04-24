@@ -17,7 +17,7 @@ export function exportToHtml(doc, schema) {
     "<title>" +
     escapeHtml(title) +
     "</title>\n" +
-    "<script>\nwindow.MathJax={tex:{inlineMath:[['\\\\(','\\\\)']],displayMath:[['\\\\[','\\\\]']],processEscapes:true},chtml:{displayOverflow:'linebreak'},options:{enableMenu:false}};\n</script>\n" +
+    "<script>\nwindow.MathJax={tex:{inlineMath:[['\\\\(','\\\\)']],displayMath:[['\\\\[','\\\\]']],processEscapes:true},chtml:{displayOverflow:'linebreak',mtextInheritFont:true,merrorInheritFont:true},options:{enableMenu:false}};\n</script>\n" +
     '<script defer src="' +
     mathJax +
     '"></script>\n' +

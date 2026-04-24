@@ -3,7 +3,14 @@ import assert from "node:assert/strict"
 import fs from "node:fs/promises"
 import JSZip from "jszip"
 import { DOMParser } from "xmldom"
-import { docxXmlToHtml, normalizeImportedHtml, ommlToLatex, ommlToMathML } from "../src/word-import.js"
+import { parseHTML } from "linkedom"
+import {
+  applyWeakPathUppercaseHeadingHeuristicToRoot,
+  docxXmlToHtml,
+  normalizeImportedHtml,
+  ommlToLatex,
+  ommlToMathML
+} from "../src/word-import.js"
 import {
   integralOmml,
   limOmml,
@@ -649,6 +656,41 @@ test("real Semion DOCX yields 32 labeled display formulas with preserved multili
   assert.match(byLabel.get("(26)"), /\\\\/)
   assert.match(byLabel.get("(31)"), /k_\{p\}/)
   assert.match(byLabel.get("(32)"), /k_\{e\}/)
+})
+
+test("v0.48: weak-path UPPERCASE all-bold <p> → h2 with data-section-type (linkedom)", () => {
+  const doc = parseHTML(`<div id="r">
+    <p><strong>ВВЕДЕНИЕ</strong></p>
+    <p><strong>МАТЕРИАЛЫ И МЕТОДИКА</strong></p>
+    <p><strong>РЕЗУЛЬТАТЫ И ОБСУЖДЕНИЕ</strong></p>
+    <p><strong>ЗАКЛЮЧЕНИЕ</strong></p>
+    <p><strong>СПИСОК ЛИТЕРАТУРЫ</strong></p>
+  </div>`)
+  const root = doc.document.getElementById("r")
+  assert.ok(root)
+  applyWeakPathUppercaseHeadingHeuristicToRoot(root)
+  const html = root.innerHTML
+  assert.match(html, /data-section-type="introduction"/)
+  assert.match(html, /data-section-type="methods"/)
+  assert.match(html, /data-section-type="results"/)
+  assert.match(html, /data-section-type="conclusion"/)
+  assert.match(html, /data-section-type="references"/)
+  assert.equal(root.querySelectorAll("h2").length, 5)
+})
+
+test("v0.48: heuristic skips DOI line and non-bold UPPERCASE", () => {
+  const doc = parseHTML(`<div id="r">
+    <p><strong>DOI:</strong> 10.1234/ABCD</p>
+    <p>ОБЫЧНЫЙ ТЕКСТ БЕЗ ТЕГОВ ЖИРНОГО</p>
+    <p><strong>ВКЛАД АВТОРОВ</strong></p>
+  </div>`)
+  const root = doc.document.getElementById("r")
+  applyWeakPathUppercaseHeadingHeuristicToRoot(root)
+  const html = root.innerHTML
+  assert.match(html, /<p[^>]*>.*DOI:/u)
+  assert.match(html, /ОБЫЧНЫЙ ТЕКСТ/u)
+  assert.match(html, /data-section-type="author_contributions"/)
+  assert.equal(root.querySelectorAll("h2").length, 1)
 })
 
 test("MathLive from npm; MathJax 4 CDN in index — no mathjax-full, no KaTeX", async () => {

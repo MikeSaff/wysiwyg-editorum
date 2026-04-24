@@ -10,7 +10,13 @@ export const sectionTypeLabels = {
   results: "Результаты",
   discussion: "Обсуждение",
   conclusion: "Заключение",
+  acknowledgments: "Благодарности",
+  /** @deprecated use `acknowledgments`; kept for older saved documents */
   acknowledgements: "Благодарности",
+  funding: "Финансирование",
+  author_info: "Информация об авторах",
+  author_contributions: "Вклад авторов",
+  conflicts: "Конфликт интересов",
   references: "Литература",
   appendix: "Приложение",
   abstract: "Аннотация",
@@ -24,11 +30,23 @@ export const sectionTypeColors = {
   results: "#f57c00",
   discussion: "#7b1fa2",
   conclusion: "#c62828",
+  acknowledgments: "#78909c",
   acknowledgements: "#78909c",
+  funding: "#5c6bc0",
+  author_info: "#455a64",
+  author_contributions: "#6a1b9a",
+  conflicts: "#b71c1c",
   references: "#5d4037",
   appendix: "#546e7a",
   abstract: "#00838f",
   custom: "#616161"
+}
+
+/** @param {Element} dom */
+function parseHeadingSectionTypeFromDom(dom) {
+  const v = dom.getAttribute("data-section-type") || null
+  if (v === "acknowledgements") return "acknowledgments"
+  return v
 }
 
 /** @returns {string} UUID or fallback id for Schema v2 nodes */
@@ -434,7 +452,7 @@ export const schema = new Schema({
             level: 1,
             id: dom.getAttribute("id"),
             align: dom.style?.textAlign || null,
-            sectionType: dom.getAttribute("data-section-type") || null
+            sectionType: parseHeadingSectionTypeFromDom(dom)
           }
         } },
         { tag: "h2", getAttrs(dom) {
@@ -442,7 +460,7 @@ export const schema = new Schema({
             level: 2,
             id: dom.getAttribute("id"),
             align: dom.style?.textAlign || null,
-            sectionType: dom.getAttribute("data-section-type") || null
+            sectionType: parseHeadingSectionTypeFromDom(dom)
           }
         } },
         { tag: "h3", getAttrs(dom) {
@@ -450,7 +468,7 @@ export const schema = new Schema({
             level: 3,
             id: dom.getAttribute("id"),
             align: dom.style?.textAlign || null,
-            sectionType: dom.getAttribute("data-section-type") || null
+            sectionType: parseHeadingSectionTypeFromDom(dom)
           }
         } },
         { tag: "h4", getAttrs(dom) {
@@ -458,7 +476,7 @@ export const schema = new Schema({
             level: 4,
             id: dom.getAttribute("id"),
             align: dom.style?.textAlign || null,
-            sectionType: dom.getAttribute("data-section-type") || null
+            sectionType: parseHeadingSectionTypeFromDom(dom)
           }
         } }
       ]

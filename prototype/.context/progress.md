@@ -39,6 +39,7 @@
 | **v0.45c** | **2026-04-15** | **MathJax v4 с CDN (jsDelivr `mathjax@4/tex-mml-chtml.js`): `displayOverflow: 'linebreak'` (v3 npm не поддерживал); `math-render.js` только `window.MathJax`; убран `mathjax-full`** |
 | **v0.46** | **2026-04-16** | **Schema v2: `heading` + id/sectionType, `paragraph` + lang, `math_block` + id; `figure_block`/`figure_image`, `table_block`/`table_caption`; `citation_ref`, `footnote_ref`, mark `lang`; `newNodeId`; legacy JSON OK; тулбар + `export-html`** |
 | **v0.47** | **2026-04-15** | **Узлы `formula_image_block` / `formula_image_inline`; тулбар + модал; CSS нумерации; lightbox; Shift+drop; `formula-image-insert.js`; экспорт HTML + TODO JATS; тесты `formula-image.test.js`** |
+| **v0.48** | **2026-04-15** | **Weak-path: UPPERCASE + весь абзац bold → `h2` + `detectSectionType`; MathJax `mtextInheritFont` / `merrorInheritFont`; CSS mjx-utext/mtext; новые section types; linkedom devDep; тесты** |
 | **v0.45b** | **2026-04-15** | **Codex: без static split и без `{\displaystyle}` в block LaTeX; см. сессию** |
 | **v0.44b–h** | **2026-04-15** | **Codex: OMML/импорт — `cdots`, `bmatrix`, пробелы вокруг inline math, прямой шрифт индексов (см. сессию 2026-04-15)** |
 | **v0.44d** | **2026-04-15** | **Пробелы перед `,.;:!?)]}»"` — input rule + `normalizeSpaceBeforePunctuation`** |
@@ -68,6 +69,7 @@
 | v0.45c | MathJax v4 CDN вместо `mathjax-full`; `index.html` + `math-render.js` через `window.MathJax`; тесты mock + проверка `mathjax@4`; `export-html.js` на v4 | Composer | `index.html`, `math-render.js`, `export-html.js`, `package.json`, `tests/*.test.js`, `.context/progress.md` | ✅ | OK (`npm test`, `npx vite build`) |
 | v0.46 | Schema v2: новые block/inline узлы и mark `lang`; обёртки `figure_block` / `table_block`; расширенные attrs; `toolbar.js` + `export-html.js`; тесты `schema-v2.test.js` | Composer | `schema.js`, `toolbar.js`, `export-html.js`, `tests/schema-v2.test.js`, `.context/progress.md` | ✅ | OK (`npm test`, `npx vite build`) |
 | v0.47 | Узлы `formula_image_block` / `formula_image_inline`: модал тулбара (файл/URL, номер, LaTeX-hint, блок/инлайн), CSS нумерации, lightbox, Shift+drop vs обычный drop → `image`, `formula-image-insert.js`, экспорт HTML + TODO JATS, тесты | Composer | `schema.js`, `toolbar.js`, `main.js`, `styles.css`, `export-html.js`, `formula-image-insert.js`, `tests/formula-image.test.js`, `.context/activeContext.md`, `.context/progress.md` | ✅ | OK (`npm test`, `npx vite build`) |
+| v0.48 | Эвристика заголовков weak-path Word; расширенный `detectSectionType`; MathJax font inheritance + CSS; schema section types + legacy `acknowledgements`; linkedom; тесты | Composer | `word-import.js`, `index.html`, `export-html.js`, `styles.css`, `schema.js`, `main.js`, `package.json`, `tests/word-import.test.js`, `tests/math-render.test.js`, `.context/activeContext.md`, `.context/progress.md` | ✅ | OK (`npm test`, `npx vite build`) |
 
 ## Сессия 2026-04-09 (продолжение)
 

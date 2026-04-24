@@ -1489,13 +1489,62 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
 export function normalizeImportedHtml(html) {
   if (!html) return ""
 
-  return html.replace(/<p([^>]*)>([\s\S]*?)<\/p>\n?/gu, (match, attrs = "", inner = "") => {
+  let out = html.replace(/<p([^>]*)>([\s\S]*?)<\/p>\n?/gu, (match, attrs = "", inner = "") => {
     const normalizedInner = normalizeImportedParagraphHtml(inner, attrs)
     const normalizedAttrs = normalizeImportedParagraphAttrs(attrs, normalizedInner)
     if (shouldDropImportedParagraph(normalizedInner)) {
       return ""
     }
     return `<p${normalizedAttrs}>${normalizedInner}</p>\n`
+  })
+
+  // v0.48: weak-path journals — UPPERCASE + whole-paragraph bold → h2 (browser / import pipeline only)
+  if (typeof document !== "undefined" && typeof document.createElement === "function") {
+    try {
+      const holder = document.createElement("div")
+      holder.innerHTML = out
+      applyWeakPathUppercaseHeadingHeuristicToRoot(holder)
+      out = holder.innerHTML
+    } catch {
+      // keep out
+    }
+  }
+  return out
+}
+
+/**
+ * Promote `<p><strong>SECTION TITLE</strong></p>` (etc.) to `<h2>` when the paragraph matches
+ * weak-path heuristics. Mutates `root` in place (fragment or element).
+ * @param {ParentNode & { querySelectorAll: typeof Element.prototype.querySelectorAll }} root
+ */
+export function applyWeakPathUppercaseHeadingHeuristicToRoot(root) {
+  if (!root || typeof root.querySelectorAll !== "function") return
+
+  const heuristicHeadings = []
+  root.querySelectorAll("p").forEach((p) => {
+    const text = (p.textContent || "").trim()
+    if (p.querySelector("img, .math-inline, .math-block, table")) return
+    if (text.length < 3 || text.length > 80) return
+    if (!/[А-ЯA-Z]/.test(text)) return
+    if (text !== text.toUpperCase()) return
+    if (/[а-яa-z]/.test(text)) return
+    const strongText = Array.from(p.querySelectorAll("strong, b"))
+      .map((s) => s.textContent || "")
+      .join("")
+      .trim()
+    if (strongText !== text) return
+    heuristicHeadings.push(p)
+  })
+
+  heuristicHeadings.forEach((p) => {
+    const ownerDoc = p.ownerDocument || ("ownerDocument" in root ? root.ownerDocument : null)
+    if (!ownerDoc || typeof ownerDoc.createElement !== "function") return
+    const h2 = ownerDoc.createElement("h2")
+    h2.textContent = (p.textContent || "").trim()
+    const sectionType = detectSectionType(h2.textContent)
+    h2.setAttribute("id", createImportedNodeId())
+    if (sectionType) h2.setAttribute("data-section-type", sectionType)
+    p.replaceWith(h2)
   })
 }
 
@@ -1685,13 +1734,21 @@ function buildImportedElementAttrs({ id = null, className = "", sectionType = nu
 function detectSectionType(text) {
   const normalized = normalizeSectionHeadingText(text)
   if (!normalized) return null
+  // Combined IMRAD-style heading (weak-path Word) — before single "results" / "discussion"
+  if (/^результаты\s+и\s+обсуждени/iu.test(normalized)) return "results"
   // Standard IMRAD
   if (/^(введение|introduction)$/iu.test(normalized)) return "introduction"
-  if (/^(методы|материалы и методы|methods|materials and methods)$/iu.test(normalized)) return "methods"
+  if (/^(методы|материалы и методы|материалы и методика|methods|materials and methods)$/iu.test(normalized)) {
+    return "methods"
+  }
   if (/^(результаты|results)$/iu.test(normalized)) return "results"
   if (/^(обсуждение|discussion)$/iu.test(normalized)) return "discussion"
   if (/^(заключение|выводы|conclusion|conclusions)$/iu.test(normalized)) return "conclusion"
-  if (/^(благодарности|acknowledgements|acknowledgments)$/iu.test(normalized)) return "acknowledgements"
+  if (/^(финансирование|funding)$/iu.test(normalized)) return "funding"
+  if (/^(информация об авторах|author information)$/iu.test(normalized)) return "author_info"
+  if (/^(вклад авторов|author contributions?)$/iu.test(normalized)) return "author_contributions"
+  if (/^(благодарности|acknowledgements|acknowledgments)$/iu.test(normalized)) return "acknowledgments"
+  if (/^(конфликт интересов|conflict of interest|conflicts of interest)$/iu.test(normalized)) return "conflicts"
   if (/^(список литературы|литература|references|bibliography)$/iu.test(normalized)) return "references"
   if (/^(приложение(?:\s+[a-zа-яё0-9]+)?|appendix(?:\s+[a-z0-9]+)?)$/iu.test(normalized)) return "appendix"
   if (/^(аннотация|abstract|реферат)$/iu.test(normalized)) return "abstract"

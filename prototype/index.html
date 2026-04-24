@@ -8,7 +8,9 @@
     window.MathJax = {
       tex: { inlineMath: [], displayMath: [] },
       chtml: {
-        displayOverflow: 'linebreak'
+        displayOverflow: 'linebreak',
+        mtextInheritFont: true,
+        merrorInheritFont: true
       },
       options: { enableMenu: false },
       startup: { typeset: false }

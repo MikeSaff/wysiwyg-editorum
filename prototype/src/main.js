@@ -352,7 +352,9 @@ function showSectionTypeDropdown(headingEl, view) {
 
   const types = [
     [null, "Без типа", "#9e9e9e"],
-    ...Object.entries(sectionTypeLabels).map(([key, label]) => [key, label, sectionTypeColors[key] || "#616161"])
+    ...Object.entries(sectionTypeLabels)
+      .filter(([key]) => key !== "acknowledgements")
+      .map(([key, label]) => [key, label, sectionTypeColors[key] || "#616161"])
   ]
 
   types.forEach(([type, label, color]) => {

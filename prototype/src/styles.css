@@ -465,6 +465,26 @@ header .hint {
 .ProseMirror .pm-section-body[data-parent-section="acknowledgements"] { border-left-color: #78909c; }
 .ProseMirror [data-section-type="acknowledgements"]::before { background: #78909c; }
 
+.ProseMirror [data-section-type="acknowledgments"],
+.ProseMirror .pm-section-body[data-parent-section="acknowledgments"] { border-left-color: #78909c; }
+.ProseMirror [data-section-type="acknowledgments"]::before { background: #78909c; }
+
+.ProseMirror [data-section-type="funding"],
+.ProseMirror .pm-section-body[data-parent-section="funding"] { border-left-color: #5c6bc0; }
+.ProseMirror [data-section-type="funding"]::before { background: #5c6bc0; }
+
+.ProseMirror [data-section-type="author_info"],
+.ProseMirror .pm-section-body[data-parent-section="author_info"] { border-left-color: #455a64; }
+.ProseMirror [data-section-type="author_info"]::before { background: #455a64; }
+
+.ProseMirror [data-section-type="author_contributions"],
+.ProseMirror .pm-section-body[data-parent-section="author_contributions"] { border-left-color: #6a1b9a; }
+.ProseMirror [data-section-type="author_contributions"]::before { background: #6a1b9a; }
+
+.ProseMirror [data-section-type="conflicts"],
+.ProseMirror .pm-section-body[data-parent-section="conflicts"] { border-left-color: #b71c1c; }
+.ProseMirror [data-section-type="conflicts"]::before { background: #b71c1c; }
+
 .ProseMirror [data-section-type="references"],
 .ProseMirror .pm-section-body[data-parent-section="references"] { border-left-color: #5d4037; }
 .ProseMirror [data-section-type="references"]::before { background: #5d4037; }
@@ -1543,4 +1563,18 @@ mjx-assistive-mml {
   vertical-align: middle;
   max-height: 1.8em;
   margin: 0 0.2em;
+}
+
+/* v0.48: MathJax CHTML — text-like tokens inherit body font (PT Serif) */
+mjx-container mjx-utext,
+mjx-container mjx-mtext {
+  font-family: inherit !important;
+}
+
+.ProseMirror p mjx-container[display="false"] {
+  font-size: 1em;
+}
+
+.ProseMirror .math-block mjx-container[display="true"] {
+  font-size: 1.1em;
 }
