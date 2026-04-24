@@ -573,7 +573,8 @@ function init() {
   }
 
   editorEl.addEventListener("click", (e) => {
-    const img = e.target.closest(".inline-image")
+    // v0.46c: match .inline-image (legacy) OR .figure-block-img (Schema v2) OR any img inside <figure>
+    const img = e.target.closest(".inline-image, .figure-block-img, figure img")
     if (!img || resizeState) return
     const src = img.src || ""
     if (isLightboxPlaceholder(src)) return
