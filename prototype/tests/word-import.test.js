@@ -693,6 +693,22 @@ test("v0.48: heuristic skips DOI line and non-bold UPPERCASE", () => {
   assert.equal(root.querySelectorAll("h2").length, 1)
 })
 
+test("v0.49: omml delimiter parentheses use stretchy=false on fence mo", () => {
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<m:oMath xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math">
+  <m:d>
+    <m:dPr><m:begChr m:val="("/><m:endChr m:val=")"/></m:dPr>
+    <m:e><m:r><m:t>x</m:t></m:r></m:e>
+  </m:d>
+  <m:r><m:t>+y</m:t></m:r>
+</m:oMath>`
+  const doc = parseXml(xml)
+  const om = doc.getElementsByTagNameNS("http://schemas.openxmlformats.org/officeDocument/2006/math", "oMath")[0]
+  assert.ok(om)
+  const mml = ommlToMathML(om, { display: false, wrap: true })
+  assert.match(mml, /stretchy="false"/)
+})
+
 test("MathLive from npm; MathJax 4 CDN in index — no mathjax-full, no KaTeX", async () => {
   const indexPath = new URL("../index.html", import.meta.url)
   const packagePath = new URL("../package.json", import.meta.url)
@@ -704,7 +720,11 @@ test("MathLive from npm; MathJax 4 CDN in index — no mathjax-full, no KaTeX", 
   assert.match(pkg, /"mathlive"/)
   assert.doesNotMatch(pkg, /"mathjax-full"/)
   assert.match(indexHtml, /mathjax@4\/tex-mml-chtml\.js/)
-  assert.match(indexHtml, /window\.MathJax/)
+  assert.match(indexHtml, /math-jax-boot\.js/)
+  const bootPath = new URL("../src/math-jax-boot.js", import.meta.url)
+  const boot = await fs.readFile(bootPath, "utf8")
+  assert.match(boot, /globalThis\.MathJax|window\.MathJax/)
+  assert.match(boot, /stix2|fontURL/u)
   assert.doesNotMatch(indexHtml, /katex/i)
   assert.doesNotMatch(pkg, /"katex"/)
 })

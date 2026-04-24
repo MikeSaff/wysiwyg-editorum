@@ -2,6 +2,8 @@ import JSZip from "jszip"
 import { schema } from "./schema.js"
 import { DOMParser as ProseDOMParser } from "prosemirror-model"
 import { normalizeTypographyPlainText } from "./typography-rules.js"
+import { detectSectionType } from "./section-heading.js"
+import { extractMetadataFromImportedHtml } from "./metadata-extract.js"
 
 /**
  * Import a .docx file directly, parsing OMML formulas into LaTeX.
@@ -492,23 +494,36 @@ export function ommlToMathML(ommlElement, options = {}) {
           }
         }
 
+        const eElements = getDirectChildElementsByLocalName(node, "e")
+        let innerContent = ""
+        if (eElements.length === 1) {
+          innerContent = processChildren(eElements[0])
+        } else if (eElements.length > 1) {
+          innerContent = eElements.map((e) => wrapMrow(processChildren(e))).join("")
+        }
+
         const isLeftBraceSystem = begChar === "{" && (endChar === "" || endChar === " ")
-        const content = processChildren(node)
-        if (isLeftBraceSystem && /<mtable\b/.test(content)) {
-          const displayTable = content.replace(/<mtable(?![^>]*displaystyle=)/, '<mtable displaystyle="true"')
+        if (isLeftBraceSystem && /<mtable\b/.test(innerContent)) {
+          const displayTable = innerContent.replace(/<mtable(?![^>]*displaystyle=)/, '<mtable displaystyle="true"')
           return `<mfenced open="{" close="" separators="">${displayTable}</mfenced>`
         }
 
+        const useStretchy = !(begChar === "(" && endChar === ")")
         const parts = []
         if (begChar && begChar !== " ") {
-          parts.push(`<mo stretchy="true">${escapeXml(begChar)}</mo>`)
+          parts.push(
+            `<mo fence="true" form="prefix" stretchy="${useStretchy ? "true" : "false"}">${escapeXml(begChar)}</mo>`
+          )
         }
-        parts.push(content)
+        parts.push(innerContent)
         if (endChar && endChar !== " " && endChar !== "") {
-          parts.push(`<mo stretchy="true">${escapeXml(endChar)}</mo>`)
+          parts.push(
+            `<mo fence="true" form="postfix" stretchy="${useStretchy ? "true" : "false"}">${escapeXml(endChar)}</mo>`
+          )
         } else if (begChar && begChar !== " ") {
-          // Invisible closing delimiter for balance (MathML requires pairs)
-          parts.push(`<mo stretchy="true" fence="true" form="postfix" style="visibility:hidden">.</mo>`)
+          parts.push(
+            `<mo fence="true" form="postfix" stretchy="${useStretchy ? "true" : "false"}" style="visibility:hidden">.</mo>`
+          )
         }
         return wrapMrow(parts.join(""))
       }
@@ -1731,51 +1746,6 @@ function buildImportedElementAttrs({ id = null, className = "", sectionType = nu
   return attrs
 }
 
-function detectSectionType(text) {
-  const normalized = normalizeSectionHeadingText(text)
-  if (!normalized) return null
-  // Combined IMRAD-style heading (weak-path Word) — before single "results" / "discussion"
-  if (/^результаты\s+и\s+обсуждени/iu.test(normalized)) return "results"
-  // Standard IMRAD
-  if (/^(введение|introduction)$/iu.test(normalized)) return "introduction"
-  if (/^(методы|материалы и методы|материалы и методика|methods|materials and methods)$/iu.test(normalized)) {
-    return "methods"
-  }
-  if (/^(результаты|results)$/iu.test(normalized)) return "results"
-  if (/^(обсуждение|discussion)$/iu.test(normalized)) return "discussion"
-  if (/^(заключение|выводы|conclusion|conclusions)$/iu.test(normalized)) return "conclusion"
-  if (/^(финансирование|funding)$/iu.test(normalized)) return "funding"
-  if (/^(информация об авторах|author information)$/iu.test(normalized)) return "author_info"
-  if (/^(вклад авторов|author contributions?)$/iu.test(normalized)) return "author_contributions"
-  if (/^(благодарности|acknowledgements|acknowledgments)$/iu.test(normalized)) return "acknowledgments"
-  if (/^(конфликт интересов|conflict of interest|conflicts of interest)$/iu.test(normalized)) return "conflicts"
-  if (/^(список литературы|литература|references|bibliography)$/iu.test(normalized)) return "references"
-  if (/^(приложение(?:\s+[a-zа-яё0-9]+)?|appendix(?:\s+[a-z0-9]+)?)$/iu.test(normalized)) return "appendix"
-  if (/^(аннотация|abstract|реферат)$/iu.test(normalized)) return "abstract"
-  // Extended: dissertations, theses, non-IMRAD articles
-  if (/актуальност|relevance|significance/iu.test(normalized)) return "introduction"
-  if (/краткое содержание|summary|overview|обзор/iu.test(normalized)) return "abstract"
-  if (/основные результат|main results|key findings/iu.test(normalized)) return "results"
-  if (/публикации|publications|список.*(работ|трудов)/iu.test(normalized)) return "references"
-  if (/общая характеристика|general description|характеристика работы/iu.test(normalized)) return "introduction"
-  if (/научная новизна|novelty|новизна/iu.test(normalized)) return "results"
-  if (/практическая (ценность|значимость)|practical (value|significance)/iu.test(normalized)) return "results"
-  if (/постановка задач|problem statement|задач[аи]\s/iu.test(normalized)) return "methods"
-  if (/предмет исследования|subject|объект исследования/iu.test(normalized)) return "methods"
-  if (/цел[ьи] исследования|objectives|aims/iu.test(normalized)) return "methods"
-  return null
-}
-
-function normalizeSectionHeadingText(text) {
-  return (text || "")
-    .replace(/\u00A0/gu, " ")
-    .replace(/^[\s\d.()]+/u, "")
-    .replace(/[.:]+$/u, "")
-    .replace(/\s+/gu, " ")
-    .trim()
-    .toLowerCase()
-}
-
 function normalizeImportedParagraphHtml(inner, attrs = "") {
   const normalizedAttrText = attrs || ""
   const protectedSegments = []
@@ -2156,12 +2126,20 @@ export async function importDocx(file) {
   const rawHtml = docxXmlToHtml(xmlString, images, imageRels, footnotes)
   const html = normalizeImportedHtml(rawHtml)
 
+  const extraction = extractMetadataFromImportedHtml(html, { rootDocument: document })
+  const bodyHtml = extraction.cleanedBody
+
   // Parse HTML into ProseMirror doc
   const tempDiv = document.createElement("div")
-  tempDiv.innerHTML = html
+  tempDiv.innerHTML = bodyHtml
 
   const domParser = ProseDOMParser.fromSchema(schema)
   const doc = domParser.parse(tempDiv)
 
-  return { doc, html, formulaCount: (html.match(/math-inline|math-block/g) || []).length }
+  return {
+    doc,
+    html: bodyHtml,
+    formulaCount: (bodyHtml.match(/math-inline|math-block/g) || []).length,
+    extraction: { meta: extraction.meta, references: extraction.references }
+  }
 }

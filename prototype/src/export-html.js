@@ -1,4 +1,5 @@
 import publicationCss from "./editorum-publication.css?raw"
+import { MATH_FONT_PRESETS, DEFAULT_MATH_FONT } from "./math-config.js"
 
 // TODO v0.47 JATS export (when implemented):
 // formula_image_block → <disp-formula id="…"><graphic xlink:href="…"/><alt-text>…</alt-text><label>(N)</label></disp-formula>
@@ -9,6 +10,20 @@ export function exportToHtml(doc, schema) {
   const title = findFirstHeadingTitle(root) || "Document"
   const bodyInner = serializeDocumentBody(root, schema)
   const mathJax = "https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js"
+  const mf = MATH_FONT_PRESETS[DEFAULT_MATH_FONT] || MATH_FONT_PRESETS.stix2
+  const mathJaxConfigScript =
+    "<script>\nwindow.MathJax={" +
+    "loader:{load:['[tex]/ams','[tex]/newcommand','[tex]/color']}," +
+    "tex:{inlineMath:[['\\\\(','\\\\)']],displayMath:[['\\\\[','\\\\]']],processEscapes:true}," +
+    "chtml:" +
+    JSON.stringify({
+      displayOverflow: "linebreak",
+      mtextInheritFont: true,
+      merrorInheritFont: true,
+      font: mf.font,
+      fontURL: mf.fontURL
+    }) +
+    ",options:{enableMenu:false}};\n</script>\n"
   return (
     "<!DOCTYPE html>\n" +
     '<html lang="ru">\n<head>\n' +
@@ -17,7 +32,7 @@ export function exportToHtml(doc, schema) {
     "<title>" +
     escapeHtml(title) +
     "</title>\n" +
-    "<script>\nwindow.MathJax={tex:{inlineMath:[['\\\\(','\\\\)']],displayMath:[['\\\\[','\\\\]']],processEscapes:true},chtml:{displayOverflow:'linebreak',mtextInheritFont:true,merrorInheritFont:true},options:{enableMenu:false}};\n</script>\n" +
+    mathJaxConfigScript +
     '<script defer src="' +
     mathJax +
     '"></script>\n' +

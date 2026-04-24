@@ -23,10 +23,8 @@ test("v0.45c: index.html loads MathJax 4 from jsDelivr with linebreak + window.M
   const indexPath = fileURLToPath(new URL("../index.html", import.meta.url))
   const html = await fs.readFile(indexPath, "utf8")
   assert.match(html, /mathjax@4\/tex-mml-chtml\.js/)
-  assert.match(html, /displayOverflow:\s*['"]linebreak['"]/)
-  assert.match(html, /mtextInheritFont:\s*true/)
-  assert.match(html, /merrorInheritFont:\s*true/)
-  assert.match(html, /window\.MathJax/)
+  assert.match(html, /math-jax-boot\.js/)
+  assert.match(html, /tex-mml-chtml\.js/)
 })
 
 test("v0.45c: ensureMathJax resolves mock window.MathJax v4", async () => {

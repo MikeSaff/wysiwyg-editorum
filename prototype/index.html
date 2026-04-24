@@ -4,30 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>WYSIWYG Editorum — Прототип</title>
-  <script>
-    window.MathJax = {
-      tex: { inlineMath: [], displayMath: [] },
-      chtml: {
-        displayOverflow: 'linebreak',
-        mtextInheritFont: true,
-        merrorInheritFont: true
-      },
-      options: { enableMenu: false },
-      startup: { typeset: false }
-    };
-  </script>
-  <script>
-    (function () {
-      var t = window.MathJax && window.MathJax.tex;
-      if (!t) return;
-      t.inlineMath = [["\\(", "\\)"]];
-      t.displayMath = [["\\[", "\\]"]];
-      t.processEscapes = true;
-      t.packages = { "[+]": ["mhchem"] };
-    })();
-  </script>
-  <script src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js" async></script>
-  <!-- Math: v0.45c MathJax 4 CDN + src/math-render.js; MathLive модалка mathlive-setup.js + main.js -->
+  <script type="module" src="/src/math-jax-boot.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js"></script>
+  <!-- MathJax v4: math-jax-boot.js (STIX2 + tex packages); math-render.js -->
 </head>
 <body>
   <div id="app">
@@ -36,6 +15,7 @@
       <p class="hint">Вставьте текст из Word (Ctrl+V) или начните печатать. Формула: оберните LaTeX в $...$ (inline) или $$...$$ (block).</p>
     </header>
     <div id="toolbar"></div>
+    <div id="metadata-panel-host"></div>
     <div id="import-bar" style="background:#e8f5e9;padding:6px 12px;font-size:13px;border:1px solid #ddd;border-bottom:none;display:flex;align-items:center;gap:12px;font-family:'PT Sans',sans-serif;">
       <span>📄 <strong>Импорт из Word:</strong></span>
       <label id="btn-import-docx" style="cursor:pointer;background:#4caf50;color:#fff;padding:4px 12px;border-radius:4px;font-size:12px;">

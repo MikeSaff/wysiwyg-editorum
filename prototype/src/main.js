@@ -16,12 +16,17 @@ import { buildToolbar, updateTableToolbar } from "./toolbar.js"
 import { setupContextMenu } from "./context-menu.js"
 import { cleanWordHtml } from "./word-paste.js"
 import { importDocx } from "./word-import.js"
+import { serializeEnvelope, deserializeEnvelope, createEmptyEnvelope } from "./document-model.js"
+import { mergeExtractedPublication } from "./metadata-extract.js"
+import { mountMetadataPanel } from "./metadata-panel.js"
 import { typographyQuoteAndDashRules } from "./typography-rules.js"
 import "mathlive/fonts.css"
 import "mathlive"
 import { openMathEditModal } from "./mathlive-setup.js"
 import { insertFormulaImageTransaction } from "./formula-image-insert.js"
 import "./styles.css"
+
+const _envelopeRef = { current: createEmptyEnvelope() }
 
 // === Non-breaking space plugin (ГОСТ §9.4-9.5) ===
 // Auto-replace regular space with nbsp after numbers+units, №, etc.
@@ -318,8 +323,19 @@ function updateOutput(state) {
   const jsonEl = document.getElementById("json-output")
   const htmlEl = document.getElementById("html-output")
 
-  // JSON output
-  const json = state.doc.toJSON()
+  // JSON output (envelope + pm when available)
+  const env = _envelopeRef.current
+  const json =
+    env && env.version
+      ? {
+        version: env.version,
+        meta: env.meta,
+        references: env.references,
+        translations: env.translations,
+        rights: env.rights,
+        pm: state.doc.toJSON()
+      }
+      : state.doc.toJSON()
   jsonEl.textContent = JSON.stringify(json, null, 2)
 
   // HTML output
@@ -401,7 +417,12 @@ function init() {
   const toolbarEl = document.getElementById("toolbar")
   const editorEl = document.getElementById("editor")
 
-  const doc = schema.nodeFromJSON(initialDoc)
+  _envelopeRef.current = deserializeEnvelope(localStorage.getItem("wysiwyg-editorum-autosave"))
+  const startPm =
+    _envelopeRef.current.pm && _envelopeRef.current.pm.type === "doc"
+      ? _envelopeRef.current.pm
+      : initialDoc
+  const doc = schema.nodeFromJSON(startPm)
 
   const state = EditorState.create({
     doc,
@@ -423,12 +444,6 @@ function init() {
 
   const view = new EditorView(editorEl, {
     state: fix ? fix.state : state,
-    dispatchTransaction(tr) {
-      const newState = view.state.apply(tr)
-      view.updateState(newState)
-      updateOutput(newState)
-      updateTableToolbar(view)
-    },
     handlePaste(view, event, slice) {
       // Intercept paste to clean Word HTML before ProseMirror parses it
       const clipboardData = event.clipboardData || window.clipboardData
@@ -648,32 +663,59 @@ function init() {
     }
   })
 
-  buildToolbar(view, toolbarEl)
-  setupContextMenu(view, editorEl)
-  updateOutput(view.state)
-  updateNavigation(view.state)
-  setupTabs()
-
-  // === Autosave to localStorage ===
   const AUTOSAVE_KEY = "wysiwyg-editorum-autosave"
   const statusEl = document.getElementById("import-status")
   let autosaveTimer = null
 
-  function autosave() {
+  function writeAutosave() {
     try {
-      const json = JSON.stringify(view.state.doc.toJSON())
-      localStorage.setItem(AUTOSAVE_KEY, json)
+      _envelopeRef.current.pm = view.state.doc.toJSON()
+      localStorage.setItem(AUTOSAVE_KEY, serializeEnvelope(_envelopeRef.current))
       if (statusEl) {
         statusEl.textContent = "💾 Автосохранение " + new Date().toLocaleTimeString()
-        setTimeout(() => { if (statusEl.textContent.startsWith("💾")) statusEl.textContent = "" }, 3000)
+        setTimeout(() => {
+          if (statusEl.textContent.startsWith("💾")) statusEl.textContent = ""
+        }, 3000)
       }
     } catch (e) {
       console.warn("Autosave failed:", e)
     }
   }
 
-  // Autosave every 5 seconds after last change
-  const originalDispatch = view.dispatch.bind(view)
+  let metadataPanel = { refresh: () => {} }
+  const metaHost = document.getElementById("metadata-panel-host")
+  if (metaHost) {
+    metadataPanel = mountMetadataPanel(metaHost, {
+      getEnvelope: () => _envelopeRef.current,
+      scheduleAutosave: () => {
+        clearTimeout(autosaveTimer)
+        autosaveTimer = setTimeout(writeAutosave, 3000)
+      }
+    })
+  }
+
+  buildToolbar(view, toolbarEl, {
+    serializeEnvelopeForDownload: () => {
+      _envelopeRef.current.pm = view.state.doc.toJSON()
+      return serializeEnvelope(_envelopeRef.current)
+    },
+    loadEnvelopeFromJsonText: (txt) => {
+      _envelopeRef.current = deserializeEnvelope(txt)
+      const pm = _envelopeRef.current.pm && _envelopeRef.current.pm.type === "doc" ? _envelopeRef.current.pm : initialDoc
+      const d = schema.nodeFromJSON(pm)
+      const tr = view.state.tr.replaceWith(0, view.state.doc.content.size, d.content)
+      view.dispatch(tr)
+      metadataPanel.refresh()
+      updateNavigation(view.state)
+      updateOutput(view.state)
+      writeAutosave()
+    }
+  })
+  setupContextMenu(view, editorEl)
+  updateOutput(view.state)
+  updateNavigation(view.state)
+  setupTabs()
+
   view.setProps({
     dispatchTransaction(tr) {
       const newState = view.state.apply(tr)
@@ -685,28 +727,24 @@ function init() {
       }
       if (tr.docChanged) {
         clearTimeout(autosaveTimer)
-        autosaveTimer = setTimeout(autosave, 3000)
+        autosaveTimer = setTimeout(writeAutosave, 3000)
       }
     }
   })
 
-  // Restore from autosave — only if not a forced reload
-  // User can clear with "Новый документ" button
   try {
     const saved = localStorage.getItem(AUTOSAVE_KEY)
-    if (saved) {
-      const savedDoc = schema.nodeFromJSON(JSON.parse(saved))
-      if (savedDoc.content.size > 10) {
-        const tr = view.state.tr.replaceWith(0, view.state.doc.content.size, savedDoc.content)
-        view.dispatch(tr)
-        if (statusEl) {
-          statusEl.textContent = "📄 Восстановлен документ. «📂 Новый» для сброса."
-          setTimeout(() => { statusEl.textContent = "" }, 4000)
-        }
+    if (saved && _envelopeRef.current.pm && _envelopeRef.current.pm.type === "doc") {
+      const sz = _envelopeRef.current.pm.content?.length ?? 0
+      if (sz > 1 && statusEl) {
+        statusEl.textContent = "📄 Восстановлен документ (envelope). «📂 Новый» для сброса."
+        setTimeout(() => {
+          statusEl.textContent = ""
+        }, 4000)
       }
     }
   } catch (e) {
-    console.warn("Autosave restore failed:", e)
+    console.warn("Autosave restore notice failed:", e)
   }
 
   // v0.44z3: auto-shrink removed. Formulas must wrap (ГОСТ §13.10), not scale-down.
@@ -720,6 +758,9 @@ function init() {
     try {
       const result = await importDocx(file)
 
+      mergeExtractedPublication(_envelopeRef.current, result.extraction)
+      metadataPanel.refresh()
+
       // Replace entire document content
       const tr = editorView.state.tr.replaceWith(
         0,
@@ -727,6 +768,9 @@ function init() {
         result.doc.content
       )
       editorView.dispatch(tr)
+
+      writeAutosave()
+      updateOutput(editorView.state)
 
       statusEl.textContent = `✅ ${file.name} (формул: ${result.formulaCount})`
       // Hide import bar completely after import

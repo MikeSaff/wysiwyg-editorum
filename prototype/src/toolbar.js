@@ -319,7 +319,7 @@ function insertHR(state, dispatch) {
   return true
 }
 
-export function buildToolbar(view, toolbarEl) {
+export function buildToolbar(view, toolbarEl, hooks = {}) {
   toolbarEl.innerHTML = ""
 
   // === Group: Форматирование текста ===
@@ -479,7 +479,9 @@ export function buildToolbar(view, toolbarEl) {
     return true
   }, view))
   groupDoc.appendChild(createButton("💾", "Сохранить документ (скачать JSON)", (state, dispatch) => {
-    const json = JSON.stringify(state.doc.toJSON(), null, 2)
+    const json = hooks.serializeEnvelopeForDownload
+      ? hooks.serializeEnvelopeForDownload()
+      : JSON.stringify(state.doc.toJSON(), null, 2)
     const blob = new Blob([json], { type: "application/json" })
     const url = URL.createObjectURL(blob)
     const a = document.createElement("a")
@@ -507,18 +509,31 @@ export function buildToolbar(view, toolbarEl) {
     input.onchange = (e) => {
       const file = e.target.files[0]
       if (!file) return
-      const reader = new FileReader()
-      reader.onload = (ev) => {
-        try {
-          const json = JSON.parse(ev.target.result)
-          const doc = view.state.schema.nodeFromJSON(json)
-          const tr = view.state.tr.replaceWith(0, view.state.doc.content.size, doc.content)
-          view.dispatch(tr)
-        } catch (err) {
-          alert("Ошибка загрузки: " + err.message)
+      if (hooks.loadEnvelopeFromJsonText) {
+        const reader = new FileReader()
+        reader.onload = () => {
+          try {
+            hooks.loadEnvelopeFromJsonText(reader.result)
+          } catch (err) {
+            console.error(err)
+            alert("Не удалось прочитать JSON: " + err.message)
+          }
         }
+        reader.readAsText(file)
+      } else {
+        const reader = new FileReader()
+        reader.onload = (ev) => {
+          try {
+            const json = JSON.parse(ev.target.result)
+            const doc = view.state.schema.nodeFromJSON(json)
+            const tr = view.state.tr.replaceWith(0, view.state.doc.content.size, doc.content)
+            view.dispatch(tr)
+          } catch (err) {
+            alert("Ошибка загрузки: " + err.message)
+          }
+        }
+        reader.readAsText(file)
       }
-      reader.readAsText(file)
     }
     input.click()
     return true

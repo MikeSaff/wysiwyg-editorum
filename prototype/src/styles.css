@@ -1578,3 +1578,148 @@ mjx-container mjx-mtext {
 .ProseMirror .math-block mjx-container[display="true"] {
   font-size: 1.1em;
 }
+
+/* v0.49 — publication metadata panel */
+#metadata-panel-host {
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.metadata-panel {
+  font-family: 'PT Serif', Georgia, serif;
+  background: #f0f0f0;
+}
+
+.metadata-panel-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  min-height: 36px;
+  cursor: pointer;
+}
+
+.metadata-panel-toggle {
+  border: 1px solid #bdbdbd;
+  background: #fff;
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.metadata-panel-preview {
+  flex: 1;
+  font-size: 14px;
+  color: #333;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.metadata-panel-body {
+  max-height: 70vh;
+  overflow: auto;
+  border-top: 1px solid #ddd;
+  background: #fafafa;
+}
+
+.metadata-panel-inner {
+  padding: 12px 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.metadata-panel-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.metadata-panel-collapse {
+  border: 1px solid #bdbdbd;
+  background: #fff;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.metadata-panel label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  color: #444;
+}
+
+.metadata-panel .md-inp,
+.metadata-panel .md-ta,
+.metadata-panel .md-inp-sm {
+  font-family: inherit;
+  font-size: 14px;
+  padding: 6px 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.metadata-panel .md-inline-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.metadata-panel .md-inline-row label {
+  flex: 1;
+  min-width: 140px;
+}
+
+.metadata-panel .md-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.metadata-panel .md-author-row,
+.metadata-panel .md-affil-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.metadata-panel .md-author-row input {
+  flex: 1;
+  min-width: 120px;
+}
+
+.metadata-panel .md-refs-toggle {
+  width: 100%;
+  text-align: left;
+  padding: 8px 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.metadata-panel .md-refs-list {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.metadata-panel .md-ref-item {
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 8px;
+  background: #fff;
+}
