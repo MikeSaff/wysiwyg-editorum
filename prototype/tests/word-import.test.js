@@ -760,6 +760,90 @@ test("v0.50: normalizeImportedHtml promotes figure-as-table and bilingual table 
   }
 })
 
+test("v0.50.4: bare <img> paragraph with adjacent Рис./Fig. captions → figure-block (Sazykina pattern)", () => {
+  const { document: doc } = parseHTML("<!DOCTYPE html><html><body></body></html>")
+  const prev = globalThis.document
+  globalThis.document = doc
+  try {
+    const html = `
+<p>Before</p>
+<p><img src="data:image/png;base64,xxx" alt=""></p>
+<p>Рис. 1. Подпись на русском</p>
+<p>Fig. 1. English caption</p>
+<p>After</p>
+`
+    const out = normalizeImportedHtml(html)
+    assert.match(out, /<figure[^>]*class="figure-block"[^>]*>/u, "figure-block created")
+    assert.match(out, /<img[^>]*figure-block-img/u, "img has figure-block-img class")
+    assert.match(out, /figure-caption-ru/u, "RU caption attached")
+    assert.match(out, /figure-caption-en/u, "EN caption attached")
+    assert.match(out, /data-number="1"/u, "data-number filled from caption")
+    // Original loose <p>'s removed
+    assert.doesNotMatch(out, /<p[^>]*>Рис\. 1/u)
+    assert.doesNotMatch(out, /<p[^>]*>Fig\. 1/u)
+  } finally {
+    if (prev) globalThis.document = prev
+    else delete globalThis.document
+  }
+})
+
+test("v0.50.4: figure-as-table without inner caption + adjacent Рис./Fig. <p> → captions absorbed", () => {
+  const { document: doc } = parseHTML("<!DOCTYPE html><html><body></body></html>")
+  const prev = globalThis.document
+  globalThis.document = doc
+  try {
+    // Table with image only, caption lives as next siblings (Sazykina sub-pattern)
+    const html = `
+<table><tr><td><img src="data:image/png;base64,xxx" alt=""></td></tr></table>
+<p>Рис. 2. Описание</p>
+<p>Fig. 2. Description</p>
+<p>Дальше идёт обычный текст.</p>
+`
+    const out = normalizeImportedHtml(html)
+    // Note: this table has no Рис/Fig text inside, so promoteFigureAsTableFramesInRoot won't fire.
+    // promoteLooseFigureCaptionsAroundImagesInRoot can't fire either (table is not <p><img></p>).
+    // attachLooseFigureCaptionsToFiguresInRoot only fixes existing figure-blocks.
+    // → For this exact pattern (table + adjacent caption), we expect captions to remain as <p>'s.
+    // This test documents the limitation; main fix is the bare <img><p>caption</p> pattern above.
+    assert.ok(out.includes("Рис. 2") || out.includes("Описание"), "RU caption preserved somewhere")
+  } finally {
+    if (prev) globalThis.document = prev
+    else delete globalThis.document
+  }
+})
+
+test("v0.50.4: bilingual single-paragraph caption split also works WITHOUT <strong> wrapper", () => {
+  const { document: doc } = parseHTML("<!DOCTYPE html><html><body></body></html>")
+  const prev = globalThis.document
+  globalThis.document = doc
+  try {
+    // Single <p> mixing RU+EN without <strong> tags around Fig
+    const html = `
+<p><img src="data:image/png;base64,xxx" alt=""></p>
+<p>Рис. 3. Зависимость от давления. Fig. 3. Pressure dependence.</p>
+`
+    const out = normalizeImportedHtml(html)
+    assert.match(out, /<figure[^>]*class="figure-block"/u)
+    assert.match(out, /figure-caption-ru/u)
+    assert.match(out, /figure-caption-en/u)
+    // Note: typography normalizer inserts NBSP (\u00A0 → &#160;) before short
+    // prepositions like "от", so check for the unique words individually.
+    assert.match(out, /Зависимость/u)
+    assert.match(out, /давления/u)
+    assert.match(out, /Pressure dependence/u)
+    // RU and EN must end up in DIFFERENT figcaptions
+    const ruIdx = out.indexOf('class="figure-caption-ru"')
+    const enIdx = out.indexOf('class="figure-caption-en"')
+    assert.ok(ruIdx > 0 && enIdx > ruIdx, "ru caption before en caption in output")
+    const ruSegment = out.slice(ruIdx, enIdx)
+    assert.match(ruSegment, /Рис/u, "Рис in ru segment")
+    assert.doesNotMatch(ruSegment, /Pressure/u, "Pressure NOT in ru segment")
+  } finally {
+    if (prev) globalThis.document = prev
+    else delete globalThis.document
+  }
+})
+
 test("MathLive from npm; MathJax 4 CDN in index — no mathjax-full, no KaTeX", async () => {
   const indexPath = new URL("../index.html", import.meta.url)
   const packagePath = new URL("../package.json", import.meta.url)

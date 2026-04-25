@@ -4,6 +4,26 @@
 - Top-3 warning categories: none
 - Updated: 2026-04-24T14:37:32.873Z
 
+## v0.50.4 — loose figure captions absorbed (Sazykina pattern)
+
+**Problem (CEO 2026-04-25):** «Плейсхолдер рисунка появился, но подпись подрисуночная при импорте исчезла совсем». Reason: in Sazykina-like DOCX the caption is NOT inside the layout table — it lives as a sibling `<p>Рис. N…</p><p>Fig. N…</p>` next to a bare `<p><img></p>`. v0.50.x table→figure promoter only looked inside cells, so captions stayed as loose paragraphs and visually drifted away from the image.
+
+**Implemented (`prototype/src/word-import.js`)**
+
+- New `promoteLooseFigureCaptionsAroundImagesInRoot(root, doc)` — wraps `<p><img></p>` followed by Рис./Fig. paragraphs into `<figure.figure-block>` with proper `figure-caption-ru` / `figure-caption-en` and `data-number`.
+- New `attachLooseFigureCaptionsToFiguresInRoot(root, doc)` — for any existing `figure-block` without `<figcaption>` (e.g. produced by `promoteFigureAsTableFramesInRoot` from a caption-less table) absorbs adjacent Рис./Fig. siblings (forward first, then backward).
+- Bilingual single-`<p>` split now has fallback regex (`[\s\S]*? + non-letter + Fig\.?|Figure`) for captions WITHOUT `<strong>` wrapper. Previously failed on `Рис. 1. Описание... Fig. 1. Description...` plain-text mixes.
+- Hooked into `normalizeImportedHtml` between `promoteFigureAsTableFramesInRoot` and `promoteLooseTableCaptionsInRoot`.
+
+**Tests** (`prototype/tests/word-import.test.js`)
+
+- 3 new cases: bare `<img>` + adjacent captions; figure-as-table without inner caption (limitation documented); plain-text bilingual single-`<p>` split.
+- `npm test` 69/69; `npm run build` OK.
+
+**Non-goals**
+
+- Image upload UX (covered by v0.51); no folder-import auto-PNG match yet; no JATS export changes.
+
 ## v0.51 — figure-placeholder image insertion UX
 
 **Implemented**

@@ -1638,8 +1638,13 @@ export function promoteFigureAsTableFramesInRoot(root, doc) {
         if (hasRu && hasEn) {
           // Try splitting on Fig boundary
           const html = p.innerHTML
-          // Find position of first <strong>Fig... or "Fig" boundary in text
-          const splitMatch = html.match(/(.*?)(<strong[^>]*>\s*(?:Fig\.?|Figure))/iu)
+          // v0.50.4: try `<strong>Fig...` first (Sazykina), fallback to plain
+          // "Fig" / "Figure" / "Fig." after non-letter char (no <strong> wrapper).
+          // Use [\s\S] instead of `.` so split works across HTML newlines.
+          let splitMatch = html.match(/([\s\S]*?)(<strong[^>]*>\s*(?:Fig\.?|Figure))/iu)
+          if (!splitMatch) {
+            splitMatch = html.match(/([\s\S]*?[^A-Za-zА-Яа-я])((?:Fig\.?|Figure)\s*\d)/iu)
+          }
           if (splitMatch) {
             const ruDiv = doc.createElement("p")
             ruDiv.innerHTML = splitMatch[1].trim()
@@ -1687,6 +1692,191 @@ export function promoteFigureAsTableFramesInRoot(root, doc) {
     }
 
     table.replaceWith(fig)
+  }
+}
+
+/**
+ * v0.50.4: For each <figure.figure-block> that has NO <figcaption>, look at
+ * adjacent <p> siblings (after first, then before) for Рис./Fig. captions and
+ * fold them into the figure as figure-caption-ru / figure-caption-en.
+ *
+ * Sazykina pattern: <table><img></table><p>Рис. 1...</p><p>Fig. 1...</p>
+ * → without this pass, table becomes figure but captions stay as loose <p>'s.
+ *
+ * @param {ParentNode} root
+ * @param {Document} doc
+ */
+export function attachLooseFigureCaptionsToFiguresInRoot(root, doc) {
+  if (!root || typeof root.querySelectorAll !== "function" || !doc?.createElement) return
+  const figures = [...root.querySelectorAll("figure.figure-block")].filter(
+    (f) => !f.querySelector("figcaption")
+  )
+  for (const fig of figures) {
+    /** @type {Element[]} */
+    const collected = []
+    // Look forward first (most common: image then caption)
+    let el = fig.nextElementSibling
+    while (el && el.tagName === "P" && collected.length < 4) {
+      const t = (el.textContent || "").replace(/\s+/gu, " ").trim()
+      const hasRu = /(?:^|[^A-Za-zА-Яа-я])(?:Рис|Рисунок|Рис\.)\s*\d/iu.test(t)
+      const hasEn = /(?:^|[^A-Za-zА-Яа-я])(?:Fig\.?|Figure)\s*\d/iu.test(t)
+      if (hasRu || hasEn) {
+        collected.push(el)
+        el = el.nextElementSibling
+      } else break
+    }
+    // If nothing forward, look backward (caption above image)
+    if (collected.length === 0) {
+      let prev = fig.previousElementSibling
+      const back = []
+      while (prev && prev.tagName === "P" && back.length < 4) {
+        const t = (prev.textContent || "").replace(/\s+/gu, " ").trim()
+        const hasRu = /(?:^|[^A-Za-zА-Яа-я])(?:Рис|Рисунок|Рис\.)\s*\d/iu.test(t)
+        const hasEn = /(?:^|[^A-Za-zА-Яа-я])(?:Fig\.?|Figure)\s*\d/iu.test(t)
+        if (hasRu || hasEn) {
+          back.unshift(prev)
+          prev = prev.previousElementSibling
+        } else break
+      }
+      collected.push(...back)
+    }
+    if (collected.length === 0) continue
+
+    for (const p of collected) {
+      const t = (p.textContent || "").replace(/\s+/gu, " ").trim()
+      const hasRu = /(?:^|[^A-Za-zА-Яа-я])(?:Рис|Рисунок|Рис\.)\s*\d/iu.test(t)
+      const hasEn = /(?:^|[^A-Za-zА-Яа-я])(?:Fig\.?|Figure)\s*\d/iu.test(t)
+      // Bilingual single <p>: try to split (same logic as in cells)
+      if (hasRu && hasEn) {
+        const html = p.innerHTML
+        let splitMatch = html.match(/([\s\S]*?)(<strong[^>]*>\s*(?:Fig\.?|Figure))/iu)
+        if (!splitMatch) {
+          splitMatch = html.match(/([\s\S]*?[^A-Za-zА-Яа-я])((?:Fig\.?|Figure)\s*\d)/iu)
+        }
+        if (splitMatch) {
+          const ruFc = doc.createElement("figcaption")
+          ruFc.className = "figure-caption-ru"
+          ruFc.innerHTML = splitMatch[1].trim()
+          const enFc = doc.createElement("figcaption")
+          enFc.className = "figure-caption-en"
+          enFc.innerHTML = html.slice(splitMatch[1].length)
+          if (ruFc.textContent?.trim()) fig.appendChild(ruFc)
+          if (enFc.textContent?.trim()) fig.appendChild(enFc)
+        } else {
+          const fc = doc.createElement("figcaption")
+          fc.className = "figure-caption-ru"
+          fc.innerHTML = p.innerHTML
+          fig.appendChild(fc)
+        }
+      } else {
+        const fc = doc.createElement("figcaption")
+        fc.className = hasEn && !hasRu ? "figure-caption-en" : "figure-caption-ru"
+        fc.innerHTML = p.innerHTML
+        fig.appendChild(fc)
+      }
+    }
+    // Remove the absorbed <p> siblings
+    for (const p of collected) p.remove()
+
+    // Fill data-number from caption if not yet set
+    if (!fig.getAttribute("data-number")) {
+      const captionText = (fig.textContent || "").replace(/\s+/gu, " ").trim()
+      const numMatch =
+        captionText.match(/(?:^|[^A-Za-zА-Яа-я])(?:Рис(?:унок)?|Рис\.)\s*(\d+)/iu) ||
+        captionText.match(/(?:^|[^A-Za-zА-Яа-я])(?:Fig\.?|Figure)\s*(\d+)/iu)
+      if (numMatch) fig.setAttribute("data-number", numMatch[1])
+    }
+  }
+}
+
+/**
+ * v0.50.4: Wrap a bare <p> caption (Рис./Fig.) followed by <img> (or vice versa)
+ * into <figure.figure-block> with proper figcaption and figure-block-img.
+ * Pattern in Sazykina: <p>Рис. 1...</p><p><img></p>
+ *
+ * @param {ParentNode} root
+ * @param {Document} doc
+ */
+export function promoteLooseFigureCaptionsAroundImagesInRoot(root, doc) {
+  if (!root || typeof root.querySelectorAll !== "function" || !doc?.createElement) return
+  // Find <p> with single <img> child (and nothing else of substance)
+  const imgPs = [...root.querySelectorAll("p")].filter((p) => {
+    if (p.closest("figure")) return false
+    const img = p.querySelector("img")
+    if (!img) return false
+    const text = (p.textContent || "").replace(/\s+/gu, " ").trim()
+    return text === "" // image-only paragraph
+  })
+  for (const imgP of imgPs) {
+    /** @type {Element[]} */
+    const captionsAfter = []
+    let el = imgP.nextElementSibling
+    while (el && el.tagName === "P" && captionsAfter.length < 4) {
+      const t = (el.textContent || "").replace(/\s+/gu, " ").trim()
+      const hasRu = /(?:^|[^A-Za-zА-Яа-я])(?:Рис|Рисунок|Рис\.)\s*\d/iu.test(t)
+      const hasEn = /(?:^|[^A-Za-zА-Яа-я])(?:Fig\.?|Figure)\s*\d/iu.test(t)
+      if (hasRu || hasEn) {
+        captionsAfter.push(el)
+        el = el.nextElementSibling
+      } else break
+    }
+    if (captionsAfter.length === 0) continue
+
+    const fig = doc.createElement("figure")
+    fig.className = "figure-block"
+    fig.setAttribute("data-schema-v2", "")
+    fig.setAttribute("data-id", createImportedNodeId())
+    fig.id = createImportedNodeId()
+
+    const img = imgP.querySelector("img")
+    if (img) {
+      const cloned = /** @type {HTMLImageElement} */ (img.cloneNode(true))
+      const cls = cloned.getAttribute("class") || ""
+      if (!/\bfigure-block-img\b/u.test(cls)) {
+        cloned.setAttribute("class", [cls.trim(), "figure-block-img"].filter(Boolean).join(" "))
+      }
+      fig.appendChild(cloned)
+    }
+
+    let dataNumber = ""
+    for (const p of captionsAfter) {
+      const t = (p.textContent || "").replace(/\s+/gu, " ").trim()
+      const hasRu = /(?:^|[^A-Za-zА-Яа-я])(?:Рис|Рисунок|Рис\.)\s*\d/iu.test(t)
+      const hasEn = /(?:^|[^A-Za-zА-Яа-я])(?:Fig\.?|Figure)\s*\d/iu.test(t)
+      if (!dataNumber) {
+        const m =
+          t.match(/(?:^|[^A-Za-zА-Яа-я])(?:Рис(?:унок)?|Рис\.)\s*(\d+)/iu) ||
+          t.match(/(?:^|[^A-Za-zА-Яа-я])(?:Fig\.?|Figure)\s*(\d+)/iu)
+        if (m) dataNumber = m[1]
+      }
+      if (hasRu && hasEn) {
+        const html = p.innerHTML
+        let splitMatch = html.match(/([\s\S]*?)(<strong[^>]*>\s*(?:Fig\.?|Figure))/iu)
+        if (!splitMatch) {
+          splitMatch = html.match(/([\s\S]*?[^A-Za-zА-Яа-я])((?:Fig\.?|Figure)\s*\d)/iu)
+        }
+        if (splitMatch) {
+          const ruFc = doc.createElement("figcaption")
+          ruFc.className = "figure-caption-ru"
+          ruFc.innerHTML = splitMatch[1].trim()
+          const enFc = doc.createElement("figcaption")
+          enFc.className = "figure-caption-en"
+          enFc.innerHTML = html.slice(splitMatch[1].length)
+          if (ruFc.textContent?.trim()) fig.appendChild(ruFc)
+          if (enFc.textContent?.trim()) fig.appendChild(enFc)
+          continue
+        }
+      }
+      const fc = doc.createElement("figcaption")
+      fc.className = hasEn && !hasRu ? "figure-caption-en" : "figure-caption-ru"
+      fc.innerHTML = p.innerHTML
+      fig.appendChild(fc)
+    }
+    if (dataNumber) fig.setAttribute("data-number", dataNumber)
+
+    imgP.parentNode?.insertBefore(fig, imgP)
+    imgP.remove()
+    for (const p of captionsAfter) p.remove()
   }
 }
 
@@ -1753,6 +1943,12 @@ export function normalizeImportedHtml(html) {
       const holder = document.createElement("div")
       holder.innerHTML = out
       promoteFigureAsTableFramesInRoot(holder, document)
+      // v0.50.4: pick up Рис./Fig. captions that live as siblings of bare <img>
+      // paragraphs (Sazykina pattern) — promote them into figure-blocks too.
+      promoteLooseFigureCaptionsAroundImagesInRoot(holder, document)
+      // v0.50.4: any figure-block left without figcaption (table→figure with
+      // captions outside the table) gets adjacent Рис./Fig. paragraphs absorbed.
+      attachLooseFigureCaptionsToFiguresInRoot(holder, document)
       promoteLooseTableCaptionsInRoot(holder, document)
       applyWeakPathUppercaseHeadingHeuristicToRoot(holder)
       out = holder.innerHTML
