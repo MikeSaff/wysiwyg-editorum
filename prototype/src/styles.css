@@ -1591,6 +1591,59 @@ mjx-container mjx-mtext {
   font-style: italic;
 }
 
+/* v0.50.3 — block elements vertical spacing
+   Restored after schema refactor in v0.50: .table-wrap and .figure-block were
+   created in DOM but no CSS rules existed → margin defaulted to 0 for divs
+   (table-wrap), tables glued to surrounding paragraphs. */
+.ProseMirror .table-wrap,
+.ProseMirror .figure-block {
+  margin: 1.4em 0;
+  display: block;
+}
+
+.ProseMirror .table-wrap > table,
+.ProseMirror .figure-block > img,
+.ProseMirror .figure-block > .figure-block-img,
+.ProseMirror .figure-block > .figure-placeholder {
+  margin: 0 auto;
+}
+
+/* Captions (table + figure, RU + EN) — centered, smaller, italic for visual
+   distinction from body. RU is primary, EN is secondary (gray). */
+.ProseMirror .table-caption-ru,
+.ProseMirror .figure-caption-ru {
+  text-align: center;
+  text-indent: 0;
+  font-size: 0.9em;
+  margin: 0.5em 0 0.2em;
+  font-weight: 500;
+  color: #1a1a1a;
+}
+
+.ProseMirror .table-caption-en,
+.ProseMirror .figure-caption-en {
+  text-align: center;
+  text-indent: 0;
+  font-size: 0.85em;
+  margin: 0.2em 0 0.5em;
+  font-style: italic;
+  color: #555;
+}
+
+/* Caption above the table/figure (RU and EN come BEFORE content per academic
+   convention for tables; figures usually have caption below — handled by
+   default flex order in figure-block content). */
+.ProseMirror .table-wrap .table-caption-ru,
+.ProseMirror .table-wrap .table-caption-en {
+  /* placed above table by document order */
+}
+
+.ProseMirror .figure-block .figure-caption-ru,
+.ProseMirror .figure-block .figure-caption-en {
+  /* placed below image by document order */
+  margin-top: 0.6em;
+}
+
 /* v0.49 — publication metadata panel */
 #metadata-panel-host {
   border-bottom: 1px solid #e0e0e0;
