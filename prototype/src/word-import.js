@@ -993,7 +993,16 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
   function renderFigureBlockHtml(imageParagraph, captionParagraph) {
     const figureId = createImportedNodeId()
     const captionContent = normalizeImportedParagraphHtml(captionParagraph.content, ' class="style-fig-caption"')
-    return `<figure data-schema-v2="" class="figure-block" id="${escapeAttr(figureId)}">${imageParagraph.content}<figcaption class="figure-caption-ru">${captionContent}</figcaption></figure>\n`
+    // v0.50.5: try bilingual split (Рис.→Fig.) — strong-path used to dump both
+    // languages into a single figure-caption-ru.
+    const split = splitBilingualFigureCaptionHtml(captionContent)
+    let captionHtml
+    if (split) {
+      captionHtml = `<figcaption class="figure-caption-ru">${split.ruHtml}</figcaption><figcaption class="figure-caption-en">${split.enHtml}</figcaption>`
+    } else {
+      captionHtml = `<figcaption class="figure-caption-ru">${captionContent}</figcaption>`
+    }
+    return `<figure data-schema-v2="" class="figure-block" id="${escapeAttr(figureId)}">${imageParagraph.content}${captionHtml}</figure>\n`
   }
 
   function stripOuterParagraphHtml(pHtml) {
@@ -1576,6 +1585,51 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
 }
 
 /**
+ * v0.50.5: Split bilingual figure caption HTML into RU (Рис.…) and EN (Fig.…).
+ * Returns { ruHtml, enHtml } or null if split is not applicable.
+ *
+ * Order of attempts:
+ *   1. <br> / <br/> separator with one part containing Рис and other Fig.
+ *   2. <strong>Fig... boundary (Sazykina pattern with bold prefix).
+ *   3. Plain non-letter + (Fig.|Figure)\s*\d (e.g. "...2023 гг.Fig. 1...").
+ *
+ * @param {string} html
+ * @returns {{ruHtml: string, enHtml: string} | null}
+ */
+export function splitBilingualFigureCaptionHtml(html) {
+  if (!html || typeof html !== "string") return null
+  const text = html.replace(/<[^>]+>/gu, " ").replace(/\s+/gu, " ").trim()
+  const hasRu = /(?:^|[^A-Za-zА-Яа-я])(?:Рис|Рисунок|Рис\.)\s*\d/iu.test(text)
+  const hasEn = /(?:^|[^A-Za-zА-Яа-я])(?:Fig\.?|Figure)\s*\d/iu.test(text)
+  if (!hasRu || !hasEn) return null
+
+  // 1. <br> separator
+  const brMatch = html.match(/^([\s\S]*?)<br\s*\/?>([\s\S]*)$/iu)
+  if (brMatch) {
+    const left = brMatch[1].replace(/<[^>]+>/gu, " ").trim()
+    const right = brMatch[2].replace(/<[^>]+>/gu, " ").trim()
+    if (/(?:^|[^A-Za-zА-Яа-я])(?:Рис|Рисунок|Рис\.)\s*\d/iu.test(left) &&
+        /(?:^|[^A-Za-zА-Яа-я])(?:Fig\.?|Figure)\s*\d/iu.test(right)) {
+      return { ruHtml: brMatch[1].trim(), enHtml: brMatch[2].trim() }
+    }
+  }
+
+  // 2. <strong>Fig... boundary
+  let m = html.match(/([\s\S]*?)(<strong[^>]*>\s*(?:Fig\.?|Figure))/iu)
+  if (m) {
+    return { ruHtml: m[1].trim(), enHtml: html.slice(m[1].length).trim() }
+  }
+
+  // 3. Plain Fig boundary (no <strong>)
+  m = html.match(/([\s\S]*?[^A-Za-zА-Яа-я])((?:Fig\.?|Figure)\s*\d)/iu)
+  if (m) {
+    return { ruHtml: m[1].trim(), enHtml: html.slice(m[1].length).trim() }
+  }
+
+  return null
+}
+
+/**
  * Promote 1×1 (≤4 cell) Word layout tables that only carry figure captions into <figure.figure-block>.
  * @param {ParentNode} root
  * @param {Document} doc
@@ -1616,7 +1670,7 @@ export function promoteFigureAsTableFramesInRoot(root, doc) {
       const ph = doc.createElement("div")
       ph.className = "figure-placeholder"
       ph.setAttribute("data-needs-image", "true")
-      ph.textContent = "⚠ Изображение не вложено в DOCX. Добавьте вручную через панель."
+      ph.textContent = "🖼 Перетащите изображение сюда или щёлкните правой кнопкой"
       fig.appendChild(ph)
     }
 
@@ -1636,24 +1690,16 @@ export function promoteFigureAsTableFramesInRoot(root, doc) {
         const hasRu = /(?:^|[^A-Za-zА-Яа-я])(?:Рис|Рисунок|Рис\.)\s*\d/iu.test(t)
         const hasEn = /(?:^|[^A-Za-zА-Яа-я])(?:Fig\.?|Figure)\s*\d/iu.test(t)
         if (hasRu && hasEn) {
-          // Try splitting on Fig boundary
-          const html = p.innerHTML
-          // v0.50.4: try `<strong>Fig...` first (Sazykina), fallback to plain
-          // "Fig" / "Figure" / "Fig." after non-letter char (no <strong> wrapper).
-          // Use [\s\S] instead of `.` so split works across HTML newlines.
-          let splitMatch = html.match(/([\s\S]*?)(<strong[^>]*>\s*(?:Fig\.?|Figure))/iu)
-          if (!splitMatch) {
-            splitMatch = html.match(/([\s\S]*?[^A-Za-zА-Яа-я])((?:Fig\.?|Figure)\s*\d)/iu)
-          }
-          if (splitMatch) {
+          // v0.50.5: shared helper covers <br>, <strong>Fig, plain Fig boundary
+          const split = splitBilingualFigureCaptionHtml(p.innerHTML)
+          if (split) {
             const ruDiv = doc.createElement("p")
-            ruDiv.innerHTML = splitMatch[1].trim()
+            ruDiv.innerHTML = split.ruHtml
             const enDiv = doc.createElement("p")
-            enDiv.innerHTML = html.slice(splitMatch[1].length)
+            enDiv.innerHTML = split.enHtml
             if (ruDiv.textContent?.trim()) ruPs.push(ruDiv)
             if (enDiv.textContent?.trim()) enPs.push(enDiv)
           } else {
-            // Fallback: keep whole as RU
             ruPs.push(p)
           }
         } else if (hasRu) {
@@ -1748,18 +1794,14 @@ export function attachLooseFigureCaptionsToFiguresInRoot(root, doc) {
       const hasEn = /(?:^|[^A-Za-zА-Яа-я])(?:Fig\.?|Figure)\s*\d/iu.test(t)
       // Bilingual single <p>: try to split (same logic as in cells)
       if (hasRu && hasEn) {
-        const html = p.innerHTML
-        let splitMatch = html.match(/([\s\S]*?)(<strong[^>]*>\s*(?:Fig\.?|Figure))/iu)
-        if (!splitMatch) {
-          splitMatch = html.match(/([\s\S]*?[^A-Za-zА-Яа-я])((?:Fig\.?|Figure)\s*\d)/iu)
-        }
-        if (splitMatch) {
+        const split = splitBilingualFigureCaptionHtml(p.innerHTML)
+        if (split) {
           const ruFc = doc.createElement("figcaption")
           ruFc.className = "figure-caption-ru"
-          ruFc.innerHTML = splitMatch[1].trim()
+          ruFc.innerHTML = split.ruHtml
           const enFc = doc.createElement("figcaption")
           enFc.className = "figure-caption-en"
-          enFc.innerHTML = html.slice(splitMatch[1].length)
+          enFc.innerHTML = split.enHtml
           if (ruFc.textContent?.trim()) fig.appendChild(ruFc)
           if (enFc.textContent?.trim()) fig.appendChild(enFc)
         } else {
@@ -1850,18 +1892,14 @@ export function promoteLooseFigureCaptionsAroundImagesInRoot(root, doc) {
         if (m) dataNumber = m[1]
       }
       if (hasRu && hasEn) {
-        const html = p.innerHTML
-        let splitMatch = html.match(/([\s\S]*?)(<strong[^>]*>\s*(?:Fig\.?|Figure))/iu)
-        if (!splitMatch) {
-          splitMatch = html.match(/([\s\S]*?[^A-Za-zА-Яа-я])((?:Fig\.?|Figure)\s*\d)/iu)
-        }
-        if (splitMatch) {
+        const split = splitBilingualFigureCaptionHtml(p.innerHTML)
+        if (split) {
           const ruFc = doc.createElement("figcaption")
           ruFc.className = "figure-caption-ru"
-          ruFc.innerHTML = splitMatch[1].trim()
+          ruFc.innerHTML = split.ruHtml
           const enFc = doc.createElement("figcaption")
           enFc.className = "figure-caption-en"
-          enFc.innerHTML = html.slice(splitMatch[1].length)
+          enFc.innerHTML = split.enHtml
           if (ruFc.textContent?.trim()) fig.appendChild(ruFc)
           if (enFc.textContent?.trim()) fig.appendChild(enFc)
           continue
@@ -2124,7 +2162,18 @@ function textToMathML(text) {
     const type = classifyMathChar(char)
     if (type === "mo") {
       flush()
-      tokens.push(`<mo>${escapeXml(char)}</mo>`)
+      // v0.50.5: brackets that arrive as PLAIN TEXT (not inside <m:d>) must not
+      // stretch — Word didn't ask for them to stretch (no fence wrapper). Without
+      // stretchy="false" MathJax auto-stretches them around adjacent subscripts
+      // (Sazykina formula 3: «(λ_{r,exit} + λ_r)» got huge brackets).
+      // Note: real fence brackets emitted from <m:d> already get fence="true" form="..."
+      // and are NOT processed by this function — they bypass classifyMathChar.
+      const isBracket = char === "(" || char === ")" || char === "[" || char === "]" || char === "{" || char === "}"
+      if (isBracket) {
+        tokens.push(`<mo stretchy="false">${escapeXml(char)}</mo>`)
+      } else {
+        tokens.push(`<mo>${escapeXml(char)}</mo>`)
+      }
       currentType = ""
       continue
     }

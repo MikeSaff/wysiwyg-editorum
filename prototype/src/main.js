@@ -844,9 +844,16 @@ function init() {
     if (file) handleDocxImport(file, view)
   })
 
-  // Drag-over visual feedback on editor
+  // Drag-over visual feedback on editor (fullscreen DOCX overlay).
+  // v0.50.5: skip overlay when drag is over a figure-placeholder — that case
+  // is handled by setupFigurePlaceholderDnD which highlights only the placeholder.
   editorEl.addEventListener("dragover", (e) => {
     e.preventDefault()
+    const overPlaceholder = e.target?.closest?.(".figure-placeholder")
+    if (overPlaceholder) {
+      editorEl.classList.remove("drag-over")
+      return
+    }
     editorEl.classList.add("drag-over")
   })
   editorEl.addEventListener("dragleave", () => {

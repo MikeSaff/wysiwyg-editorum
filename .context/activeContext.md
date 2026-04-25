@@ -4,6 +4,26 @@
 - Top-3 warning categories: none
 - Updated: 2026-04-24T14:37:32.873Z
 
+## v0.50.5 — drag overlay scoping, bilingual caption split everywhere, plain-text bracket fix
+
+**CEO QA after v0.50.4 deploy:**
+
+1. Drag-over подсвечивал ВЕСЬ редактор зелёным fullscreen overlay вместо самого placeholder'а.
+2. Подпись Сазыкиной перенеслась, но RU+EN склеились в один figcaption («…2023 гг.Fig. 1. …»).
+3. Скобка в формуле 3 (Сазыкина) — всё ещё растянута.
+
+**Fixes**
+
+- `prototype/src/main.js` — `dragover` handler теперь skip'ает fullscreen overlay, если drag происходит над `.figure-placeholder`. Подсветка только на самом плейсхолдере (через `setupFigurePlaceholderDnD`).
+- `prototype/src/word-import.js` — текст placeholder'а: «🖼 Перетащите изображение сюда или щёлкните правой кнопкой» (убрано упоминание несуществующей панели).
+- `prototype/src/word-import.js` — новый exported helper `splitBilingualFigureCaptionHtml(html)`: 3 стратегии (`<br>` separator → `<strong>Fig` boundary → plain non-letter + `Fig.|Figure`+digit). Подключён в strong-path `renderFigureBlockHtml` (раньше билингвал шёл одним figure-caption-ru), и заменил inline split в `promoteFigureAsTableFramesInRoot` / `attachLooseFigureCaptionsToFiguresInRoot` / `promoteLooseFigureCaptionsAroundImagesInRoot` (DRY).
+- `prototype/src/word-import.js` `textToMathML` — для plain-text скобок `( ) [ ] { }` теперь эмитится `<mo stretchy="false">`. Word-сценарий Сазыкиной формулы 3: скобки `(λ_{r,exit} + λ_r)` приходят НЕ внутри `<m:d>` (delimiter), а как обычный текст в нескольких `<m:r><m:t>(λ</m:t></m:r>` — без stretchy=false MathJax растягивал их по высоте subscript'а. Реальные fence-скобки из `<m:d>` идут через другую ветку (`fence="true"`) и не затронуты.
+
+**Tests** (`prototype/tests/word-import.test.js`)
+
+- 6 новых cases: 4 на `splitBilingualFigureCaptionHtml` (`<br>` / `<strong>` / plain / null), 2 на bracket stretchy (plain-text `(λ` → stretchy=false; `<m:d>` fence → fence="true" сохранён).
+- `npm test` 76/76; `npm run build` OK.
+
 ## v0.50.4 — loose figure captions absorbed (Sazykina pattern)
 
 **Problem (CEO 2026-04-25):** «Плейсхолдер рисунка появился, но подпись подрисуночная при импорте исчезла совсем». Reason: in Sazykina-like DOCX the caption is NOT inside the layout table — it lives as a sibling `<p>Рис. N…</p><p>Fig. N…</p>` next to a bare `<p><img></p>`. v0.50.x table→figure promoter only looked inside cells, so captions stayed as loose paragraphs and visually drifted away from the image.

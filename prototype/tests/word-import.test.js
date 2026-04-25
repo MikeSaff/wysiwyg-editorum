@@ -9,7 +9,8 @@ import {
   docxXmlToHtml,
   normalizeImportedHtml,
   ommlToLatex,
-  ommlToMathML
+  ommlToMathML,
+  splitBilingualFigureCaptionHtml
 } from "../src/word-import.js"
 import {
   integralOmml,
@@ -842,6 +843,82 @@ test("v0.50.4: bilingual single-paragraph caption split also works WITHOUT <stro
     if (prev) globalThis.document = prev
     else delete globalThis.document
   }
+})
+
+test("v0.50.5: splitBilingualFigureCaptionHtml — <br> separator", () => {
+  const html = "Рис. 1. Описание.<br>Fig. 1. Description."
+  const r = splitBilingualFigureCaptionHtml(html)
+  assert.ok(r, "split result not null")
+  assert.match(r.ruHtml, /Рис\. 1/u)
+  assert.match(r.enHtml, /Fig\. 1/u)
+  assert.doesNotMatch(r.ruHtml, /Fig\./u)
+  assert.doesNotMatch(r.enHtml, /Рис/u)
+})
+
+test("v0.50.5: splitBilingualFigureCaptionHtml — <strong>Fig boundary", () => {
+  const html = "<strong>Рис. 2.</strong> Описание. <strong>Fig. 2.</strong> Description."
+  const r = splitBilingualFigureCaptionHtml(html)
+  assert.ok(r, "split result not null")
+  assert.match(r.ruHtml, /Рис\. 2/u)
+  assert.match(r.enHtml, /Fig\. 2/u)
+})
+
+test("v0.50.5: splitBilingualFigureCaptionHtml — plain Fig boundary, no whitespace before Fig", () => {
+  // Sazykina pattern: «...2023 гг.Fig. 1...» (no space between гг. and Fig)
+  const html = "Рис. 1. Мощность дозы в 2004 – 2023 гг.Fig. 1. Dose rate, 2004 – 2023"
+  const r = splitBilingualFigureCaptionHtml(html)
+  assert.ok(r, "split result not null")
+  assert.match(r.ruHtml, /2023 гг\.$/u, "RU ends at гг.")
+  assert.match(r.enHtml, /^Fig\. 1/u, "EN starts at Fig. 1")
+})
+
+test("v0.50.5: splitBilingualFigureCaptionHtml — no markers → null", () => {
+  assert.equal(splitBilingualFigureCaptionHtml("Просто текст без рисунков."), null)
+  assert.equal(splitBilingualFigureCaptionHtml("Only English caption text."), null)
+  assert.equal(splitBilingualFigureCaptionHtml(""), null)
+  assert.equal(splitBilingualFigureCaptionHtml(null), null)
+})
+
+test("v0.50.5: plain-text brackets get stretchy=\"false\" (Sazykina formula 3 fix)", () => {
+  // Plain-text bracket: «(λ» comes as a single <m:t> outside any <m:d>
+  const omml = `<m:oMath xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math">
+    <m:r><m:t>(λ</m:t></m:r>
+    <m:sSub>
+      <m:e><m:r><m:t>x</m:t></m:r></m:e>
+      <m:sub><m:r><m:t>i</m:t></m:r></m:sub>
+    </m:sSub>
+    <m:r><m:t>+y</m:t></m:r>
+    <m:r><m:t>)</m:t></m:r>
+  </m:oMath>`
+  const om = parseXml(omml).documentElement
+  const mml = ommlToMathML(om, { display: true, wrap: false })
+  // Both opening and closing brackets must be marked stretchy="false"
+  assert.match(mml, /<mo stretchy="false">\(<\/mo>/u, "( has stretchy=false")
+  assert.match(mml, /<mo stretchy="false">\)<\/mo>/u, ") has stretchy=false")
+  // λ next to ( must be a separate mi (not glued into one token)
+  assert.match(mml, /<mi>λ<\/mi>/u, "λ is its own mi")
+})
+
+test("v0.50.5: real <m:d> fence brackets are NOT touched (still get fence=\"true\")", () => {
+  // Inside <m:d> we emit <mo fence="true" form="prefix">(</mo> via the d branch,
+  // not through textToMathML — must remain unchanged.
+  const omml = `<m:oMath xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math">
+    <m:d>
+      <m:dPr><m:begChr m:val="("/><m:endChr m:val=")"/></m:dPr>
+      <m:e><m:r><m:t>x</m:t></m:r></m:e>
+      <m:e><m:r><m:t>+y</m:t></m:r></m:e>
+    </m:d>
+  </m:oMath>`
+  const om = parseXml(omml).documentElement
+  const mml = ommlToMathML(om, { display: true, wrap: false })
+  // The fence emit path uses fence="true" form="..." — confirm we still see those
+  assert.match(mml, /<mo fence="true" form="prefix">\(<\/mo>/u)
+  assert.match(mml, /<mo fence="true" form="postfix">\)<\/mo>/u)
+})
+
+test("v0.50.5: splitBilingualFigureCaptionHtml — only RU → null (no EN to split)", () => {
+  const html = "Рис. 1. Только русская подпись без английской части."
+  assert.equal(splitBilingualFigureCaptionHtml(html), null)
 })
 
 test("MathLive from npm; MathJax 4 CDN in index — no mathjax-full, no KaTeX", async () => {
