@@ -1620,38 +1620,70 @@ export function promoteFigureAsTableFramesInRoot(root, doc) {
       fig.appendChild(ph)
     }
 
-    const cell = cells[0]
-    if (cell) {
+    // v0.50.2: scan ALL cells, not just cells[0]. In Sazykina pattern, cell[0]
+    // is empty (image placeholder), cell[1] holds the caption. Plus support
+    // RU+EN bilingual mixed in a SINGLE <p> via <strong>Рис. 1</strong>...<strong>Fig. 1</strong>...
+    const ruPs = []
+    const enPs = []
+    cells.forEach((cell) => {
       const clone = /** @type {Element} */ (cell.cloneNode(true))
       clone.querySelectorAll("img").forEach((i) => i.remove())
       const ps = clone.querySelectorAll("p")
-      const ruPs = []
-      const enPs = []
       ps.forEach((p) => {
         const t = (p.textContent || "").replace(/\s+/gu, " ").trim()
         if (!t) return
-        if (/^(Рис|Рисунок|Рис\.)/iu.test(t)) ruPs.push(p)
-        else if (/^Fig/i.test(t)) enPs.push(p)
+        // Single-paragraph bilingual: text contains both RU and EN markers
+        const hasRu = /(?:^|[^A-Za-zА-Яа-я])(?:Рис|Рисунок|Рис\.)\s*\d/iu.test(t)
+        const hasEn = /(?:^|[^A-Za-zА-Яа-я])(?:Fig\.?|Figure)\s*\d/iu.test(t)
+        if (hasRu && hasEn) {
+          // Try splitting on Fig boundary
+          const html = p.innerHTML
+          // Find position of first <strong>Fig... or "Fig" boundary in text
+          const splitMatch = html.match(/(.*?)(<strong[^>]*>\s*(?:Fig\.?|Figure))/iu)
+          if (splitMatch) {
+            const ruDiv = doc.createElement("p")
+            ruDiv.innerHTML = splitMatch[1].trim()
+            const enDiv = doc.createElement("p")
+            enDiv.innerHTML = html.slice(splitMatch[1].length)
+            if (ruDiv.textContent?.trim()) ruPs.push(ruDiv)
+            if (enDiv.textContent?.trim()) enPs.push(enDiv)
+          } else {
+            // Fallback: keep whole as RU
+            ruPs.push(p)
+          }
+        } else if (hasRu) {
+          ruPs.push(p)
+        } else if (hasEn) {
+          enPs.push(p)
+        } else {
+          // Caption text without explicit Рис/Fig prefix — treat as RU
+          ruPs.push(p)
+        }
       })
-      if (ruPs.length === 0 && enPs.length === 0 && clone.textContent?.trim()) {
+    })
+
+    if (ruPs.length === 0 && enPs.length === 0) {
+      // No paragraph captions found anywhere — fall back to plain cell text
+      const fallbackText = Array.from(cells).map((c) => (c.textContent || "").trim()).filter(Boolean).join(" ")
+      if (fallbackText) {
         const fc = doc.createElement("figcaption")
         fc.className = "figure-caption-ru"
-        fc.innerHTML = clone.innerHTML.trim()
+        fc.textContent = fallbackText
         fig.appendChild(fc)
-      } else {
-        ruPs.forEach((p) => {
-          const fc = doc.createElement("figcaption")
-          fc.className = "figure-caption-ru"
-          fc.innerHTML = p.innerHTML
-          fig.appendChild(fc)
-        })
-        enPs.forEach((p) => {
-          const fc = doc.createElement("figcaption")
-          fc.className = "figure-caption-en"
-          fc.innerHTML = p.innerHTML
-          fig.appendChild(fc)
-        })
       }
+    } else {
+      ruPs.forEach((p) => {
+        const fc = doc.createElement("figcaption")
+        fc.className = "figure-caption-ru"
+        fc.innerHTML = p.innerHTML
+        fig.appendChild(fc)
+      })
+      enPs.forEach((p) => {
+        const fc = doc.createElement("figcaption")
+        fc.className = "figure-caption-en"
+        fc.innerHTML = p.innerHTML
+        fig.appendChild(fc)
+      })
     }
 
     table.replaceWith(fig)
