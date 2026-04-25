@@ -1598,7 +1598,14 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
  */
 export function splitBilingualFigureCaptionHtml(html) {
   if (!html || typeof html !== "string") return null
-  const text = html.replace(/<[^>]+>/gu, " ").replace(/\s+/gu, " ").trim()
+  // v0.50.6: decode common HTML entities for detection — Sazykina cells use
+  // &#160; (NBSP) between «Рис.» and «1» which broke \s*\d match.
+  const text = html
+    .replace(/<[^>]+>/gu, " ")
+    .replace(/&#160;|&nbsp;/gu, " ")
+    .replace(/&#?[a-z0-9]+;/giu, " ")
+    .replace(/\s+/gu, " ")
+    .trim()
   const hasRu = /(?:^|[^A-Za-zА-Яа-я])(?:Рис|Рисунок|Рис\.)\s*\d/iu.test(text)
   const hasEn = /(?:^|[^A-Za-zА-Яа-я])(?:Fig\.?|Figure)\s*\d/iu.test(text)
   if (!hasRu || !hasEn) return null
@@ -1714,13 +1721,35 @@ export function promoteFigureAsTableFramesInRoot(root, doc) {
     })
 
     if (ruPs.length === 0 && enPs.length === 0) {
-      // No paragraph captions found anywhere — fall back to plain cell text
-      const fallbackText = Array.from(cells).map((c) => (c.textContent || "").trim()).filter(Boolean).join(" ")
-      if (fallbackText) {
-        const fc = doc.createElement("figcaption")
-        fc.className = "figure-caption-ru"
-        fc.textContent = fallbackText
-        fig.appendChild(fc)
+      // v0.50.6: no <p> wrappers in cells — Sazykina pattern stores caption as
+      // inline HTML directly in <td> with <strong> for numbers and BOTH RU+EN
+      // in the same cell. Preserve markup (innerHTML, not textContent) so bold
+      // survives, and try bilingual split.
+      const fallbackHtml = Array.from(cells)
+        .map((c) => {
+          const clone = /** @type {Element} */ (c.cloneNode(true))
+          clone.querySelectorAll("img").forEach((i) => i.remove())
+          return clone.innerHTML.trim()
+        })
+        .filter(Boolean)
+        .join(" ")
+      if (fallbackHtml) {
+        const split = splitBilingualFigureCaptionHtml(fallbackHtml)
+        if (split) {
+          const ruFc = doc.createElement("figcaption")
+          ruFc.className = "figure-caption-ru"
+          ruFc.innerHTML = split.ruHtml
+          const enFc = doc.createElement("figcaption")
+          enFc.className = "figure-caption-en"
+          enFc.innerHTML = split.enHtml
+          fig.appendChild(ruFc)
+          fig.appendChild(enFc)
+        } else {
+          const fc = doc.createElement("figcaption")
+          fc.className = "figure-caption-ru"
+          fc.innerHTML = fallbackHtml
+          fig.appendChild(fc)
+        }
       }
     } else {
       ruPs.forEach((p) => {

@@ -4,6 +4,28 @@
 - Top-3 warning categories: none
 - Updated: 2026-04-24T14:37:32.873Z
 
+## v0.50.6 — Sazykina inline-cell caption (no `<p>`, NBSP entity, bold)
+
+**CEO QA after v0.50.5:** caption «слиплись, ПЖ нет в начале» — на скрине Sazykina figure 1 RU+EN всё ещё в одном figcaption и без полужирного «Рис.» / «Fig.».
+
+**Root cause:** Sazykina-кейс — это `<table><tr><td></td></tr><tr><td>` с caption ПРЯМО ИНЛАЙНОМ внутри `<td>` (без `<p>`-обёрток), причём ОБА языка (Рус+Eng) в одной ячейке через bold-prefix. Пайплайн `promoteFigureAsTableFramesInRoot` искал captions через `cell.querySelectorAll("p")` — пусто, ехал в fallback `c.textContent` который (1) сжирал `<strong>`-теги и (2) не пытался делить bilingual.
+
+К тому же `splitBilingualFigureCaptionHtml` не находил «Рис. 1» сквозь `&#160;` (NBSP-entity между «Рис.» и «1») — regex `\s*\d` не прыгал через ASCII-entity.
+
+**Fixes (`prototype/src/word-import.js`)**
+
+- `splitBilingualFigureCaptionHtml`: перед detection делает entity-decode (`&#160;|&nbsp;` → пробел; универсальный `&#?\w+;` → пробел), чтобы regex видел «Рис. 1» сквозь NBSP-entity.
+- `promoteFigureAsTableFramesInRoot` fallback (no-`<p>` ветка): теперь собирает `cell.innerHTML` (не `textContent`), убирает `<img>`, и пробует `splitBilingualFigureCaptionHtml`. Bold runs (`<strong>Рис.</strong>`) сохраняются; RU/EN распадаются по двум figcaption.
+
+**Fixes (`prototype/src/styles.css`)**
+
+- `.figure-caption-ru/-en strong`, `.table-caption-ru/-en strong` — явный `font-weight: 700; font-style: normal`. Парент имеет `font-weight: 500`, и в некоторых рендерах `<strong>` наследовал именно его, а не дефолтный bolder. Теперь жирный гарантирован.
+
+**Tests** (`prototype/tests/word-import.test.js`)
+
+- 2 новых теста: split с NBSP-entity; figure-as-table без `<p>` обёрток (Sazykina inline pattern) — проверяет два figcaption, сохранённый `<strong>`, отсутствие протекания EN в RU.
+- `npm test` 78/78; `npm run build` OK.
+
 ## v0.50.5 — drag overlay scoping, bilingual caption split everywhere, plain-text bracket fix
 
 **CEO QA after v0.50.4 deploy:**

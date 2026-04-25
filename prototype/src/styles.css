@@ -1660,6 +1660,18 @@ mjx-container mjx-mtext {
   margin-top: 0.6em;
 }
 
+/* v0.50.6: Sazykina-pattern captions carry «Рис. 1.» / «Fig. 1.» as inline
+   <strong> runs. Force 700 explicitly so the visual weight stays bold even
+   though parent font-weight is 500. Also reset italic for EN <strong> (the
+   number prefix should look bold, not bold-italic). */
+.ProseMirror .figure-caption-ru strong,
+.ProseMirror .figure-caption-en strong,
+.ProseMirror .table-caption-ru strong,
+.ProseMirror .table-caption-en strong {
+  font-weight: 700;
+  font-style: normal;
+}
+
 /* v0.49 — publication metadata panel */
 #metadata-panel-host {
   border-bottom: 1px solid #e0e0e0;

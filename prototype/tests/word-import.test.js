@@ -916,6 +916,52 @@ test("v0.50.5: real <m:d> fence brackets are NOT touched (still get fence=\"true
   assert.match(mml, /<mo fence="true" form="postfix">\)<\/mo>/u)
 })
 
+test("v0.50.6: splitBilingualFigureCaptionHtml decodes &#160; (NBSP entity)", () => {
+  // Sazykina pattern: «<strong>Рис.</strong><strong>&#160;</strong><strong>1</strong>…»
+  // Without entity decoding, regex Рис\.\s*\d couldn't match through &#160;
+  const html = '<strong>Рис.</strong><strong>&#160;</strong><strong>1</strong>. Описание 2023 гг.<strong>Fig. 1</strong>. Description 2023'
+  const r = splitBilingualFigureCaptionHtml(html)
+  assert.ok(r, "split must succeed even with NBSP entity")
+  assert.match(r.ruHtml, /Рис/u)
+  assert.match(r.enHtml, /Fig\. 1/u)
+  assert.doesNotMatch(r.enHtml, /Рис/u)
+})
+
+test("v0.50.6: figure-as-table with NO <p> wrappers in cells (Sazykina inline pattern)", () => {
+  const { document: doc } = parseHTML("<!DOCTYPE html><html><body></body></html>")
+  const prev = globalThis.document
+  globalThis.document = doc
+  try {
+    // Caption sits directly inside <td> as inline HTML with <strong> for the
+    // number prefix and BOTH languages in the same cell — no <p> wrappers.
+    const html = `
+<table>
+  <tr><td></td></tr>
+  <tr><td><strong>Рис.</strong><strong>&#160;</strong><strong>1</strong>. Описание на русском, 2023 гг.<strong>Fig. 1</strong>. English caption, 2023</td></tr>
+</table>
+`
+    const out = normalizeImportedHtml(html)
+    assert.match(out, /<figure[^>]*class="figure-block"/u, "figure-block created")
+    assert.match(out, /class="figure-placeholder"/u, "placeholder created (no img in source)")
+    // Two figcaptions — RU and EN
+    const ruIdx = out.indexOf('class="figure-caption-ru"')
+    const enIdx = out.indexOf('class="figure-caption-en"')
+    assert.ok(ruIdx > 0, "ru figcaption present")
+    assert.ok(enIdx > ruIdx, "en figcaption present after ru")
+    // Bold preserved (no textContent fallback)
+    const ruSegment = out.slice(ruIdx, enIdx)
+    assert.match(ruSegment, /<strong>Рис\.<\/strong>/u, "<strong>Рис.</strong> preserved")
+    assert.match(out.slice(enIdx), /<strong>Fig\. 1<\/strong>/u, "<strong>Fig. 1</strong> preserved")
+    // EN content does NOT leak into RU figcaption
+    assert.doesNotMatch(ruSegment, /Fig\. 1/u, "Fig. 1 NOT in ru segment")
+    // data-number filled
+    assert.match(out, /data-number="1"/u)
+  } finally {
+    if (prev) globalThis.document = prev
+    else delete globalThis.document
+  }
+})
+
 test("v0.50.5: splitBilingualFigureCaptionHtml — only RU → null (no EN to split)", () => {
   const html = "Рис. 1. Только русская подпись без английской части."
   assert.equal(splitBilingualFigureCaptionHtml(html), null)
