@@ -10,8 +10,9 @@ import {
   splitCell,
 } from "prosemirror-tables"
 import { schema } from "./schema.js"
+import { insertImageIntoFigurePlaceholder, isAllowedImageUrl } from "./figure-placeholder.js"
 
-/** @typedef {"text"|"math"|"image"|"table"} MenuKind */
+/** @typedef {"text"|"math"|"image"|"table"|"fig-placeholder"} MenuKind */
 
 /**
  * @param {import("prosemirror-view").EditorView} view
@@ -34,6 +35,16 @@ function ensureSelectionAtClick(view, event, detected) {
   if (detected.kind === "image" && p != null) {
     const node = state.doc.nodeAt(p)
     if (node && node.type === schema.nodes.image) {
+      const sel = NodeSelection.create(state.doc, p)
+      if (!sel.eq(state.selection)) {
+        view.dispatch(state.tr.setSelection(sel).scrollIntoView())
+      }
+      return
+    }
+  }
+  if (detected.kind === "fig-placeholder" && p != null) {
+    const node = state.doc.nodeAt(p)
+    if (node && node.type === schema.nodes.figure_image) {
       const sel = NodeSelection.create(state.doc, p)
       if (!sel.eq(state.selection)) {
         view.dispatch(state.tr.setSelection(sel).scrollIntoView())
@@ -151,10 +162,54 @@ function createSep() {
 /**
  * @param {import("prosemirror-view").EditorView} view
  * @param {MenuKind} kind
- * @param {{ pos?: number, node?: import("prosemirror-model").Node, imgEl?: HTMLImageElement }} ctx
+ * @param {{ pos?: number, node?: import("prosemirror-model").Node, imgEl?: HTMLImageElement, phEl?: HTMLElement }} ctx
+ * @param {() => void} [closeMenu]
  */
-function buildMenuContent(view, kind, ctx) {
+function buildMenuContent(view, kind, ctx, closeMenu) {
   const root = createMenuShell()
+
+  if (kind === "fig-placeholder") {
+    const pos = ctx.pos
+    if (pos == null) return root
+
+    root.appendChild(
+      createItem("Загрузить файл...", "Вставить изображение с диска", () => {
+        if (closeMenu) closeMenu()
+        const posSnapshot = pos
+        const input = document.createElement("input")
+        input.type = "file"
+        input.accept = "image/*"
+        input.onchange = () => {
+          const file = input.files && input.files[0]
+          if (!file || !file.type.startsWith("image/")) return
+          const reader = new FileReader()
+          reader.onload = () => {
+            const u = reader.result
+            if (typeof u === "string") {
+              insertImageIntoFigurePlaceholder(view, posSnapshot, u, file.name)
+            }
+            view.focus()
+          }
+          reader.readAsDataURL(file)
+        }
+        input.click()
+      })
+    )
+    root.appendChild(
+      createItem("Указать URL...", "Вставить изображение по ссылке (https://)", () => {
+        if (closeMenu) closeMenu()
+        const posSnapshot = pos
+        const url = prompt("URL изображения (https:// или data:image/...):", "https://")
+        if (url && isAllowedImageUrl(url)) {
+          insertImageIntoFigurePlaceholder(view, posSnapshot, url.trim(), "image")
+        } else if (url) {
+          window.alert("Некорректный URL. Используйте http(s):// или data:image/…")
+        }
+        view.focus()
+      })
+    )
+    return root
+  }
 
   if (kind === "text") {
     root.appendChild(
@@ -373,6 +428,17 @@ function detectContext(view, event) {
     return { kind: "math", ctx: { pos, node } }
   }
 
+  const phEl = target.closest?.(".figure-placeholder")
+  if (phEl && view.dom.contains(phEl)) {
+    const pos = view.posAtDOM(phEl, 0)
+    if (pos != null) {
+      const node = view.state.doc.nodeAt(pos)
+      if (node && node.type === schema.nodes.figure_image && node.attrs.placeholder) {
+        return { kind: "fig-placeholder", ctx: { pos, phEl, node } }
+      }
+    }
+  }
+
   const tableEl = target.closest?.("table")
   if (tableEl && view.dom.contains(tableEl)) {
     return { kind: "table", ctx: {} }
@@ -488,7 +554,7 @@ export function setupContextMenu(view, editorEl) {
     ensureSelectionAtClick(view, event, detected)
 
     removeMenu()
-    menuEl = buildMenuContent(view, detected.kind, detected.ctx)
+    menuEl = buildMenuContent(view, detected.kind, detected.ctx, removeMenu)
     placeFixed(menuEl, event.clientX, event.clientY)
     hideFloating()
   }

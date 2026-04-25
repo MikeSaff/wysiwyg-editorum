@@ -4,6 +4,19 @@
 - Top-3 warning categories: none
 - Updated: 2026-04-24T14:37:32.873Z
 
+## v0.51 — figure-placeholder image insertion UX
+
+**Implemented**
+
+- **Drag and drop** (`main.js` `handleDrop` + `figure-placeholder.js`): dropping an image file on `.figure-placeholder` calls `setNodeMarkup` on the `figure_image` atom (placeholder → `src` data URL, `placeholder: false`). `dragover` on the editor highlights the target (`.drag-target`); `dragend` clears it.
+- **Context menu** (`context-menu.js`): right-click on placeholder shows «Загрузить файл...» (hidden file input + `readAsDataURL`) and «Указать URL...» (`prompt` + `https` / `data:image/` via `isAllowedImageUrl`). Uses document **position** for async file read so the transaction stays valid.
+- **Styles** (`styles.css`): placeholder `cursor` / `:hover`, `.drag-target` green highlight.
+- **Tests** (`tests/figure-placeholder.test.js`): `isAllowedImageUrl` smoke checks.
+
+**Non-goals**
+
+- No server upload, crop, or co-located PNG autodetect on import (future folder-import API).
+
 ## v0.50 — figure/caption detection, bracket scope fix, math size bump
 
 **Implemented**

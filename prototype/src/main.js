@@ -14,6 +14,7 @@ import { splitListItem, liftListItem, sinkListItem } from "prosemirror-schema-li
 import { schema, sectionTypeLabels, sectionTypeColors } from "./schema.js"
 import { buildToolbar, updateTableToolbar } from "./toolbar.js"
 import { setupContextMenu } from "./context-menu.js"
+import { insertImageIntoFigurePlaceholder, setupFigurePlaceholderDnD } from "./figure-placeholder.js"
 import { cleanWordHtml } from "./word-paste.js"
 import { importDocx } from "./word-import.js"
 import { serializeEnvelope, deserializeEnvelope, createEmptyEnvelope } from "./document-model.js"
@@ -509,6 +510,29 @@ function init() {
       return false // let ProseMirror handle non-Word paste normally
     },
     handleDrop(view, event, slice, moved) {
+      const ph = event.target && event.target.closest && event.target.closest(".figure-placeholder")
+      if (ph && view.dom.contains(ph) && event.dataTransfer?.files?.length) {
+        const imgFile = Array.from(event.dataTransfer.files).find((f) =>
+          f.type.startsWith("image/")
+        )
+        if (imgFile) {
+          event.preventDefault()
+          ph.classList.remove("drag-target")
+          const reader = new FileReader()
+          reader.onload = () => {
+            const dataUrl = reader.result
+            if (typeof dataUrl === "string") {
+              insertImageIntoFigurePlaceholder(view, ph, dataUrl, imgFile.name)
+            }
+          }
+          reader.readAsDataURL(imgFile)
+          return true
+        }
+        event.preventDefault()
+        ph.classList.remove("drag-target")
+        return true
+      }
+
       const files = event.dataTransfer?.files
       if (files && files.length > 0) {
         const file = files[0]
@@ -738,6 +762,7 @@ function init() {
     }
   })
   setupContextMenu(view, editorEl)
+  setupFigurePlaceholderDnD(view, editorEl)
   updateOutput(view.state)
   updateNavigation(view.state)
   setupTabs()
