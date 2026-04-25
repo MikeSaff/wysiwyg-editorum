@@ -30,8 +30,10 @@
     };
   </script>
   <script defer src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js"></script>
-  <!-- math-jax-boot.js / math-config.js остаются для programmatic font switching after page load -->
-  <script type="module" src="/src/math-jax-boot.js"></script>
+  <!-- v0.49.5: math-jax-boot.js удалён из <head> — он перезаписывал window.MathJax
+       уже после успешной инициализации CDN-скрипта, ломая startup. Сам файл оставляем
+       в src/ как library для будущего programmatic font switching, но он не должен
+       выполняться при загрузке страницы. -->
 </head>
 <body>
   <div id="app">
