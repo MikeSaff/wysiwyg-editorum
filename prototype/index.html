@@ -10,10 +10,17 @@
        STIX2 ignored). Inline non-module ensures config is on globalThis.MathJax before parser
        reaches the CDN <script> tag below. -->
   <script>
-    // MathJax v4 config — request STIX2 font (Times-like, gels with PT Serif body text).
-    // Auto-loader on MJ4 looks for @mathjax/stix2-font@x/chtml.js (without "mathjax-" prefix)
-    // which is NOT the published npm name; real package is @mathjax/mathjax-stix2-font@x.
-    // Workaround: pre-load the font script BEFORE tex-mml-chtml.js (see <script> below).
+    // v0.49.8: REVERT to default NewCM font. STIX2 attempts (v0.49.2/.6) all failed
+    // because MathJax's hardcoded loader path @mathjax/stix2-font@x/chtml.js doesn't
+    // exist on jsdelivr (real package name is @mathjax/mathjax-stix2-font with prefix).
+    // Pre-loading correct file under different name doesn't help — MJ's loader registry
+    // looks up by hardcoded internal name, not by what's already on the page.
+    //
+    // KNOWN ISSUE: NewCM (Computer Modern, LaTeX default) contrasts visually with PT Serif
+    // body. To revisit later via:
+    //   - self-host STIX2 font package under expected path
+    //   - try other Times-like MJ fonts: asana, pagella, termes, bonum
+    //   - alternative CDN that serves font under expected path
     window.MathJax = {
       tex: {
         inlineMath: [["\\(", "\\)"]],
@@ -21,8 +28,6 @@
         processEscapes: true
       },
       chtml: {
-        font: "stix2",
-        fontURL: "https://cdn.jsdelivr.net/npm/@mathjax/mathjax-stix2-font@4.1.1/chtml/woff",
         displayOverflow: "linebreak",
         mtextInheritFont: true,
         merrorInheritFont: true
@@ -30,8 +35,6 @@
       options: { enableMenu: false }
     };
   </script>
-  <!-- Pre-load STIX2 font script (real npm path, not what MJ auto-loader expects) -->
-  <script defer src="https://cdn.jsdelivr.net/npm/@mathjax/mathjax-stix2-font@4.1.1/chtml.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js"></script>
   <!-- v0.49.5: math-jax-boot.js удалён из <head> — он перезаписывал window.MathJax
        уже после успешной инициализации CDN-скрипта, ломая startup. Сам файл оставляем
