@@ -4,9 +4,33 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>WYSIWYG Editorum — Прототип</title>
-  <script type="module" src="/src/math-jax-boot.js"></script>
+  <!-- MathJax v4 config: INLINE to ensure it's set before tex-mml-chtml.js loads.
+       Was previously imported as ES module, but module-script defers until imports resolve,
+       which can start AFTER the CDN script begins executing (race condition → defaults applied,
+       STIX2 ignored). Inline non-module ensures config is on globalThis.MathJax before parser
+       reaches the CDN <script> tag below. -->
+  <script>
+    window.MathJax = {
+      loader: { load: ["[tex]/ams", "[tex]/newcommand", "[tex]/color"] },
+      tex: {
+        inlineMath: [["\\(", "\\)"]],
+        displayMath: [["\\[", "\\]"]],
+        processEscapes: true,
+        packages: { "[+]": ["mhchem"] }
+      },
+      chtml: {
+        font: "stix2",
+        fontURL: "https://cdn.jsdelivr.net/npm/mathjax@4/es5/output/chtml/fonts/stix2",
+        displayOverflow: "linebreak",
+        mtextInheritFont: true,
+        merrorInheritFont: true
+      },
+      options: { enableMenu: false }
+    };
+  </script>
   <script defer src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js"></script>
-  <!-- MathJax v4: math-jax-boot.js (STIX2 + tex packages); math-render.js -->
+  <!-- math-jax-boot.js / math-config.js остаются для programmatic font switching after page load -->
+  <script type="module" src="/src/math-jax-boot.js"></script>
 </head>
 <body>
   <div id="app">
