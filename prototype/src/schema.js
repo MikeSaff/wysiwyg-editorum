@@ -148,8 +148,24 @@ const mathBlockSpec = {
 
 const figcaptionSpec = {
   content: "inline*",
-  toDOM() { return ["figcaption", 0] },
-  parseDOM: [{ tag: "figcaption" }]
+  attrs: {
+    lang: { default: null }
+  },
+  toDOM(node) {
+    const cls = node.attrs.lang === "en" ? "figure-caption-en" : "figure-caption-ru"
+    return ["figcaption", { class: cls }, 0]
+  },
+  parseDOM: [
+    { tag: "figcaption.figure-caption-en", getAttrs: () => ({ lang: "en" }) },
+    { tag: "figcaption.figure-caption-ru", getAttrs: () => ({ lang: null }) },
+    {
+      tag: "figcaption",
+      getAttrs(dom) {
+        if (dom.classList.contains("figure-caption-en")) return { lang: "en" }
+        return { lang: null }
+      }
+    }
+  ]
 }
 
 // === Block image inside figure_block (Schema v2) — not an inline `image` node ===
@@ -159,9 +175,20 @@ const figureImageSpec = {
   attrs: {
     src: { default: null },
     alt: { default: "" },
-    title: { default: "" }
+    title: { default: "" },
+    placeholder: { default: false }
   },
   toDOM(node) {
+    if (node.attrs.placeholder) {
+      return [
+        "div",
+        {
+          class: "figure-placeholder",
+          "data-needs-image": "true"
+        },
+        "⚠ Изображение не вложено в DOCX. Добавьте вручную через панель."
+      ]
+    }
     return ["img", {
       src: node.attrs.src,
       alt: node.attrs.alt || "",
@@ -170,48 +197,79 @@ const figureImageSpec = {
     }]
   },
   parseDOM: [
+    {
+      tag: "div.figure-placeholder",
+      getAttrs() {
+        return { src: null, alt: "", title: "", placeholder: true }
+      }
+    },
     { tag: "img.figure-block-img", getAttrs(dom) {
-      return { src: dom.getAttribute("src"), alt: dom.getAttribute("alt") || "", title: dom.getAttribute("title") || "" }
+      return { src: dom.getAttribute("src"), alt: dom.getAttribute("alt") || "", title: dom.getAttribute("title") || "", placeholder: false }
     }},
     { tag: "figure > img", getAttrs(dom) {
       const fig = dom.parentElement
       if (fig?.classList?.contains("formula-image-block")) return false
-      return { src: dom.getAttribute("src"), alt: dom.getAttribute("alt") || "", title: dom.getAttribute("title") || "" }
+      return { src: dom.getAttribute("src"), alt: dom.getAttribute("alt") || "", title: dom.getAttribute("title") || "", placeholder: false }
     }}
   ]
 }
 
 const figureBlockSpec = {
   group: "block",
-  content: "figure_image figcaption?",
+  content: "figure_image figcaption{0,2}",
   attrs: {
     id: { default: null }
   },
   defining: true,
   toDOM(node) {
-    const attrs = { "data-schema-v2": "" }
+    const attrs = { "data-schema-v2": "", class: "figure-block" }
     if (node.attrs.id) attrs.id = node.attrs.id
     return ["figure", attrs, 0]
   },
-  parseDOM: [{
-    tag: "figure",
-    getAttrs(dom) {
-      if (dom.classList.contains("formula-image-block")) return false
-      if (!dom.hasAttribute("data-schema-v2")) return false
-      return { id: dom.getAttribute("id") || null }
+  parseDOM: [
+    {
+      tag: "figure.figure-block",
+      getAttrs(dom) {
+        if (dom.classList.contains("formula-image-block")) return false
+        return { id: dom.getAttribute("id") || dom.getAttribute("data-id") || null }
+      }
+    },
+    {
+      tag: "figure",
+      getAttrs(dom) {
+        if (dom.classList.contains("formula-image-block")) return false
+        if (!dom.hasAttribute("data-schema-v2")) return false
+        return { id: dom.getAttribute("id") || null }
+      }
     }
-  }]
+  ]
 }
 
 const tableCaptionSpec = {
   content: "inline*",
-  toDOM() { return ["div", { class: "table-caption" }, 0] },
-  parseDOM: [{ tag: "div.table-caption" }]
+  attrs: {
+    lang: { default: null }
+  },
+  toDOM(node) {
+    const cls = node.attrs.lang === "en" ? "table-caption table-caption-en" : "table-caption table-caption-ru"
+    return ["div", { class: cls }, 0]
+  },
+  parseDOM: [
+    { tag: "div.table-caption-en", getAttrs: () => ({ lang: "en" }) },
+    { tag: "div.table-caption-ru", getAttrs: () => ({ lang: null }) },
+    {
+      tag: "div.table-caption",
+      getAttrs(dom) {
+        if (dom.classList.contains("table-caption-en")) return { lang: "en" }
+        return { lang: null }
+      }
+    }
+  ]
 }
 
 const tableBlockSpec = {
   group: "block",
-  content: "table_caption? table",
+  content: "table_caption{0,2} table",
   attrs: {
     id: { default: null }
   },
@@ -403,7 +461,11 @@ export const schema = new Schema({
         if (node.attrs.lang) attrs.lang = node.attrs.lang
         if (node.attrs.align) attrs.style = `text-align: ${node.attrs.align}`
         if (node.attrs.styleType) {
-          classes.push(node.attrs.styleType === "list-item-numbered" ? "list-item-numbered" : `style-${node.attrs.styleType}`)
+          classes.push(
+            node.attrs.styleType === "list-item-numbered"
+              ? "list-item-numbered"
+              : `style-${node.attrs.styleType}`
+          )
         }
         if (classes.length) attrs.class = classes.join(" ")
         return ["p", attrs, 0]
@@ -414,7 +476,9 @@ export const schema = new Schema({
           const cls = dom.getAttribute("class") || ""
           let styleType = null
           if (cls.includes("style-fig-caption")) styleType = "fig-caption"
+          else if (cls.includes("style-table-caption-en")) styleType = "table-caption-en"
           else if (cls.includes("style-table-caption")) styleType = "table-caption"
+          else if (cls.includes("style-table-number-en")) styleType = "table-number-en"
           else if (cls.includes("style-table-number")) styleType = "table-number"
           else if (cls.includes("list-item-numbered")) styleType = "list-item-numbered"
           return {

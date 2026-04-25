@@ -150,6 +150,13 @@ function serializeImageNode(node) {
 }
 
 function serializeFigureImageNode(node) {
+  if (node.attrs.placeholder) {
+    return (
+      '<div class="figure-placeholder" data-needs-image="true">' +
+      "⚠ Изображение не вложено в DOCX. Добавьте вручную через панель." +
+      "</div>"
+    )
+  }
   const src = escapeAttr(node.attrs.src || "")
   const alt = escapeAttr(node.attrs.alt || "")
   const title = node.attrs.title ? ' title="' + escapeAttr(node.attrs.title) + '"' : ""
@@ -240,17 +247,29 @@ function serializeBlock(node, schema) {
       if (ch.type.name === "figure_image") {
         inner += serializeFigureImageNode(ch)
       } else if (ch.type.name === "figcaption") {
-        inner += "<figcaption>" + serializeInlineFragment(ch) + "</figcaption>"
+        const isEn = ch.attrs.lang === "en"
+        const capCls = isEn ? "figure-caption-en" : "figure-caption-ru"
+        const langAttr = isEn ? ' lang="en"' : ""
+        inner +=
+          "<figcaption class=\"" +
+          capCls +
+          "\"" +
+          langAttr +
+          ">" +
+          serializeInlineFragment(ch) +
+          "</figcaption>"
       }
     })
-    return "<figure data-schema-v2" + fid + ">" + inner + "</figure>"
+    return '<figure data-schema-v2 class="figure-block"' + fid + ">" + inner + "</figure>"
   }
   if (n === "table_block") {
     let capHtml = ""
     let tableNode = null
     node.forEach((ch) => {
       if (ch.type.name === "table_caption") {
-        capHtml = '<div class="table-caption">' + serializeInlineFragment(ch) + "</div>"
+        const isEn = ch.attrs.lang === "en"
+        const capCls = isEn ? "table-caption table-caption-en" : "table-caption table-caption-ru"
+        capHtml += '<div class="' + capCls + '">' + serializeInlineFragment(ch) + "</div>"
       } else if (ch.type.name === "table") {
         tableNode = ch
       }

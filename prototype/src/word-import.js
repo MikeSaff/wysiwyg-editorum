@@ -200,6 +200,12 @@ export function ommlToLatex(ommlElement, options = {}) {
           return `\\left\\{ ${dContent2} \\right.`
         }
 
+        if (begChar === "(" && endChar === ")" && dElements.length > 1) {
+          const first = processChildren(dElements[0]).trim()
+          const rest = dElements.slice(1).map((e) => processChildren(e)).join("")
+          return `(${first})${rest}`
+        }
+
         const dContent = dElements
           .map(e => processChildren(e))
           .join(", ")
@@ -499,6 +505,16 @@ export function ommlToMathML(ommlElement, options = {}) {
         if (eElements.length === 1) {
           innerContent = processChildren(eElements[0])
         } else if (eElements.length > 1) {
+          if (begChar === "(" && endChar === ")") {
+            const firstInner = wrapMrow(processChildren(eElements[0]))
+            const fenceRow =
+              `<mrow><mo fence="true" form="prefix">(</mo>${firstInner}<mo fence="true" form="postfix">)</mo></mrow>`
+            const tail = eElements
+              .slice(1)
+              .map((e) => wrapMrow(processChildren(e)))
+              .join("")
+            return tail ? `${fenceRow}${tail}` : fenceRow
+          }
           innerContent = eElements.map((e) => wrapMrow(processChildren(e))).join("")
         }
 
@@ -862,6 +878,8 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
       styleType = "fig-caption"
     } else if (/^(Табл\.|Таблица)\s*\d/i.test(plainText)) {
       styleType = /^(Табл\.|Таблица)\s*\d+\s*$/i.test(plainText) ? "table-number" : "table-caption"
+    } else if (/^Table\s*\d/i.test(plainText)) {
+      styleType = /^Table\s*\d+\s*$/i.test(plainText) ? "table-number-en" : "table-caption-en"
     }
 
     const id = createImportedNodeId()
@@ -899,16 +917,23 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
 
     if (firstParagraph.styleType === "table-caption" && nextName === "tbl") {
       return {
-        html: renderTableBlockHtml({ numberParagraph: null, captionParagraph: firstParagraph, tableHtml: processTable(next, wNs, mNs) }),
+        html: renderTableBlockHtml({ numberParagraph: null, captionParagraph: firstParagraph, englishCaptionParagraph: null, tableHtml: processTable(next, wNs, mNs) }),
         skipIndices: [index + 1]
       }
     }
 
-    if (firstParagraph.styleType !== "table-number") return null
+    if (firstParagraph.styleType === "table-caption-en" && nextName === "tbl") {
+      return {
+        html: renderTableBlockHtml({ numberParagraph: null, captionParagraph: null, englishCaptionParagraph: firstParagraph, tableHtml: processTable(next, wNs, mNs) }),
+        skipIndices: [index + 1]
+      }
+    }
+
+    if (firstParagraph.styleType !== "table-number" && firstParagraph.styleType !== "table-number-en") return null
 
     if (nextName === "tbl") {
       return {
-        html: renderTableBlockHtml({ numberParagraph: firstParagraph, captionParagraph: null, tableHtml: processTable(next, wNs, mNs) }),
+        html: renderTableBlockHtml({ numberParagraph: firstParagraph, captionParagraph: null, englishCaptionParagraph: null, tableHtml: processTable(next, wNs, mNs) }),
         skipIndices: [index + 1]
       }
     }
@@ -921,9 +946,44 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
         html: renderTableBlockHtml({
           numberParagraph: firstParagraph,
           captionParagraph: secondParagraph,
+          englishCaptionParagraph: null,
           tableHtml: processTable(third, wNs, mNs)
         }),
         skipIndices: [index + 1, index + 2]
+      }
+    }
+
+    const fourth = children[index + 3]
+    const fourthName = fourth?.localName || fourth?.nodeName?.split(":").pop()
+    if (
+      secondParagraph?.styleType === "table-caption-en" &&
+      thirdName === "tbl"
+    ) {
+      return {
+        html: renderTableBlockHtml({
+          numberParagraph: firstParagraph,
+          captionParagraph: null,
+          englishCaptionParagraph: secondParagraph,
+          tableHtml: processTable(third, wNs, mNs)
+        }),
+        skipIndices: [index + 1, index + 2]
+      }
+    }
+    if (
+      secondParagraph?.styleType === "table-caption" &&
+      thirdName === "p"
+    ) {
+      const thirdParagraph = processParagraphDescriptor(third, wNs, mNs)
+      if (thirdParagraph?.styleType === "table-caption-en" && fourthName === "tbl") {
+        return {
+          html: renderTableBlockHtml({
+            numberParagraph: firstParagraph,
+            captionParagraph: secondParagraph,
+            englishCaptionParagraph: thirdParagraph,
+            tableHtml: processTable(fourth, wNs, mNs)
+          }),
+          skipIndices: [index + 1, index + 2, index + 3]
+        }
       }
     }
 
@@ -933,14 +993,31 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
   function renderFigureBlockHtml(imageParagraph, captionParagraph) {
     const figureId = createImportedNodeId()
     const captionContent = normalizeImportedParagraphHtml(captionParagraph.content, ' class="style-fig-caption"')
-    return `<figure id="${escapeAttr(figureId)}">${imageParagraph.content}<figcaption>${captionContent}</figcaption></figure>\n`
+    return `<figure data-schema-v2="" class="figure-block" id="${escapeAttr(figureId)}">${imageParagraph.content}<figcaption class="figure-caption-ru">${captionContent}</figcaption></figure>\n`
   }
 
-  function renderTableBlockHtml({ numberParagraph, captionParagraph, tableHtml }) {
+  function stripOuterParagraphHtml(pHtml) {
+    const s = (pHtml || "").trim()
+    const m = s.match(/^<p\b[^>]*>([\s\S]*)<\/p>\s*$/iu)
+    return m ? m[1].trim() : s
+  }
+
+  function renderTableBlockHtml({ numberParagraph, captionParagraph, englishCaptionParagraph, tableHtml }) {
     const tableId = createImportedNodeId()
     const parts = []
-    if (numberParagraph) parts.push(numberParagraph.html.trim())
-    if (captionParagraph) parts.push(captionParagraph.html.trim())
+    if (numberParagraph) {
+      const inner = stripOuterParagraphHtml(numberParagraph.html)
+      const cls = numberParagraph.styleType === "table-number-en" ? "table-caption table-caption-en" : "table-caption table-caption-ru"
+      parts.push(`<div class="${cls}">${inner}</div>`)
+    }
+    if (captionParagraph) {
+      const inner = stripOuterParagraphHtml(captionParagraph.html)
+      parts.push(`<div class="table-caption table-caption-ru">${inner}</div>`)
+    }
+    if (englishCaptionParagraph) {
+      const inner = stripOuterParagraphHtml(englishCaptionParagraph.html)
+      parts.push(`<div class="table-caption table-caption-en">${inner}</div>`)
+    }
     parts.push(tableHtml.trim())
     return `<div class="table-wrap" id="${escapeAttr(tableId)}">${parts.join("")}</div>\n`
   }
@@ -1498,6 +1575,131 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
   }
 }
 
+/**
+ * Promote 1×1 (≤4 cell) Word layout tables that only carry figure captions into <figure.figure-block>.
+ * @param {ParentNode} root
+ * @param {Document} doc
+ */
+export function promoteFigureAsTableFramesInRoot(root, doc) {
+  if (!root || typeof root.querySelectorAll !== "function" || !doc?.createElement) return
+  const tables = [...root.querySelectorAll("table")].filter(
+    (t) => !t.closest("div.table-wrap") && !t.closest("figure")
+  )
+  for (const table of tables) {
+    const cells = table.querySelectorAll("td, th")
+    if (cells.length > 4) continue
+    const text = (table.textContent || "").replace(/\s+/gu, " ").trim()
+    if (!/\b(?:Рис|Рисунок|Рис\.)\s*\d+|(?:^|\s)(?:Fig\.?|Figure)\s*\d+/iu.test(text)) continue
+
+    const numMatch = text.match(/\b(?:Рис(?:унок)?|Рис\.)\s*(\d+)/iu) || text.match(/\b(?:Fig\.?|Figure)\s*(\d+)/iu)
+    const dataNumber = numMatch ? numMatch[1] : ""
+
+    const fig = doc.createElement("figure")
+    fig.className = "figure-block"
+    fig.setAttribute("data-schema-v2", "")
+    fig.setAttribute("data-id", createImportedNodeId())
+    if (dataNumber) fig.setAttribute("data-number", dataNumber)
+    fig.id = createImportedNodeId()
+
+    const img = table.querySelector("img")
+    if (img) {
+      const cloned = /** @type {HTMLImageElement} */ (img.cloneNode(true))
+      const cls = cloned.getAttribute("class") || ""
+      if (!/\bfigure-block-img\b/u.test(cls)) {
+        cloned.setAttribute("class", [cls.trim(), "figure-block-img"].filter(Boolean).join(" "))
+      }
+      fig.appendChild(cloned)
+    } else {
+      const ph = doc.createElement("div")
+      ph.className = "figure-placeholder"
+      ph.setAttribute("data-needs-image", "true")
+      ph.textContent = "⚠ Изображение не вложено в DOCX. Добавьте вручную через панель."
+      fig.appendChild(ph)
+    }
+
+    const cell = cells[0]
+    if (cell) {
+      const clone = /** @type {Element} */ (cell.cloneNode(true))
+      clone.querySelectorAll("img").forEach((i) => i.remove())
+      const ps = clone.querySelectorAll("p")
+      const ruPs = []
+      const enPs = []
+      ps.forEach((p) => {
+        const t = (p.textContent || "").replace(/\s+/gu, " ").trim()
+        if (!t) return
+        if (/^(Рис|Рисунок|Рис\.)/iu.test(t)) ruPs.push(p)
+        else if (/^Fig/i.test(t)) enPs.push(p)
+      })
+      if (ruPs.length === 0 && enPs.length === 0 && clone.textContent?.trim()) {
+        const fc = doc.createElement("figcaption")
+        fc.className = "figure-caption-ru"
+        fc.innerHTML = clone.innerHTML.trim()
+        fig.appendChild(fc)
+      } else {
+        ruPs.forEach((p) => {
+          const fc = doc.createElement("figcaption")
+          fc.className = "figure-caption-ru"
+          fc.innerHTML = p.innerHTML
+          fig.appendChild(fc)
+        })
+        enPs.forEach((p) => {
+          const fc = doc.createElement("figcaption")
+          fc.className = "figure-caption-en"
+          fc.innerHTML = p.innerHTML
+          fig.appendChild(fc)
+        })
+      }
+    }
+
+    table.replaceWith(fig)
+  }
+}
+
+/**
+ * Move up to two <p> captions (Таблица… / Table…) immediately before a bare <table> into div.table-wrap.
+ * @param {ParentNode} root
+ * @param {Document} doc
+ */
+export function promoteLooseTableCaptionsInRoot(root, doc) {
+  if (!root || typeof root.querySelectorAll !== "function" || !doc?.createElement) return
+  const tables = [...root.querySelectorAll("table")].filter(
+    (t) => !t.closest("div.table-wrap") && !t.closest("figure")
+  )
+  for (const table of tables) {
+    /** @type {Element[]} */
+    const captionPs = []
+    let el = table.previousElementSibling
+    while (el && el.tagName === "P" && captionPs.length < 4) {
+      const t = (el.textContent || "").replace(/\s+/gu, " ").trim()
+      if (/^(Табл\.|Таблица)\s*\d+/iu.test(t) || /^Table\s+\d+/iu.test(t)) {
+        captionPs.unshift(el)
+        el = el.previousElementSibling
+      } else break
+    }
+    if (captionPs.length === 0) continue
+
+    const wrap = doc.createElement("div")
+    wrap.className = "table-wrap"
+    wrap.id = createImportedNodeId()
+
+    for (const p of captionPs) {
+      const plain = (p.textContent || "").replace(/\s+/gu, " ").trim()
+      const isEn = /^Table\s+\d+/iu.test(plain)
+      const div = doc.createElement("div")
+      div.className = isEn ? "table-caption table-caption-en" : "table-caption table-caption-ru"
+      div.innerHTML = p.innerHTML
+      wrap.appendChild(div)
+    }
+
+    for (const p of captionPs) {
+      p.remove()
+    }
+
+    table.parentNode?.insertBefore(wrap, table)
+    wrap.appendChild(table)
+  }
+}
+
 export function normalizeImportedHtml(html) {
   if (!html) return ""
 
@@ -1510,11 +1712,13 @@ export function normalizeImportedHtml(html) {
     return `<p${normalizedAttrs}>${normalizedInner}</p>\n`
   })
 
-  // v0.48: weak-path journals — UPPERCASE + whole-paragraph bold → h2 (browser / import pipeline only)
+  // v0.50: figure-as-table + bilingual table captions (DOM), before weak-path headings
   if (typeof document !== "undefined" && typeof document.createElement === "function") {
     try {
       const holder = document.createElement("div")
       holder.innerHTML = out
+      promoteFigureAsTableFramesInRoot(holder, document)
+      promoteLooseTableCaptionsInRoot(holder, document)
       applyWeakPathUppercaseHeadingHeuristicToRoot(holder)
       out = holder.innerHTML
     } catch {

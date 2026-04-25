@@ -1571,15 +1571,24 @@ mjx-container mjx-mtext {
   font-family: inherit !important;
 }
 
-/* v0.49.6 — increase math sizing for readability (was contrasting with body text size).
-   Block formulas: 1.25em (was 1.1em) — display math should be slightly larger than text.
-   Inline formulas: 1.05em (was 1em) — keep close to text baseline but legible. */
+/* v0.50 — math sizing bump: inline/block slightly above body text for symbol parity with CEO feedback */
 .ProseMirror p mjx-container[display="false"] {
-  font-size: 1.05em;
+  font-size: 1.15em;
 }
 
 .ProseMirror .math-block mjx-container[display="true"] {
-  font-size: 1.25em;
+  font-size: 1.4em;
+}
+
+/* v0.50 — missing embedded image after DOCX import (figure_block placeholder) */
+.ProseMirror .figure-placeholder {
+  background: #fff3cd;
+  border: 2px dashed #f0c000;
+  border-radius: 4px;
+  padding: 24px;
+  text-align: center;
+  color: #856404;
+  font-style: italic;
 }
 
 /* v0.49 — publication metadata panel */

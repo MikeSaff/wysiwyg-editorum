@@ -4,6 +4,26 @@
 - Top-3 warning categories: none
 - Updated: 2026-04-24T14:37:32.873Z
 
+## v0.50 — figure/caption detection, bracket scope fix, math size bump
+
+**Implemented**
+
+- **Figure-as-table frame** (`prototype/src/word-import.js` + `normalizeImportedHtml`): small tables (≤4 cells) whose text matches `Рис.` / `Fig.` numbering are promoted to `figure` with `data-schema-v2`, `figure-block`, optional `img`, else `figure-placeholder`; RU/EN `figcaption` classes `figure-caption-ru` / `figure-caption-en`.
+- **Bilingual table captions**: consecutive `Таблица N` / `Table N` paragraphs before a bare `<table>` are folded into `div.table-wrap` with `table-caption-ru` / `table-caption-en`; same idea for figure frames where captions precede the layout table.
+- **OMML `m:d` bracket scope**: when Word emits one fenced `m:e` plus trailing siblings (or multiple `m:e`), MathML fences wrap only the intended `m:e` content so stretchy parens do not span following terms (Sazykina formula 3). Regression tests in `tests/word-import.test.js`.
+- **Schema** (`schema.js`): `figure_block` / `table_block` with bilingual caption nodes; `figure_image.placeholder`.
+- **UI**: `styles.css` — `.figure-placeholder` warning strip; math `mjx-container` inline **1.15em**, block **1.4em**.
+- **Export** (`export-html.js`): `figure_block` / `table_block` emit the same caption classes and placeholder div as the editor.
+- **Navigation** (`main.js`): TOC entries for `figure_block` and `table_block` use RU caption when present.
+
+**Tests**
+
+- `npm test`, `npm run build` after changes.
+
+**Non-goals (this release)**
+
+- Placeholder upload button; MTEF path unchanged; no STIX2 self-host beyond existing CDN preset.
+
 ## v0.49 — metadata extractor + envelope + MathJax STIX2 + bracket fix
 
 **Implemented**

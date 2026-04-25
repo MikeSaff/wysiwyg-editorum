@@ -205,7 +205,10 @@ test("docxXmlToHtml wraps image-only paragraph with following figure caption int
 
   const html = docxXmlToHtml(xml, {}, { rId1: "img.png" }, {})
 
-  assert.match(html, /<figure id="[^"]+"><img src="img\.png" alt="image" class="inline-image"><figcaption>Рисунок 3\. Блок-схема алгоритма<\/figcaption><\/figure>/u)
+  assert.match(
+    html,
+    /<figure[^>]*data-schema-v2[^>]*class="figure-block"[^>]*id="[^"]+"><img src="img\.png" alt="image" class="inline-image"><figcaption class="figure-caption-ru">Рисунок 3\. Блок-схема алгоритма<\/figcaption><\/figure>/u
+  )
   assert.doesNotMatch(html, /style-fig-caption/u)
 })
 
@@ -226,7 +229,10 @@ test("docxXmlToHtml wraps table number and caption before table into table-wrap"
 
   const html = docxXmlToHtml(xml, {}, {}, {})
 
-  assert.match(html, /<div class="table-wrap" id="[^"]+"><p id="[^"]+" class="style-table-number">Таблица 1<\/p><p id="[^"]+" class="style-table-caption">Таблица 1 Подпись таблицы<\/p><table id="[^"]+">/u)
+  assert.match(
+    html,
+    /<div class="table-wrap" id="[^"]+"><div class="table-caption table-caption-ru">Таблица 1<\/div><div class="table-caption table-caption-ru">Таблица 1 Подпись таблицы<\/div><table id="[^"]+">/u
+  )
 })
 
 test("ommlToLatex keeps the full integrand for n-ary expressions", () => {
@@ -693,7 +699,7 @@ test("v0.48: heuristic skips DOI line and non-bold UPPERCASE", () => {
   assert.equal(root.querySelectorAll("h2").length, 1)
 })
 
-test("v0.49: omml delimiter parentheses use stretchy=false on fence mo", () => {
+test("v0.50: omml m:d one m:e + trailing m:r keeps +y outside fenced mrow", () => {
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <m:oMath xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math">
   <m:d>
@@ -704,9 +710,54 @@ test("v0.49: omml delimiter parentheses use stretchy=false on fence mo", () => {
 </m:oMath>`
   const doc = parseXml(xml)
   const om = doc.getElementsByTagNameNS("http://schemas.openxmlformats.org/officeDocument/2006/math", "oMath")[0]
+  const mml = ommlToMathML(om, { display: false, wrap: true })
+  const idxClose = mml.indexOf('form="postfix">)</mo>')
+  const idxY = mml.indexOf("<mi>y</mi>")
+  assert.ok(idxClose > 0 && idxY > 0 && idxClose < idxY)
+})
+
+test("v0.50: omml m:d with two m:e — parentheses wrap only first m:e; rest is sibling", () => {
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<m:oMath xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math">
+  <m:d>
+    <m:dPr><m:begChr m:val="("/><m:endChr m:val=")"/></m:dPr>
+    <m:e><m:r><m:t>x</m:t></m:r></m:e>
+    <m:e><m:r><m:t>+y</m:t></m:r></m:e>
+  </m:d>
+</m:oMath>`
+  const doc = parseXml(xml)
+  const om = doc.getElementsByTagNameNS("http://schemas.openxmlformats.org/officeDocument/2006/math", "oMath")[0]
   assert.ok(om)
   const mml = ommlToMathML(om, { display: false, wrap: true })
-  assert.match(mml, /stretchy="false"/)
+  const idxClose = mml.indexOf('form="postfix">)</mo>')
+  const idxY = mml.indexOf("<mi>y</mi>")
+  assert.ok(idxClose > 0 && idxY > 0 && idxClose < idxY, "trailing content follows closing fence mo")
+})
+
+test("v0.50: normalizeImportedHtml promotes figure-as-table and bilingual table captions", () => {
+  const { document: doc } = parseHTML("<!DOCTYPE html><html><body></body></html>")
+  const prev = globalThis.document
+  globalThis.document = doc
+  try {
+    const html = `
+<p>Before</p>
+<table><tr><td><p>Рис. 1. Подпись</p><p>Fig. 1. Caption</p></td></tr></table>
+<p>Таблица 1.</p>
+<p>Table 1.</p>
+<table><tr><td>A</td></tr></table>
+`
+    const out = normalizeImportedHtml(html)
+    assert.match(out, /figure[^>]*class="figure-block"/u)
+    assert.match(out, /figure-caption-ru/u)
+    assert.match(out, /figure-caption-en/u)
+    assert.match(out, /table-caption-ru/u)
+    assert.match(out, /table-caption-en/u)
+    assert.doesNotMatch(out, /<p[^>]*>Таблица 1/u)
+    assert.doesNotMatch(out, /<p[^>]*>Table 1/u)
+  } finally {
+    if (prev) globalThis.document = prev
+    else delete globalThis.document
+  }
 })
 
 test("MathLive from npm; MathJax 4 CDN in index — no mathjax-full, no KaTeX", async () => {

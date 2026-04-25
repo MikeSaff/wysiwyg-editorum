@@ -186,6 +186,32 @@ function updateNavigation(state) {
         items.push({ type: "heading", level, text: text.substring(0, 55), pos: offset })
       }
     }
+    if (node.type.name === "figure_block") {
+      figNum++
+      let capRu = ""
+      let capAny = ""
+      node.forEach((ch) => {
+        if (ch.type.name !== "figcaption") return
+        const t = ch.textContent.trim()
+        if (!capAny) capAny = t
+        if (ch.attrs.lang !== "en" && !capRu) capRu = t
+      })
+      const text = (capRu || capAny || "Рисунок").substring(0, 50)
+      items.push({ type: "fig", text, pos: offset })
+    }
+    if (node.type.name === "table_block") {
+      tblNum++
+      let capRu = ""
+      let capAny = ""
+      node.forEach((ch) => {
+        if (ch.type.name !== "table_caption") return
+        const t = ch.textContent.trim()
+        if (!capAny) capAny = t
+        if (ch.attrs.lang !== "en" && !capRu) capRu = t
+      })
+      const text = (capRu || capAny || "Таблица").substring(0, 50)
+      items.push({ type: "tbl", text, pos: offset })
+    }
     // Figures — find image paragraph BEFORE the caption
     if (node.type.name === "paragraph") {
       const text = node.textContent.trim()
