@@ -1,0 +1,21 @@
+{
+  "exclude": [
+    "**/node_modules",
+    "**/dist",
+    "**/.venv",
+    "**/__pycache__",
+    "Docx",
+    "docs/mtef-test-fixtures",
+    "mtef-to-mathml/node_modules",
+    "mtef-to-mathml/dist",
+    "prototype/node_modules",
+    "prototype/dist",
+    "prototype/public"
+  ],
+  "ignore": [
+    "**/node_modules",
+    "**/dist"
+  ],
+  "reportMissingImports": "none",
+  "reportMissingTypeStubs": false
+}
