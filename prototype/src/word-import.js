@@ -1589,9 +1589,12 @@ export function promoteFigureAsTableFramesInRoot(root, doc) {
     const cells = table.querySelectorAll("td, th")
     if (cells.length > 4) continue
     const text = (table.textContent || "").replace(/\s+/gu, " ").trim()
-    if (!/\b(?:Рис|Рисунок|Рис\.)\s*\d+|(?:^|\s)(?:Fig\.?|Figure)\s*\d+/iu.test(text)) continue
+    // v0.50.1: drop \b — JS regex word-boundary is ASCII-only even with /u flag,
+    // it treats Cyrillic 'Р' as non-word char so \b at start of "Рис..." never
+    // matches. Use explicit non-letter boundary instead.
+    if (!/(?:^|[^A-Za-zА-Яа-я])(?:Рис|Рисунок|Рис\.)\s*\d+|(?:^|[^A-Za-zА-Яа-я])(?:Fig\.?|Figure)\s*\d+/iu.test(text)) continue
 
-    const numMatch = text.match(/\b(?:Рис(?:унок)?|Рис\.)\s*(\d+)/iu) || text.match(/\b(?:Fig\.?|Figure)\s*(\d+)/iu)
+    const numMatch = text.match(/(?:^|[^A-Za-zА-Яа-я])(?:Рис(?:унок)?|Рис\.)\s*(\d+)/iu) || text.match(/(?:^|[^A-Za-zА-Яа-я])(?:Fig\.?|Figure)\s*(\d+)/iu)
     const dataNumber = numMatch ? numMatch[1] : ""
 
     const fig = doc.createElement("figure")
