@@ -19,8 +19,9 @@
         packages: { "[+]": ["mhchem"] }
       },
       chtml: {
-        font: "stix2",
-        fontURL: "https://cdn.jsdelivr.net/npm/mathjax@4/es5/output/chtml/fonts/stix2",
+        // STIX2 disabled: @mathjax/stix2-font@4.1.1/chtml.js doesn't exist on jsdelivr,
+        // breaks MathJax startup completely. Fallback to default NewCM (LaTeX font).
+        // TODO: try other CDNs (unpkg, cdnjs) or self-host STIX2 font package later.
         displayOverflow: "linebreak",
         mtextInheritFont: true,
         merrorInheritFont: true
