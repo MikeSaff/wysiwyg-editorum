@@ -10,18 +10,18 @@
        STIX2 ignored). Inline non-module ensures config is on globalThis.MathJax before parser
        reaches the CDN <script> tag below. -->
   <script>
+    // Minimal MathJax v4 config. Use defaults for tex packages (AMS is built-in).
+    // Previous config had MJ3-style loader/packages syntax that MJ4 doesn't recognize:
+    //   - loader.load: ["[tex]/ams", "[tex]/newcommand", "[tex]/color"]  ← MJ3 paths
+    //   - tex.packages: { "[+]": ["mhchem"] }  ← MJ3 syntax
+    // These caused "Cannot read properties of undefined (reading 'components')" startup error.
     window.MathJax = {
-      loader: { load: ["[tex]/ams", "[tex]/newcommand", "[tex]/color"] },
       tex: {
         inlineMath: [["\\(", "\\)"]],
         displayMath: [["\\[", "\\]"]],
-        processEscapes: true,
-        packages: { "[+]": ["mhchem"] }
+        processEscapes: true
       },
       chtml: {
-        // STIX2 disabled: @mathjax/stix2-font@4.1.1/chtml.js doesn't exist on jsdelivr,
-        // breaks MathJax startup completely. Fallback to default NewCM (LaTeX font).
-        // TODO: try other CDNs (unpkg, cdnjs) or self-host STIX2 font package later.
         displayOverflow: "linebreak",
         mtextInheritFont: true,
         merrorInheritFont: true
