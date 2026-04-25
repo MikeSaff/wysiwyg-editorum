@@ -508,22 +508,19 @@ export function ommlToMathML(ommlElement, options = {}) {
           return `<mfenced open="{" close="" separators="">${displayTable}</mfenced>`
         }
 
-        const useStretchy = !(begChar === "(" && endChar === ")")
+        // v0.49.7: drop explicit stretchy attribute. MathJax operator dictionary
+        // already marks ( ) [ ] { } | as stretchy by default; conditional override
+        // broke both directions — formula 3 (stretched too wide) and formula 6
+        // (stayed too small around tall fraction). Letting MJ defaults pick fixes both.
         const parts = []
         if (begChar && begChar !== " ") {
-          parts.push(
-            `<mo fence="true" form="prefix" stretchy="${useStretchy ? "true" : "false"}">${escapeXml(begChar)}</mo>`
-          )
+          parts.push(`<mo fence="true" form="prefix">${escapeXml(begChar)}</mo>`)
         }
         parts.push(innerContent)
         if (endChar && endChar !== " " && endChar !== "") {
-          parts.push(
-            `<mo fence="true" form="postfix" stretchy="${useStretchy ? "true" : "false"}">${escapeXml(endChar)}</mo>`
-          )
+          parts.push(`<mo fence="true" form="postfix">${escapeXml(endChar)}</mo>`)
         } else if (begChar && begChar !== " ") {
-          parts.push(
-            `<mo fence="true" form="postfix" stretchy="${useStretchy ? "true" : "false"}" style="visibility:hidden">.</mo>`
-          )
+          parts.push(`<mo fence="true" form="postfix" style="visibility:hidden">.</mo>`)
         }
         return wrapMrow(parts.join(""))
       }
