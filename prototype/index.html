@@ -10,11 +10,10 @@
        STIX2 ignored). Inline non-module ensures config is on globalThis.MathJax before parser
        reaches the CDN <script> tag below. -->
   <script>
-    // Minimal MathJax v4 config. Use defaults for tex packages (AMS is built-in).
-    // Previous config had MJ3-style loader/packages syntax that MJ4 doesn't recognize:
-    //   - loader.load: ["[tex]/ams", "[tex]/newcommand", "[tex]/color"]  ← MJ3 paths
-    //   - tex.packages: { "[+]": ["mhchem"] }  ← MJ3 syntax
-    // These caused "Cannot read properties of undefined (reading 'components')" startup error.
+    // MathJax v4 config — request STIX2 font (Times-like, gels with PT Serif body text).
+    // Auto-loader on MJ4 looks for @mathjax/stix2-font@x/chtml.js (without "mathjax-" prefix)
+    // which is NOT the published npm name; real package is @mathjax/mathjax-stix2-font@x.
+    // Workaround: pre-load the font script BEFORE tex-mml-chtml.js (see <script> below).
     window.MathJax = {
       tex: {
         inlineMath: [["\\(", "\\)"]],
@@ -22,6 +21,8 @@
         processEscapes: true
       },
       chtml: {
+        font: "stix2",
+        fontURL: "https://cdn.jsdelivr.net/npm/@mathjax/mathjax-stix2-font@4.1.1/chtml/woff",
         displayOverflow: "linebreak",
         mtextInheritFont: true,
         merrorInheritFont: true
@@ -29,6 +30,8 @@
       options: { enableMenu: false }
     };
   </script>
+  <!-- Pre-load STIX2 font script (real npm path, not what MJ auto-loader expects) -->
+  <script defer src="https://cdn.jsdelivr.net/npm/@mathjax/mathjax-stix2-font@4.1.1/chtml.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js"></script>
   <!-- v0.49.5: math-jax-boot.js удалён из <head> — он перезаписывал window.MathJax
        уже после успешной инициализации CDN-скрипта, ломая startup. Сам файл оставляем
