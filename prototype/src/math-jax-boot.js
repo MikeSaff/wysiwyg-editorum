@@ -22,6 +22,5 @@ globalThis.MathJax = {
     mtextInheritFont: true,
     merrorInheritFont: true
   },
-  options: { enableMenu: false },
-  startup: { typeset: false }
+  options: { enableMenu: false }
 }

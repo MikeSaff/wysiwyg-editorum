@@ -25,3 +25,23 @@
 - Metadata heuristics remain document-style dependent; edge cases may miss or mis-classify blocks (logged via `[metadata]`). Keywords regex uses character classes that treat colon/spaces narrowly in some locales.
 - JATS export, CrossRef/ORCID/ROR enrichment, and `envelope.rights` are out of scope for v0.49.
 - Manual QA on full Сазыкина / Трухачёв / Nauka Radbio / Физика плазмы DOCX set is recommended after each import-path change.
+
+## v0.49.1 — math typeset hotfix
+
+**Cause**
+
+- `startup: { typeset: false }` in `math-jax-boot.js` prevented MathJax from running its normal startup typeset path; per-node `typesetPromise([host])` did not reliably render all `.math-render-host` nodes (many display formulas stayed empty while labels remained).
+- `chtml.fontURL` pointed at `mathjax@4/es5/output/chtml/fonts/stix2` (and NewCM analogue) on jsDelivr; those directories are not populated on the npm CDN, so the runtime fell back to loading NewCM assets (`mjx-ncm-*.woff2`) despite `font: stix2` in config.
+
+**Fix**
+
+- Removed `startup: { typeset: false }` so default startup behavior applies; kept explicit `await startup.promise` before each guarded `typesetPromise([host])` in `renderMathLive`, plus a **serialized typeset chain** so concurrent `queueMicrotask` calls from many `math_block` nodes do not overlap.
+- `math-config.js`: `fontURL` for `stix2` and `newcm` now targets `@mathjax/mathjax-stix2-font@4/chtml/woff2` and `@mathjax/mathjax-newcm-font@4/chtml/woff2` (verified HTTP 200 for sample woff2 files).
+
+**Tests**
+
+- `tests/math-render.test.js`: fontURL shape assertions; smoke test with mocked MathJax v4 that two `math-block` hosts each receive `typesetPromise` and end with `mjx-container` in DOM.
+
+**Residual**
+
+- If a future build again disables global startup typeset, re-verify that every `math_block` / `math_inline` creation path still calls `renderMathLive` (or a single `typesetPromise` over `#editor`).

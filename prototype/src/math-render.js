@@ -6,6 +6,20 @@
 /** @type {Promise<typeof window.MathJax> | null} */
 let mathJaxReadyPromise = null
 
+/** Serialize MathJax typeset work so parallel `renderMathLive` microtasks do not overlap. */
+let mjTypesetChain = Promise.resolve()
+
+/**
+ * @param {() => Promise<void>} fn
+ * @returns {Promise<void>}
+ */
+function enqueueMjTypeset(fn) {
+  mjTypesetChain = mjTypesetChain.then(fn).catch((e) => {
+    console.warn("[MathJax] typeset chain", e)
+  })
+  return mjTypesetChain
+}
+
 /**
  * Ждёт глобальный `window.MathJax` после загрузки `tex-mml-chtml.js` (async).
  * @returns {Promise<typeof window.MathJax>}
@@ -95,31 +109,41 @@ export function renderMathLive(host) {
   const displayMode = container.classList.contains("math-block")
 
   const run = async () => {
-    const MJ = await ensureMathJax()
-    if (!MJ?.typesetPromise || !host.isConnected) return
+    await enqueueMjTypeset(async () => {
+      const MJ = await ensureMathJax()
+      if (!MJ?.typesetPromise || !host.isConnected) return
 
-    await MJ.typesetClear?.([host])
-
-    if (mathml) {
-      host.innerHTML = mathml
-    } else {
-      const tex = resolveTexSource(latexRaw, "")
-      if (!tex) {
-        host.innerHTML = ""
-        return
+      if (MJ.startup?.promise) {
+        try {
+          await MJ.startup.promise
+        } catch (e) {
+          console.warn("[MathJax] startup.promise", e)
+        }
       }
-      host.textContent = ""
-      host.appendChild(
-        document.createTextNode(displayMode ? `\\[${tex}\\]` : `\\(${tex}\\)`)
-      )
-    }
 
-    try {
-      await MJ.typesetPromise([host])
-    } catch (e) {
-      console.warn("[MathJax] typeset", e)
-    }
-    ensureMathHostResizeObserver(host)
+      await MJ.typesetClear?.([host])
+
+      if (mathml) {
+        host.innerHTML = mathml
+      } else {
+        const tex = resolveTexSource(latexRaw, "")
+        if (!tex) {
+          host.innerHTML = ""
+          return
+        }
+        host.textContent = ""
+        host.appendChild(
+          document.createTextNode(displayMode ? `\\[${tex}\\]` : `\\(${tex}\\)`)
+        )
+      }
+
+      try {
+        await MJ.typesetPromise([host])
+      } catch (e) {
+        console.warn("[MathJax] typeset", e)
+      }
+      ensureMathHostResizeObserver(host)
+    })
   }
 
   void run()

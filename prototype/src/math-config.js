@@ -4,14 +4,17 @@
 
 export const DEFAULT_MATH_FONT = "stix2"
 
+/** CHTML fonts ship in separate @mathjax/*-font packages; paths under mathjax@4/es5/…/fonts/* are not published on npm CDN. */
+const MJX_FONT_CDN = "https://cdn.jsdelivr.net/npm"
+
 export const MATH_FONT_PRESETS = {
   stix2: {
     font: "stix2",
-    fontURL: "https://cdn.jsdelivr.net/npm/mathjax@4/es5/output/chtml/fonts/stix2"
+    fontURL: `${MJX_FONT_CDN}/@mathjax/mathjax-stix2-font@4/chtml/woff2`
   },
   newcm: {
     font: "newcm",
-    fontURL: "https://cdn.jsdelivr.net/npm/mathjax@4/es5/output/chtml/fonts/newcm"
+    fontURL: `${MJX_FONT_CDN}/@mathjax/mathjax-newcm-font@4/chtml/woff2`
   }
 }
 
