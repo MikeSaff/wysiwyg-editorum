@@ -119,6 +119,56 @@ export function extractMetadataFromImportedHtml(html, options = {}) {
       const tag = (el.tagName || "").toLowerCase()
       const kwMatch = t.match(/^ключевые\s*слова[:\\s]*(.+)$/iu) || t.match(/^keywords[:\\s]*(.+)$/iu)
       const emailMatch = t.match(/\b([a-zA-Z0-9._+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})\b/)
+      const cls = (el.getAttribute("class") || "").toLowerCase()
+
+      if (
+        cls.includes("style-title-article") ||
+        (tag === "h1" && el.getAttribute("data-section-type") === "title")
+      ) {
+        if (t) {
+          const hasCyr = /[\u0400-\u04FF]/.test(t)
+          const hasLat = /[A-Za-z]{3,}/.test(t)
+          if (hasCyr && hasLat) meta.title.ru = t
+          else if (!hasCyr && hasLat) meta.title.en = t
+          else meta.title.ru = t
+        }
+        remove.add(z)
+        continue
+      }
+      if (cls.includes("style-author")) {
+        const parsed = parseAuthorsLine(t)
+        if (parsed.length) meta.authors = parsed
+        remove.add(z)
+        continue
+      }
+      if (cls.includes("style-affiliation")) {
+        if (t) {
+          meta.affiliations.push({ id: "aff-1", text: t, city: "", country: "", ror: "" })
+        }
+        remove.add(z)
+        continue
+      }
+      if (cls.includes("style-email")) {
+        if (emailMatch && meta.authors[0] && !meta.authors[0].email) {
+          meta.authors[0].email = emailMatch[1]
+        }
+        remove.add(z)
+        continue
+      }
+      if (cls.includes("style-abstract")) {
+        if (t) meta.abstract.ru = el.innerHTML.trim()
+        remove.add(z)
+        continue
+      }
+      if (cls.includes("style-keywords")) {
+        if (kwMatch) {
+          meta.keywords.ru = kwMatch[1].split(/[,;]/u).map((s) => s.trim()).filter(Boolean)
+        } else if (t) {
+          meta.keywords.ru = t.split(/[,;]/u).map((s) => s.trim()).filter(Boolean)
+        }
+        remove.add(z)
+        continue
+      }
 
       if (z === 0 && t.length >= 20 && t.length <= 600 && !el.querySelector("table,img,.math-block")) {
         const hasCyr = /[\u0400-\u04FF]/.test(t)

@@ -40,6 +40,7 @@
 | **v0.46** | **2026-04-16** | **Schema v2: `heading` + id/sectionType, `paragraph` + lang, `math_block` + id; `figure_block`/`figure_image`, `table_block`/`table_caption`; `citation_ref`, `footnote_ref`, mark `lang`; `newNodeId`; legacy JSON OK; тулбар + `export-html`** |
 | **v0.47** | **2026-04-15** | **Узлы `formula_image_block` / `formula_image_inline`; тулбар + модал; CSS нумерации; lightbox; Shift+drop; `formula-image-insert.js`; экспорт HTML + TODO JATS; тесты `formula-image.test.js`** |
 | **v0.48** | **2026-04-15** | **Weak-path: UPPERCASE + весь абзац bold → `h2` + `detectSectionType`; MathJax `mtextInheritFont` / `merrorInheritFont`; CSS mjx-utext/mtext; новые section types; linkedom devDep; тесты** |
+| **v0.52** | **2026-04-15** | **Pleiades `pStyle` → теги и `style-*`; caption до/после image + split caption+body; OLE несколько `(n)` + хвост в `<p>`; corpus `~$`; mtef merge func + `tmLDIV` → `mfrac`** |
 | **v0.45b** | **2026-04-15** | **Codex: без static split и без `{\displaystyle}` в block LaTeX; см. сессию** |
 | **v0.44b–h** | **2026-04-15** | **Codex: OMML/импорт — `cdots`, `bmatrix`, пробелы вокруг inline math, прямой шрифт индексов (см. сессию 2026-04-15)** |
 | **v0.44d** | **2026-04-15** | **Пробелы перед `,.;:!?)]}»"` — input rule + `normalizeSpaceBeforePunctuation`** |
@@ -66,6 +67,12 @@
 |---|--------|-----|-------|--------|------|
 | — | MTEF/MathType OLE в `word-import.js`, `mtef-to-mathml`, тесты (синтетика + Trukhachev optional), Semion 32 без регрессии | Composer | `package.json`, `package-lock.json`, `src/word-import.js`, `tests/word-import.test.js`, `.context/activeContext.md` | ✅ | OK (`npm test` 81 pass + 1 skip, `npm run build`) |
 | — | Корпус: baseline/diff скрипты, `tests/corpus-baseline.json`, `scripts/README.md` | Composer | `scripts/corpus-metrics.mjs`, `scripts/corpus-baseline.mjs`, `scripts/corpus-diff.mjs`, `scripts/README.md`, `tests/corpus-baseline.json` | ✅ | `npm run corpus:diff` exit 0 |
+
+## Сессия 2026-04-15 — v0.52 Pleiades strong-path + captions + OLE tail
+
+| # | Задача | Кто | Файлы | Статус | Билд |
+|---|--------|-----|-------|--------|------|
+| — | `pStyle` Pleiades/Nauka, metadata-extract по `style-*`, fig-caption до/после image, split caption+body, OLE multi-label + tail, corpus `~$` | Composer | `src/word-import.js`, `src/metadata-extract.js`, `scripts/corpus-baseline.mjs`, `tests/word-import.test.js`, `../mtef-to-mathml/src/mathml.ts`, `../mtef-to-mathml/src/util.ts`, `.context/*` | ✅ | OK (`npm test`, `npm run build`; `mtef-to-mathml` vitest) |
 
 ## Сессия 2026-04-15 — v0.44 пакет (типографика, поиск, math priority)
 

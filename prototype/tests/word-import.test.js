@@ -9,6 +9,7 @@ import {
   applyWeakPathUppercaseHeadingHeuristicToRoot,
   docxBufferToNormalizedHtml,
   docxXmlToHtml,
+  getPStyleValue,
   normalizeImportedHtml,
   ommlToLatex,
   ommlToMathML,
@@ -174,7 +175,10 @@ test("docxXmlToHtml adds ids to imported headings paragraphs and math blocks plu
 
   const html = docxXmlToHtml(xml, {}, {}, {})
 
-  assert.match(html, /<h1 id="[^"]+" data-section-type="introduction">Введение<\/h1>/u)
+  assert.match(
+    html,
+    /<h1 id="[^"]+" class="[^"]*style-heading1[^"]*" data-section-type="introduction">Введение<\/h1>/u
+  )
   assert.match(html, /<p id="[^"]+">Обычный текст<\/p>/u)
   assert.match(html, /<div class="math-block"[^>]* id="[^"]+">/u)
 })
@@ -1063,6 +1067,75 @@ test("v0.50.6: figure-as-table with NO <p> wrappers in cells (Sazykina inline pa
 test("v0.50.5: splitBilingualFigureCaptionHtml — only RU → null (no EN to split)", () => {
   const html = "Рис. 1. Только русская подпись без английской части."
   assert.equal(splitBilingualFigureCaptionHtml(html), null)
+})
+
+const W_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+
+test("v0.52: getPStyleValue reads w:pStyle", () => {
+  const xml = `<w:p xmlns:w="${W_NS}"><w:pPr><w:pStyle w:val="Author"/></w:pPr><w:r><w:t>x</w:t></w:r></w:p>`
+  const doc = parseXml(xml)
+  const p = doc.getElementsByTagName("w:p")[0]
+  assert.equal(getPStyleValue(p, W_NS), "Author")
+})
+
+test("v0.52: Pleiades TitleArticle → h1 style-title-article + title", () => {
+  const xml = `<?xml version="1.0"?><w:document xmlns:w="${W_NS}"><w:body><w:p><w:pPr><w:pStyle w:val="TitleArticle"/></w:pPr><w:r><w:t>Ion title</w:t></w:r></w:p></w:body></w:document>`
+  const html = docxXmlToHtml(xml, {}, {}, {}, {}, new Map())
+  assert.match(html, /<h1[^>]*class="[^"]*style-title-article/)
+  assert.match(html, /data-section-type="title"/)
+})
+
+test("v0.52: Pleiades Author → style-author paragraph", () => {
+  const xml = `<?xml version="1.0"?><w:document xmlns:w="${W_NS}"><w:body><w:p><w:pPr><w:pStyle w:val="Author"/></w:pPr><w:r><w:t>И.И. Иванов</w:t></w:r></w:p></w:body></w:document>`
+  const html = docxXmlToHtml(xml, {}, {}, {}, {}, new Map())
+  assert.match(html, /<p[^>]*class="[^"]*style-author/)
+})
+
+test("v0.52: Pleiades Heading2 → h2 style-heading2 + introduction", () => {
+  const xml = `<?xml version="1.0"?><w:document xmlns:w="${W_NS}"><w:body><w:p><w:pPr><w:pStyle w:val="Heading2"/></w:pPr><w:r><w:t>1. ВВЕДЕНИЕ</w:t></w:r></w:p></w:body></w:document>`
+  const html = docxXmlToHtml(xml, {}, {}, {}, {}, new Map())
+  assert.match(html, /<h2[^>]*class="[^"]*style-heading2/)
+  assert.match(html, /data-section-type="introduction"/)
+})
+
+test("v0.52: figure caption paragraph before image-only paragraph → figure-block", () => {
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+  <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+              xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+              xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
+    <w:body>
+      <w:p>
+        <w:r><w:t>Рис. 1. Подпись.</w:t></w:r>
+      </w:p>
+      <w:p>
+        <w:r>
+          <w:drawing>
+            <a:graphic>
+              <a:graphicData>
+                <a:pic>
+                  <a:blipFill>
+                    <a:blip r:embed="rId1"/>
+                  </a:blipFill>
+                </a:pic>
+              </a:graphicData>
+            </a:graphic>
+          </w:drawing>
+        </w:r>
+      </w:p>
+    </w:body>
+  </w:document>`
+  const html = docxXmlToHtml(xml, {}, { rId1: "img.png" }, {}, {}, new Map())
+  assert.match(html, /<figure[^>]*class="figure-block"[^>]*><img[^>]*src="img\.png"/)
+  assert.match(html, /<figcaption class="figure-caption-ru">/)
+})
+
+test("v0.52: Рисунок1 without space + merged caption splits before «А именно»", () => {
+  const xml = `<?xml version="1.0"?><w:document xmlns:w="${W_NS}"><w:body><w:p><w:r><w:t>Рисунок1. Короткая подпись. А именно, здесь идёт длинное продолжение параграфа с множеством текста для обсуждения солитонов и всего остального.</w:t></w:r></w:p></w:body></w:document>`
+  const html = docxXmlToHtml(xml, {}, {}, {}, {}, new Map())
+  assert.match(html, /style-fig-caption/)
+  assert.match(html, /style-body/)
+  assert.match(html, /А именно/u)
+  assert.match(html, /Короткая подпись/u)
 })
 
 test("MathLive from npm; MathJax 4 CDN in index — no mathjax-full, no KaTeX", async () => {

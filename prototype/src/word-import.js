@@ -704,6 +704,149 @@ function isEquationProgID(progId) {
   return p === "Equation.3" || p === "Equation.DSMT4" || /^MathType(\.|$)/i.test(p)
 }
 
+/** Pleiades + Nauka `w:pStyle/@w:val` → tag, `style-*` class, optional fixed `data-section-type`. */
+export const PLEIADES_PARAGRAPH_STYLE_MAP = {
+  TitleArticle: { tag: "h1", styleType: "title-article", sectionType: "title" },
+  Author: { tag: "p", styleType: "author" },
+  Address: { tag: "p", styleType: "affiliation" },
+  EMail: { tag: "p", styleType: "email" },
+  Email: { tag: "p", styleType: "email" },
+  Abstract: { tag: "p", styleType: "abstract" },
+  Keywords: { tag: "p", styleType: "keywords" },
+  KeyWords: { tag: "p", styleType: "keywords" },
+  UDK: { tag: "p", styleType: "udk" },
+  Heading: { tag: "h2", styleType: "heading" },
+  Heading1: { tag: "h1", styleType: "heading1" },
+  Heading2: { tag: "h2", styleType: "heading2" },
+  Heading3: { tag: "h3", styleType: "heading3" },
+  BodyL: { tag: "p", styleType: "body" },
+  BodyLNoTab: { tag: "p", styleType: "body-no-indent" },
+  Figure: { tag: "p", styleType: "figure" },
+  Equation: { tag: "p", styleType: "equation" },
+  TableTitle: { tag: "p", styleType: "table-title" },
+}
+
+export function getPStyleValue(p, wNs) {
+  const pPr = p.getElementsByTagNameNS(wNs, "pPr")[0]
+  if (!pPr) return ""
+  const pStyle = pPr.getElementsByTagNameNS(wNs, "pStyle")[0]
+  if (!pStyle) return ""
+  return (pStyle.getAttribute("w:val") || pStyle.getAttributeNS(wNs, "val") || "").trim()
+}
+
+function splitHtmlAtPlainTextOffset(html, plainOffset) {
+  let plainPos = 0
+  let i = 0
+  const s = html || ""
+  while (i < s.length && plainPos < plainOffset) {
+    if (s[i] === "<") {
+      const end = s.indexOf(">", i)
+      if (end < 0) break
+      i = end + 1
+      continue
+    }
+    plainPos += 1
+    i += 1
+  }
+  return { before: s.slice(0, i), after: s.slice(i) }
+}
+
+// Cyrillic А / Latin A — avoid \b after Cyrillic (JS word boundary is ASCII-centric)
+const FIG_CAPTION_BODY_MARKERS = [
+  /\.(?:\s+)[\u0410A]\s+именно(?=[\s,;:.!?]|$)/iu,
+  /\.(?:\s+)Здесь(?=[\s,;:.!?]|$)/iu,
+  /\.(?:\s+)Видно(?=[\s,;:.!?]|$)/iu,
+]
+
+/**
+ * When Word merges figure caption + body in one paragraph, split after first caption sentence.
+ * @returns {null | { captionPlain: string, bodyPlain: string, captionHtml: string, bodyHtml: string }}
+ */
+function trySplitMergedFigCaption(content, plainText) {
+  const plain = (plainText || "").replace(/\s+/g, " ").trim()
+  if (!/^(?:Рис\.|Рисунок)\s*\d/i.test(plain)) return null
+
+  let splitPlainIdx = -1
+  for (const re of FIG_CAPTION_BODY_MARKERS) {
+    const m = plain.match(re)
+    if (m && m.index != null) {
+      splitPlainIdx = m.index + 1
+      break
+    }
+  }
+
+  if (splitPlainIdx < 0 && plain.length > 200) {
+    const prefixRe = /^((?:Рис\.|Рисунок)\s*\d+\.?\s*)/i
+    const pm = plain.match(prefixRe)
+    if (pm) {
+      const afterPref = plain.slice(pm[1].length)
+      const ds = afterPref.search(/\.\s+(?=[А-ЯA-ZЁ\u0400-\u04FF])/)
+      if (ds >= 0) {
+        splitPlainIdx = pm[1].length + ds + 1
+      }
+    }
+  }
+
+  if (splitPlainIdx < 0) {
+    const prefixRe = /^((?:Рис\.|Рисунок)\s*\d+\.?\s*)/i
+    const pm = plain.match(prefixRe)
+    if (pm && plain.length > 150) {
+      const afterPref = plain.slice(pm[1].length)
+      const ds = afterPref.search(/\.\s+/)
+      if (ds >= 0 && pm[1].length + ds + 1 <= pm[1].length + 150) {
+        splitPlainIdx = pm[1].length + ds + 1
+      }
+    }
+  }
+
+  if (splitPlainIdx < 0 || splitPlainIdx >= plain.length - 1) return null
+
+  const captionPlain = plain.slice(0, splitPlainIdx).trim()
+  const bodyPlain = plain.slice(splitPlainIdx).trim()
+  if (!bodyPlain || bodyPlain.length < 8) return null
+
+  const { before, after } = splitHtmlAtPlainTextOffset(content, splitPlainIdx)
+  const captionHtml = before.trim()
+  const bodyHtml = after.trim()
+  return { captionPlain, bodyPlain, captionHtml, bodyHtml }
+}
+
+function expandFigCaptionDescriptors(descriptor) {
+  if (!descriptor || descriptor.styleType !== "fig-caption") return [descriptor]
+  const split = trySplitMergedFigCaption(descriptor.content, descriptor.plainText)
+  if (!split) return [descriptor]
+
+  const id1 = descriptor.id
+  const id2 = createImportedNodeId()
+  const attrs1 = buildImportedElementAttrs({
+    id: id1,
+    className: "style-fig-caption",
+    sectionType: null,
+  })
+  const attrs2 = buildImportedElementAttrs({
+    id: id2,
+    className: "style-body",
+    sectionType: null,
+  })
+  const d1 = {
+    ...descriptor,
+    content: split.captionHtml,
+    plainText: split.captionPlain,
+    html: `<p${attrs1}>${split.captionHtml}</p>\n`,
+  }
+  const d2 = {
+    id: id2,
+    tag: "p",
+    level: 0,
+    content: split.bodyHtml,
+    plainText: split.bodyPlain,
+    styleType: "body",
+    isImageOnly: false,
+    html: `<p${attrs2}>${split.bodyHtml}</p>\n`,
+  }
+  return [d1, d2]
+}
+
 /**
  * Parse DOCX document.xml and convert to HTML with LaTeX math.
  * @param {Record<string, string>} [oleEmbedRels] relationship Id → embeddings/*.bin path (under word/)
@@ -787,15 +930,15 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes, oleEmbedR
     const at = after.trim()
     const lm = at.match(/^\((\d+)\)$/)
     if (paragraphHasEquationStyle(p)) {
-      return { display: true, label: lm ? `(${lm[1]})` : null }
+      return { display: true, label: lm ? `(${lm[1]})` : null, oleAfter: at }
     }
     if (bt === "" && lm) {
-      return { display: true, label: `(${lm[1]})` }
+      return { display: true, label: `(${lm[1]})`, oleAfter: at }
     }
     if (bt === "" && at === "") {
-      return { display: true, label: null }
+      return { display: true, label: null, oleAfter: at }
     }
-    return { display: false, label: null }
+    return { display: false, label: null, oleAfter: "" }
   }
 
   function tryExtractLabelOnlyParagraph(p) {
@@ -920,41 +1063,77 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes, oleEmbedR
               }
             }
             let blocksHtml = ""
+            const nOle = equationOles.length
+            let tailRest = (layout.oleAfter || "").trim()
+            const perLabels = []
+            for (let oi = 0; oi < nOle; oi++) {
+              const m = tailRest.match(/^\s*\((\d+)\)\s*/)
+              if (m) {
+                perLabels.push(`(${m[1]})`)
+                tailRest = tailRest.slice(m[0].length).trim()
+              } else {
+                perLabels.push(null)
+              }
+            }
             for (let oi = 0; oi < equationOles.length; oi++) {
               const isLast = oi === equationOles.length - 1
-              const labelAttr = isLast && label ? ` data-label="${escapeAttr(label)}"` : ""
+              let lab = perLabels[oi]
+              if (lab == null && isLast) lab = label
+              const labelAttr = lab ? ` data-label="${escapeAttr(lab)}"` : ""
               blocksHtml += renderOleObjectEquationHtml(equationOles[oi], true, labelAttr)
             }
             if (blocksHtml) {
               html += blocksHtml
               if (skipNextLabelPara) skipIndices.add(idx + 1)
+              if (tailRest) {
+                const tailId = createImportedNodeId()
+                html += `<p id="${escapeAttr(tailId)}">${escapeHtml(tailRest)}</p>\n`
+              }
               continue
             }
           }
         }
 
-        const paragraph = processParagraphDescriptor(child, wNs, mNs)
-        if (!paragraph) continue
+        const rawParagraph = processParagraphDescriptor(child, wNs, mNs)
+        if (!rawParagraph) continue
+        const paragraphRuns = expandFigCaptionDescriptors(rawParagraph)
 
-        if (paragraph.tag === "p" && paragraph.isImageOnly) {
-          const nextParagraph = getBodyParagraphDescriptor(bodyChildren, idx + 1, wNs, mNs)
-          if (nextParagraph?.styleType === "fig-caption") {
-            html += renderFigureBlockHtml(paragraph, nextParagraph)
-            skipIndices.add(idx + 1)
-            continue
+        for (const paragraph of paragraphRuns) {
+          if (paragraph.tag === "p" && paragraph.styleType === "fig-caption") {
+            const nextParagraph = getBodyParagraphDescriptor(bodyChildren, idx + 1, wNs, mNs)
+            if (nextParagraph?.isImageOnly) {
+              html += renderFigureBlockHtml(nextParagraph, paragraph)
+              skipIndices.add(idx + 1)
+              continue
+            }
           }
-        }
 
-        if (paragraph.tag === "p" && (paragraph.styleType === "table-number" || paragraph.styleType === "table-caption")) {
-          const tableWrap = getFollowingTableWrap(bodyChildren, idx, paragraph, wNs, mNs)
-          if (tableWrap) {
-            html += tableWrap.html
-            tableWrap.skipIndices.forEach((skipIndex) => skipIndices.add(skipIndex))
-            continue
+          if (paragraph.tag === "p" && paragraph.isImageOnly) {
+            const nextParagraph = getBodyParagraphDescriptor(bodyChildren, idx + 1, wNs, mNs)
+            if (nextParagraph?.styleType === "fig-caption") {
+              html += renderFigureBlockHtml(paragraph, nextParagraph)
+              skipIndices.add(idx + 1)
+              continue
+            }
           }
-        }
 
-        html += paragraph.html
+          if (
+            paragraph.tag === "p" &&
+            (paragraph.styleType === "table-number" ||
+              paragraph.styleType === "table-caption" ||
+              paragraph.styleType === "table-number-en" ||
+              paragraph.styleType === "table-caption-en")
+          ) {
+            const tableWrap = getFollowingTableWrap(bodyChildren, idx, paragraph, wNs, mNs)
+            if (tableWrap) {
+              html += tableWrap.html
+              tableWrap.skipIndices.forEach((skipIndex) => skipIndices.add(skipIndex))
+              continue
+            }
+          }
+
+          html += paragraph.html
+        }
       }
     } else if (localName === "tbl") {
       // Check if table is actually a formula container (Word trick)
@@ -1077,8 +1256,38 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes, oleEmbedR
       styleType = /^Table\s*\d+\s*$/i.test(plainText) ? "table-number-en" : "table-caption-en"
     }
 
+    const pStyleVal = getPStyleValue(p, wNs)
+    const pleiades = PLEIADES_PARAGRAPH_STYLE_MAP[pStyleVal]
+    let sectionTypeOverride
+    if (pleiades) {
+      const keepHeuristic =
+        (styleType === "fig-caption" ||
+          styleType === "table-number" ||
+          styleType === "table-caption" ||
+          styleType === "table-number-en" ||
+          styleType === "table-caption-en") &&
+        (pleiades.styleType === "body" ||
+          pleiades.styleType === "figure" ||
+          pleiades.styleType === "body-no-indent" ||
+          pleiades.styleType === "equation")
+      if (!keepHeuristic) {
+        tag = pleiades.tag
+        styleType = pleiades.styleType
+        if (pleiades.sectionType != null) sectionTypeOverride = pleiades.sectionType
+        if (pleiades.tag === "h1") level = 1
+        else if (pleiades.tag === "h2") level = 2
+        else if (pleiades.tag === "h3") level = 3
+        else if (pleiades.tag === "h4") level = 4
+        else level = 0
+      }
+    }
+
     const id = createImportedNodeId()
-    const sectionType = tag.startsWith("h") ? detectSectionType(plainText) : null
+    let sectionType = null
+    if (tag.startsWith("h")) {
+      sectionType =
+        sectionTypeOverride !== undefined ? sectionTypeOverride : detectSectionType(plainText)
+    }
     const attrs = buildImportedElementAttrs({
       id,
       className: styleType ? `style-${styleType}` : "",

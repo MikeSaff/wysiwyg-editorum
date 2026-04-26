@@ -25,7 +25,11 @@ async function walkDocxFiles(dir, out = []) {
     const p = join(dir, e.name)
     if (e.isDirectory()) {
       await walkDocxFiles(p, out)
-    } else if (e.isFile() && e.name.toLowerCase().endsWith(".docx")) {
+    } else if (
+      e.isFile() &&
+      e.name.toLowerCase().endsWith(".docx") &&
+      !e.name.startsWith("~$")
+    ) {
       out.push(p)
     }
   }

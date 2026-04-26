@@ -1,5 +1,74 @@
-import type { MathNode, ParseWarning, TemplateNode } from './types.js';
+import type { MathNode, ParseWarning, TemplateNode, TextNode } from './types.js';
 import { escapeXml, flattenRow, isIdentifier, isNamedFunction, isNumber, isOperator } from './util.js';
+
+/** Longest first so `sinh` wins over `sin`. */
+const MULTI_CHAR_FUNCS = [
+  'arcsin',
+  'arccos',
+  'arctan',
+  'sinh',
+  'cosh',
+  'tanh',
+  'sech',
+  'csch',
+  'coth',
+  'sin',
+  'cos',
+  'tan',
+  'cot',
+  'sec',
+  'csc',
+  'log',
+  'ln',
+  'exp',
+  'lim',
+  'inf',
+  'sup',
+  'min',
+  'max',
+  'det',
+  'dim',
+  'arg'
+];
+
+function collapseFunctionNamesInRow(children: MathNode[]): MathNode[] {
+  const out: MathNode[] = [];
+  let i = 0;
+  while (i < children.length) {
+    const c = children[i];
+    if (c.kind !== 'text') {
+      out.push(c);
+      i += 1;
+      continue;
+    }
+    let j = i;
+    let buf = '';
+    while (j < children.length && children[j].kind === 'text') {
+      const ch = (children[j] as TextNode).value;
+      if (ch.length !== 1 || !/[a-zA-Z]/.test(ch)) break;
+      buf += ch;
+      j += 1;
+    }
+    if (buf.length >= 2) {
+      const low = buf.toLowerCase();
+      let merged: string | null = null;
+      for (const name of MULTI_CHAR_FUNCS) {
+        if (low === name) {
+          merged = buf;
+          break;
+        }
+      }
+      if (merged != null) {
+        out.push({ kind: 'text', position: (c as TextNode).position, value: merged });
+        i = j;
+        continue;
+      }
+    }
+    out.push(c);
+    i += 1;
+  }
+  return out;
+}
 
 export function renderMathML(root: MathNode, warnings: ParseWarning[]): string {
   const body = renderNode(root, warnings);
@@ -11,7 +80,9 @@ function renderNode(node: MathNode, warnings: ParseWarning[]): string {
     case 'document':
     case 'row':
     case 'pile':
-      return `<mrow>${node.children.map((child) => renderNode(child, warnings)).join('')}</mrow>`;
+      return `<mrow>${collapseFunctionNamesInRow(node.children)
+        .map((child) => renderNode(child, warnings))
+        .join('')}</mrow>`;
     case 'text':
       return renderText(node.value, node.unknown);
     case 'template':
@@ -58,6 +129,9 @@ function renderTemplate(node: TemplateNode, warnings: ParseWarning[]): string {
         ? `<mroot>${slot(slots[1], warnings)}${slot(slots[0], warnings)}</mroot>`
         : `<msqrt>${slot(slots[0], warnings)}</msqrt>`;
     case 11:
+      return `<mfrac>${slot(slots[0], warnings)}${slot(slots[1], warnings)}</mfrac>`;
+    case 26:
+      // tmLDIV — linear fraction in MathType (often emitted as stacked fraction in output)
       return `<mfrac>${slot(slots[0], warnings)}${slot(slots[1], warnings)}</mfrac>`;
     case 12:
       return `<munder>${slot(slots[0], warnings)}<mo>_</mo></munder>`;

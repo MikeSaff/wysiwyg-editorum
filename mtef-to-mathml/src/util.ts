@@ -39,5 +39,7 @@ export function isIdentifier(value: string): boolean {
 }
 
 export function isNamedFunction(value: string): boolean {
-  return /^(sin|cos|tan|log|ln|lim|max|min|sup|inf)$/i.test(value);
+  return /^(sin|cos|tan|cot|sec|csc|sinh|cosh|tanh|sech|csch|coth|log|ln|lim|max|min|sup|inf|exp|det|dim|arg|arcsin|arccos|arctan)$/i.test(
+    value
+  );
 }
