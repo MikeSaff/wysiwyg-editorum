@@ -22,7 +22,10 @@ export function isCfb(bytes: Uint8Array): boolean {
 }
 
 function extractEquationNative(bytes: Uint8Array, warnings: ParseWarning[]): Uint8Array {
-  const container = CFB.read(Buffer.from(bytes), { type: 'buffer' });
+  // Use type: 'array' so cfb accepts Uint8Array directly without Node's Buffer.
+  // Buffer is not defined in browsers — was the reason all 96 OLE objects in
+  // Trukhachev got "[mtef] Buffer is not defined" warnings on github.io.
+  const container = CFB.read(bytes, { type: 'array' });
   const entry = CFB.find(container, 'Equation Native');
   if (!entry?.content) {
     warnings.push({
