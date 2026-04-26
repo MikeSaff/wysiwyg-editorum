@@ -2241,6 +2241,17 @@ export function applyWeakPathUppercaseHeadingHeuristicToRoot(root) {
     if (!/[А-ЯA-Z]/.test(text)) return
     if (text !== text.toUpperCase()) return
     if (/[а-яa-z]/.test(text)) return
+    // v0.51.x: numbered-section heading like "1. ВВЕДЕНИЕ" / "2. ТЕОРЕТИЧЕСКАЯ МОДЕЛЬ"
+    // matches all UPPERCASE/digits checks above, but the import pipeline
+    // earlier marked it with class="list-item-numbered" because of the
+    // leading "N." prefix. For these — DON'T require <strong> wrapper:
+    // Pleiades style "Heading" is already block-level bold via pStyle, runs
+    // don't carry rPr/b explicitly. UPPERCASE + numbered prefix is enough.
+    const isNumberedSection = /^\d+\.\s+\S/.test(text)
+    if (isNumberedSection) {
+      heuristicHeadings.push(p)
+      return
+    }
     const strongText = Array.from(p.querySelectorAll("strong, b"))
       .map((s) => s.textContent || "")
       .join("")

@@ -786,9 +786,16 @@ mjx-assistive-mml {
   display: none !important;
 }
 
-/* Scale long formulas to fit */
+/* v0.51.x: formula size — block 1.4em, inline 1.15em.
+   Restored after MTEF integration cycle reset CSS to font-size:inherit (which
+   made all formulas tiny — CEO QA 2026-04-26).
+   Use !important to override the default jax="CHTML" inline-style. */
 .ProseMirror .math-block mjx-container[jax="CHTML"] {
-  font-size: inherit !important;
+  font-size: 1.4em !important;
+}
+
+.ProseMirror .math-inline mjx-container[jax="CHTML"] {
+  font-size: 1.15em !important;
 }
 
 .ProseMirror .math-block .katex-display {
