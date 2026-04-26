@@ -19,6 +19,149 @@ function plainText(el) {
   return (el.textContent || "").replace(/\s+/gu, " ").trim()
 }
 
+function toIsoDateFlexible(s) {
+  const t = (s || "").trim().replace(/\s+/gu, " ")
+  const m = t.match(/^(\d{1,2})[./](\d{1,2})[./](\d{4})/)
+  if (m) {
+    const dd = m[1].padStart(2, "0")
+    const mm = m[2].padStart(2, "0")
+    return `${m[3]}-${mm}-${dd}`
+  }
+  const m2 = t.match(/^(\d{4})-(\d{2})-(\d{2})/)
+  if (m2) return t.slice(0, 10)
+  return t
+}
+
+function authorPlainWithSupStars(el) {
+  return (el.innerHTML || "")
+    .replace(/<sup>\s*\*+\s*<\/sup>/gi, "*")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/gu, " ")
+    .trim()
+}
+
+function stripEmailLinesFromText(t) {
+  return t
+    .replace(/\*?\s*e[\-\s]?mail\s*[:=]\s*\S+@\S+\.?\s*/giu, "")
+    .replace(/\s+/gu, " ")
+    .trim()
+}
+
+function extractEmailFromAffiliationPlain(t) {
+  const m = t.match(/\*?\s*e[\-\s]?mail\s*[:=]\s*(\S+@\S+)/i)
+  return m ? m[1] : ""
+}
+
+function assignEmailToAuthors(meta, email, opts) {
+  const { paragraphStarred } = opts
+  const authors = meta.authors
+  if (!email || !authors.length) return
+  const corr = authors.filter((a) => a.isCorresponding)
+  if (paragraphStarred) {
+    if (corr.length === 1) {
+      corr[0].email = email
+      return
+    }
+    if (corr.length === 0) {
+      console.warn("[metadata] starred e-mail paragraph but no * on author line")
+      return
+    }
+    console.warn("[metadata] starred e-mail but several corresponding authors — skip")
+    return
+  }
+  if (authors.length === 1) {
+    authors[0].email = email
+    return
+  }
+  console.warn("[metadata] multiple authors, unmarked e-mail — skip assignment")
+}
+
+/**
+ * Pleiades `Abstract` style: one <p> may contain real abstract + received/accepted + keywords.
+ * DocumentJSON §5: abstracts.* only narrative abstract; keywords and dates go elsewhere.
+ */
+function ingestPleiadesStyleAbstractElement(el, meta) {
+  const plainFull = plainText(el)
+  const markerRe =
+    /(?=Поступила в редакцию|После доработки|Принята к публикации|Ключевые\s*слова|Received\b|Revised\b|Accepted\b|Keywords\b)/giu
+  const hasMeta = markerRe.test(plainFull)
+  markerRe.lastIndex = 0
+  if (!hasMeta) {
+    const h = el.innerHTML.trim()
+    if (h) {
+      meta.abstract.ru = h
+      meta.abstracts.ru = plainFull || h.replace(/<[^>]+>/gu, " ").replace(/\s+/gu, " ").trim()
+    }
+    return
+  }
+  const segments = plainFull
+    .split(markerRe)
+    .map((s) => s.trim())
+    .filter(Boolean)
+  const abstractParts = []
+  for (const seg of segments) {
+    let m = seg.match(/^Поступила в редакцию\s+(.+)$/iu)
+    if (m) {
+      meta.dates.received = toIsoDateFlexible(m[1].trim().replace(/\.+$/u, ""))
+      continue
+    }
+    m = seg.match(/^После доработки\s+(.+)$/iu)
+    if (m) {
+      meta.dates.revised = toIsoDateFlexible(m[1].trim().replace(/\.+$/u, ""))
+      continue
+    }
+    m = seg.match(/^Принята к публикации\s+(.+)$/iu)
+    if (m) {
+      meta.dates.accepted = toIsoDateFlexible(m[1].trim().replace(/\.+$/u, ""))
+      continue
+    }
+    m = seg.match(/^Ключевые\s*слова[:\s.]?\s*(.+)$/iu)
+    if (m) {
+      meta.keywords.ru = m[1].split(/[,;]/u).map((s) => s.trim()).filter(Boolean)
+      continue
+    }
+    m = seg.match(/^Received\s+(.+)$/iu)
+    if (m) {
+      if (!meta.dates.received) {
+        meta.dates.received = toIsoDateFlexible(m[1].trim().replace(/\.+$/u, ""))
+      }
+      continue
+    }
+    m = seg.match(/^Revised\s+(.+)$/iu)
+    if (m) {
+      meta.dates.revised = toIsoDateFlexible(m[1].trim().replace(/\.+$/u, ""))
+      continue
+    }
+    m = seg.match(/^Accepted\s+(.+)$/iu)
+    if (m) {
+      if (!meta.dates.accepted) {
+        meta.dates.accepted = toIsoDateFlexible(m[1].trim().replace(/\.+$/u, ""))
+      }
+      continue
+    }
+    m = seg.match(/^Keywords[:\s.]?\s*(.+)$/iu)
+    if (m) {
+      meta.keywords.en = m[1].split(/[,;]/u).map((s) => s.trim()).filter(Boolean)
+      continue
+    }
+    abstractParts.push(seg)
+  }
+  if (abstractParts.length) {
+    const joined = abstractParts.join("\n\n").trim()
+    meta.abstract.ru = joined
+    meta.abstracts.ru = joined
+  }
+}
+
+function buildContributorsFromAuthors(authors) {
+  return authors.map((a) => ({
+    id: a.id,
+    email: a.email || "",
+    is_corresponding: !!a.isCorresponding,
+    affiliation_ids: (a.affRefs || []).map((r) => `aff_${r}`),
+  }))
+}
+
 function extractDoiFromString(s) {
   const m = String(s).match(/\b(10\.\d{4,9}\/[^\s"'<>[\]]+)\b/i)
   if (!m) return ""
@@ -62,8 +205,9 @@ function parseAuthorsLine(raw) {
       initials,
       surname,
       affRefs,
+      isCorresponding: affRefs.length > 0,
       email: "",
-      orcid: ""
+      orcid: "",
     })
   }
   return authors
@@ -136,27 +280,33 @@ export function extractMetadataFromImportedHtml(html, options = {}) {
         continue
       }
       if (cls.includes("style-author")) {
-        const parsed = parseAuthorsLine(t)
+        const authPlain = authorPlainWithSupStars(el)
+        const parsed = parseAuthorsLine(authPlain || t)
         if (parsed.length) meta.authors = parsed
         remove.add(z)
         continue
       }
       if (cls.includes("style-affiliation")) {
-        if (t) {
-          meta.affiliations.push({ id: "aff-1", text: t, city: "", country: "", ror: "" })
+        const emailAddr = extractEmailFromAffiliationPlain(t)
+        const paragraphStarred = /^\s*\*/.test(t) || /<sup>\s*\*+/iu.test(el.innerHTML || "")
+        const affText = stripEmailLinesFromText(t)
+        if (emailAddr) assignEmailToAuthors(meta, emailAddr, { paragraphStarred })
+        if (affText) {
+          meta.affiliations.push({ id: "aff_1", text: affText, city: "", country: "", ror: "" })
         }
         remove.add(z)
         continue
       }
       if (cls.includes("style-email")) {
-        if (emailMatch && meta.authors[0] && !meta.authors[0].email) {
-          meta.authors[0].email = emailMatch[1]
+        if (emailMatch) {
+          const paragraphStarred = /^\s*\*/.test(t) || /<sup>\s*\*+/iu.test(el.innerHTML || "")
+          assignEmailToAuthors(meta, emailMatch[1], { paragraphStarred })
         }
         remove.add(z)
         continue
       }
       if (cls.includes("style-abstract")) {
-        if (t) meta.abstract.ru = el.innerHTML.trim()
+        ingestPleiadesStyleAbstractElement(el, meta)
         remove.add(z)
         continue
       }
@@ -193,7 +343,7 @@ export function extractMetadataFromImportedHtml(html, options = {}) {
         !emailMatch &&
         /«|»|объединение|институт|университет|лаборатори|academy|university|NPO|LLC/i.test(t)
       ) {
-        meta.affiliations.push({ id: "aff-1", text: t, city: "", country: "", ror: "" })
+        meta.affiliations.push({ id: "aff_1", text: t, city: "", country: "", ror: "" })
       } else if (tag === "p" && emailMatch) {
         if (meta.authors[0] && !meta.authors[0].email) meta.authors[0].email = emailMatch[1]
       } else if (tag === "p" && kwMatch) {
@@ -274,6 +424,8 @@ export function extractMetadataFromImportedHtml(html, options = {}) {
   if (!meta.keywords.ru.length) miss("keywords not detected")
   if (!references.length) miss("references not detected")
 
+  meta.contributors = buildContributorsFromAuthors(meta.authors)
+
   const kept = blocks.filter((_, idx) => !remove.has(idx))
   const out = rootDoc.createElement("div")
   for (const el of kept) out.appendChild(el.cloneNode(true))
@@ -302,11 +454,20 @@ export function mergeExtractedPublication(envelope, extraction) {
     if (sm.abstract && (sm.abstract.ru || sm.abstract.en)) {
       envelope.meta.abstract = { ...envelope.meta.abstract, ...sm.abstract }
     }
+    if (sm.abstracts && (sm.abstracts.ru || sm.abstracts.en)) {
+      envelope.meta.abstracts = { ...envelope.meta.abstracts, ...sm.abstracts }
+    }
     if (sm.keywords && (sm.keywords.ru?.length || sm.keywords.en?.length)) {
       envelope.meta.keywords = {
         ru: sm.keywords.ru?.length ? [...sm.keywords.ru] : envelope.meta.keywords.ru,
         en: sm.keywords.en?.length ? [...sm.keywords.en] : envelope.meta.keywords.en
       }
+    }
+    if (sm.dates && typeof sm.dates === "object") {
+      envelope.meta.dates = { ...envelope.meta.dates, ...sm.dates }
+    }
+    if (Array.isArray(sm.contributors) && sm.contributors.length) {
+      envelope.meta.contributors = sm.contributors
     }
     for (const k of ["udk", "doi", "publicationDate", "fundingInfo", "authorInfo", "authorContributions", "acknowledgments", "conflictsOfInterest"]) {
       if (sm[k]) envelope.meta[k] = sm[k]

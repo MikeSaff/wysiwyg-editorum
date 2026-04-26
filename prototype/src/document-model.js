@@ -8,7 +8,19 @@ export const EMPTY_META = {
   authors: [],
   affiliations: [],
   abstract: { ru: "", en: "" },
+  /** DocumentJSON §5 — same text as abstract.* for prototype envelope compatibility */
+  abstracts: { ru: "", en: "" },
   keywords: { ru: [], en: [] },
+  /** DocumentJSON §6.1 — minimal contributor rows (full shape filled by Editorum) */
+  contributors: [],
+  dates: {
+    received: "",
+    accepted: "",
+    published_online: "",
+    published_print: "",
+    /** extension — not in base SPEC table */
+    revised: "",
+  },
   udk: "",
   doi: "",
   publicationDate: "",
@@ -16,7 +28,7 @@ export const EMPTY_META = {
   authorInfo: "",
   authorContributions: "",
   acknowledgments: "",
-  conflictsOfInterest: ""
+  conflictsOfInterest: "",
 }
 
 export function emptyMeta() {
@@ -42,7 +54,9 @@ function mergeMeta(target, source) {
   if (!source || typeof source !== "object") return
   for (const k of Object.keys(EMPTY_META)) {
     if (source[k] === undefined) continue
-    if (k === "title" || k === "abstract") {
+    if (k === "title" || k === "abstract" || k === "abstracts") {
+      target[k] = { ...target[k], ...source[k] }
+    } else if (k === "dates" && source[k] && typeof source[k] === "object") {
       target[k] = { ...target[k], ...source[k] }
     } else if (k === "keywords") {
       target[k] = {

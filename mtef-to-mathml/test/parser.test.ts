@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { parseMathTypeSync } from '../src/index.js';
-import { char, char8, line, matrix, mtef, template } from './builders.js';
+import { char, char8, embellish, line, matrix, mtef, template } from './builders.js';
 
 describe('parseMathTypeSync', () => {
   it('parses a simple variable', () => {
@@ -54,6 +54,17 @@ describe('parseMathTypeSync', () => {
     const result = parseMathTypeSync(mtef(line(template(27, 0, [line(char(0x0078)), line(char(0x0069))]))));
     expect(result.mathml).toContain('<msub>');
     expect(result.latex).toBe('x_{i}');
+  });
+
+  it('parses prime embellishment on subscript (υ′ᵢ)', () => {
+    const result = parseMathTypeSync(
+      mtef(line(embellish(5, line(template(27, 0, [line(char(0x03c5)), line(char(0x0069))])))))
+    );
+    expect(result.mathml).toContain('<msubsup>');
+    expect(result.mathml).toContain('&#x2032;');
+    expect(result.mathml).toContain('υ');
+    expect(result.latex).toMatch(/\\prime/);
+    expect(result.latex).toContain('i');
   });
 
   it('parses combined script', () => {

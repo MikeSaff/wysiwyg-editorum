@@ -11,7 +11,7 @@ function docFromHtml(fragmentHtml) {
 test("v0.49: extractMetadata strips front + references + back sections", () => {
   const d = docFromHtml(`
 <p><strong>LONG TITLE HERE FOR TESTING PURPOSES ONLY</strong></p>
-<p>А. А. Иванов, Б. Б. Петров</p>
+<p class="style-author">И. И. Иванов*</p>
 <p>Институт «Тест», Москва, Россия</p>
 <p>E-mail: a@example.com</p>
 <p>Ключевые слова: один, два, три</p>
@@ -32,7 +32,7 @@ test("v0.49: extractMetadata strips front + references + back sections", () => {
     (meta.title.ru && meta.title.ru.includes("LONG TITLE")) ||
       (meta.title.en && meta.title.en.includes("LONG TITLE"))
   )
-  assert.equal(meta.authors.length, 2)
+  assert.equal(meta.authors.length, 1)
   assert.equal(meta.affiliations.length, 1)
   assert.match(meta.authors[0].email, /a@example\.com/)
   assert.ok(meta.keywords.ru.length >= 3)
@@ -45,4 +45,59 @@ test("v0.49: extractMetadata strips front + references + back sections", () => {
   assert.match(cleanedBody, /Body text/)
   assert.doesNotMatch(cleanedBody, /СПИСОК ЛИТЕРАТУРЫ/)
   assert.doesNotMatch(cleanedBody, /LONG TITLE HERE/)
+})
+
+test("v0.53: Pleiades abstract paragraph splits dates and keywords (DocumentJSON §5)", () => {
+  const d = docFromHtml(`
+<p class="style-title-article">Title</p>
+<p class="style-author">И. И. Иванов*</p>
+<p class="style-affiliation">Институт</p>
+<p class="style-abstract">Краткая аннотация. Поступила в редакцию 15.01.2024. Ключевые слова: один, два</p>
+<h2 data-section-type="introduction">ВВЕДЕНИЕ</h2>
+<p>Body.</p>
+<h2 data-section-type="references">ЛИТЕРАТУРА</h2>
+<p>[1] Ref</p>
+`)
+  const holder = d.getElementById("x")
+  const { meta } = extractMetadataFromImportedHtml(holder.innerHTML, { rootDocument: d })
+  assert.match(meta.abstracts.ru, /Краткая аннотация/)
+  assert.doesNotMatch(meta.abstracts.ru || "", /Поступила/i)
+  assert.equal(meta.dates.received, "2024-01-15")
+  assert.deepEqual(meta.keywords.ru, ["один", "два"])
+})
+
+test("v0.53: two authors and unmarked e-mail paragraph — email not assigned", () => {
+  const d = docFromHtml(`
+<p class="style-author">И. И. Иванов, П. П. Петров</p>
+<p class="style-email">E-mail: a@example.com</p>
+<p class="style-affiliation">Институт</p>
+<p class="style-abstract">Аннотация.</p>
+<h2 data-section-type="introduction">ВВЕДЕНИЕ</h2>
+<p>x</p>
+<h2 data-section-type="references">ЛИТЕРАТУРА</h2>
+<p>[1] r</p>
+`)
+  const holder = d.getElementById("x")
+  const { meta } = extractMetadataFromImportedHtml(holder.innerHTML, { rootDocument: d })
+  assert.equal(meta.authors.length, 2)
+  assert.equal(meta.authors[0].email || "", "")
+  assert.equal(meta.authors[1].email || "", "")
+})
+
+test("v0.53: corresponding author receives e-mail from style-email", () => {
+  const d = docFromHtml(`
+<p class="style-author">И. И. Иванов*</p>
+<p class="style-email">E-mail: z@example.com</p>
+<p class="style-affiliation">Институт</p>
+<p class="style-abstract">Аннотация.</p>
+<h2 data-section-type="introduction">ВВЕДЕНИЕ</h2>
+<p>x</p>
+<h2 data-section-type="references">ЛИТЕРАТУРА</h2>
+<p>[1] r</p>
+`)
+  const holder = d.getElementById("x")
+  const { meta } = extractMetadataFromImportedHtml(holder.innerHTML, { rootDocument: d })
+  assert.equal(meta.authors[0].email, "z@example.com")
+  assert.equal(meta.contributors[0].email, "z@example.com")
+  assert.equal(meta.contributors[0].is_corresponding, true)
 })

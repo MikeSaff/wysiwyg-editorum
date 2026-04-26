@@ -40,6 +40,11 @@ export function template(selector: number, variation: number, children: Bytes[] 
   return [3, 0, selector, ...variationBytes, 0, ...flatten(children), 0];
 }
 
+/** MTEF record type 6 — embellishment (e.g. 5 = prime) wrapping a single child line/template. */
+export function embellish(embellishment: number, child: number[]): number[] {
+  return [6, 0, embellishment, ...flatten(child), 0];
+}
+
 export function matrix(rows: number, cols: number, cells: number[][]): number[] {
   return [5, 0, 0, 0, 0, rows, cols, 0, 0, ...cells.flat(), 0];
 }

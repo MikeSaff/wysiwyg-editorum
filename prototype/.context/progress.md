@@ -41,6 +41,7 @@
 | **v0.47** | **2026-04-15** | **Узлы `formula_image_block` / `formula_image_inline`; тулбар + модал; CSS нумерации; lightbox; Shift+drop; `formula-image-insert.js`; экспорт HTML + TODO JATS; тесты `formula-image.test.js`** |
 | **v0.48** | **2026-04-15** | **Weak-path: UPPERCASE + весь абзац bold → `h2` + `detectSectionType`; MathJax `mtextInheritFont` / `merrorInheritFont`; CSS mjx-utext/mtext; новые section types; linkedom devDep; тесты** |
 | **v0.52** | **2026-04-15** | **Pleiades `pStyle` → теги и `style-*`; caption до/после image + split caption+body; OLE несколько `(n)` + хвост в `<p>`; corpus `~$`; mtef merge func + `tmLDIV` → `mfrac`** |
+| **v0.53** | **2026-04-15** | **OLE tail `peelOleTailLabels` (регрессия v0.52); fig-caption только у соседнего `<img>` / `Figure`; metadata: abstracts/dates/keywords split, email→contributor, `aff_1`; MTEF EMBELL+prime `msubsup`; corpus baseline refresh** |
 | **v0.45b** | **2026-04-15** | **Codex: без static split и без `{\displaystyle}` в block LaTeX; см. сессию** |
 | **v0.44b–h** | **2026-04-15** | **Codex: OMML/импорт — `cdots`, `bmatrix`, пробелы вокруг inline math, прямой шрифт индексов (см. сессию 2026-04-15)** |
 | **v0.44d** | **2026-04-15** | **Пробелы перед `,.;:!?)]}»"` — input rule + `normalizeSpaceBeforePunctuation`** |
@@ -73,6 +74,17 @@
 | # | Задача | Кто | Файлы | Статус | Билд |
 |---|--------|-----|-------|--------|------|
 | — | `pStyle` Pleiades/Nauka, metadata-extract по `style-*`, fig-caption до/после image, split caption+body, OLE multi-label + tail, corpus `~$` | Composer | `src/word-import.js`, `src/metadata-extract.js`, `scripts/corpus-baseline.mjs`, `tests/word-import.test.js`, `../mtef-to-mathml/src/mathml.ts`, `../mtef-to-mathml/src/util.ts`, `.context/*` | ✅ | OK (`npm test`, `npm run build`; `mtef-to-mathml` vitest) |
+
+## Сессия 2026-04-15 — v0.53 Trukhachev hardening (D→A→B/C→E)
+
+| # | Задача | Кто | Файлы | Статус | Билд |
+|---|--------|-----|-------|--------|------|
+| D | Регрессия v0.52: `peelOleTailLabels` — не отдавать первый `(n)` первому OLE при одном хвостовом номере; восстановление 96 формул / 4 figure на Trukhachev | Composer | `src/word-import.js` | ✅ | OK |
+| A | Подпись «Рис./Рисунок» → `fig-caption` только при соседнем image-only или `pStyle` Figure; контекст `bodyChildren`+index в `processParagraphDescriptor` | Composer | `src/word-import.js`, `tests/word-import.test.js` | ✅ | OK |
+| B | `style-abstract`: split Поступила/Принята/Ключевые слова + EN; `abstracts`, `dates`, keywords; ISO дат | Composer | `src/metadata-extract.js`, `src/document-model.js`, `tests/metadata-extract.test.js` | ✅ | OK |
+| C | Email на contributor (`isCorresponding`, `affiliation_ids`), aff без e-mail строки; multi-author без маркера — skip | Composer | `metadata-extract.js`, `document-model.js`, tests | ✅ | OK |
+| E | MTEF record 6 embellished: разбор child, `msubsup`/prime; `'` → U+2032; vitest + builders `embellish` | Composer | `../mtef-to-mathml/src/parser.ts`, `mathml.ts`, `latex.ts`, `test/builders.ts`, `test/parser.test.ts` | ✅ | OK |
+| — | Корпус: `npm run corpus:baseline` после улучшений заголовков/импорта; `corpus:diff` exit 0 | Composer | `tests/corpus-baseline.json` | ✅ | OK |
 
 ## Сессия 2026-04-15 — v0.44 пакет (типографика, поиск, math priority)
 

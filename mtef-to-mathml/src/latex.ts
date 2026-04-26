@@ -5,6 +5,11 @@ export function renderLatex(root: MathNode, warnings: ParseWarning[]): string {
   return renderNode(root, warnings).replace(/\s+/g, ' ').trim();
 }
 
+function unwrapSingletonRow(node: MathNode): MathNode {
+  if (node.kind === 'row' && node.children.length === 1) return node.children[0];
+  return node;
+}
+
 function renderNode(node: MathNode, warnings: ParseWarning[]): string {
   switch (node.kind) {
     case 'document':
@@ -20,8 +25,25 @@ function renderNode(node: MathNode, warnings: ParseWarning[]): string {
       return renderTemplate(node, warnings);
     case 'matrix':
       return `\\begin{matrix}${renderMatrix(node, warnings)}\\end{matrix}`;
-    case 'embellished':
-      return renderNode(node.child, warnings);
+    case 'embellished': {
+      const ch = unwrapSingletonRow(node.child);
+      const prime =
+        node.embellishment === 5
+          ? '\\prime'
+          : node.embellishment === 6
+            ? '\\prime\\prime'
+            : node.embellishment === 18
+              ? '\\prime\\prime\\prime'
+              : '';
+      if (!prime) return renderNode(ch, warnings);
+      if (ch.kind === 'template' && ch.selector === 27) {
+        return `${slot(ch.children[0], warnings)}^{${prime}}_{${slot(ch.children[1], warnings)}}`;
+      }
+      if (ch.kind === 'template' && ch.selector === 28) {
+        return `{${slot(ch.children[0], warnings)}^{${prime}}}^{${slot(ch.children[1], warnings)}}`;
+      }
+      return `${renderNode(ch, warnings)}^{${prime}}`;
+    }
     case 'unknown':
       return node.value ?? '?';
     default:

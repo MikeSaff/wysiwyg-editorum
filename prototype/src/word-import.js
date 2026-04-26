@@ -762,6 +762,41 @@ const FIG_CAPTION_BODY_MARKERS = [
  * When Word merges figure caption + body in one paragraph, split after first caption sentence.
  * @returns {null | { captionPlain: string, bodyPlain: string, captionHtml: string, bodyHtml: string }}
  */
+/**
+ * Distribute trailing (1)(2)… labels after the last OLE across display equations.
+ * Only peel leading parenthesized numbers when every equation gets an explicit label,
+ * or a single OLE gets one label, or multiple OLEs share one tail label (v0.51-style, last slot only).
+ * Otherwise keep the full tail for a following paragraph (avoid stealing a lone (n) for the wrong OLE).
+ */
+function peelOleTailLabels(tail, nOle) {
+  const perLabels = Array(nOle).fill(null)
+  const rest0 = (tail || "").trim()
+  if (!rest0 || nOle < 1) return { perLabels, tailRest: rest0 }
+
+  const labels = []
+  let tmp = rest0
+  while (tmp.length) {
+    const m = tmp.match(/^\s*\((\d+)\)\s*/)
+    if (!m) break
+    labels.push(`(${m[1]})`)
+    tmp = tmp.slice(m[0].length).trim()
+  }
+
+  if (labels.length >= nOle) {
+    for (let i = 0; i < nOle; i++) perLabels[i] = labels[i]
+    return { perLabels, tailRest: tmp }
+  }
+  if (nOle === 1 && labels.length >= 1) {
+    perLabels[0] = labels[0]
+    return { perLabels, tailRest: tmp }
+  }
+  if (nOle > 1 && labels.length === 1) {
+    perLabels[nOle - 1] = labels[0]
+    return { perLabels, tailRest: tmp }
+  }
+  return { perLabels, tailRest: rest0 }
+}
+
 function trySplitMergedFigCaption(content, plainText) {
   const plain = (plainText || "").replace(/\s+/g, " ").trim()
   if (!/^(?:Рис\.|Рисунок)\s*\d/i.test(plain)) return null
@@ -1065,16 +1100,8 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes, oleEmbedR
             let blocksHtml = ""
             const nOle = equationOles.length
             let tailRest = (layout.oleAfter || "").trim()
-            const perLabels = []
-            for (let oi = 0; oi < nOle; oi++) {
-              const m = tailRest.match(/^\s*\((\d+)\)\s*/)
-              if (m) {
-                perLabels.push(`(${m[1]})`)
-                tailRest = tailRest.slice(m[0].length).trim()
-              } else {
-                perLabels.push(null)
-              }
-            }
+            const { perLabels, tailRest: peeledTail } = peelOleTailLabels(tailRest, nOle)
+            tailRest = peeledTail
             for (let oi = 0; oi < equationOles.length; oi++) {
               const isLast = oi === equationOles.length - 1
               let lab = perLabels[oi]
@@ -1094,7 +1121,10 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes, oleEmbedR
           }
         }
 
-        const rawParagraph = processParagraphDescriptor(child, wNs, mNs)
+        const rawParagraph = processParagraphDescriptor(child, wNs, mNs, {
+          bodyChildren,
+          paragraphIndex: idx,
+        })
         if (!rawParagraph) continue
         const paragraphRuns = expandFigCaptionDescriptors(rawParagraph)
 
@@ -1154,7 +1184,7 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes, oleEmbedR
 
   return html
 
-  function processParagraphDescriptor(p, wNs, mNs) {
+  function processParagraphDescriptor(p, wNs, mNs, ctx = {}) {
     const pPr = p.getElementsByTagNameNS(wNs, "pPr")[0]
     let tag = "p"
     let level = 0
@@ -1249,7 +1279,16 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes, oleEmbedR
     const plainText = content.replace(/<[^>]+>/g, "").trim()
     let styleType = null
     if (/^(Рис\.|Рисунок)\s*\d/i.test(plainText)) {
-      styleType = "fig-caption"
+      const pStyleValCap = getPStyleValue(p, wNs)
+      const isFigureStyle = PLEIADES_PARAGRAPH_STYLE_MAP[pStyleValCap]?.styleType === "figure"
+      let allowFigCaption = isFigureStyle
+      if (!allowFigCaption && ctx.bodyChildren != null && ctx.paragraphIndex != null) {
+        const i = ctx.paragraphIndex
+        const nextDesc = getBodyParagraphDescriptor(ctx.bodyChildren, i + 1, wNs, mNs)
+        const prevDesc = getBodyParagraphDescriptor(ctx.bodyChildren, i - 1, wNs, mNs)
+        allowFigCaption = Boolean(nextDesc?.isImageOnly || prevDesc?.isImageOnly)
+      }
+      if (allowFigCaption) styleType = "fig-caption"
     } else if (/^(Табл\.|Таблица)\s*\d/i.test(plainText)) {
       styleType = /^(Табл\.|Таблица)\s*\d+\s*$/i.test(plainText) ? "table-number" : "table-caption"
     } else if (/^Table\s*\d/i.test(plainText)) {
@@ -1312,7 +1351,12 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes, oleEmbedR
     const nextName = next.localName || next.nodeName?.split(":").pop()
     if (nextName !== "p") return null
     if (findElementsByLocalName(next, "oMathPara").length > 0) return null
-    return processParagraphDescriptor(next, wNs, mNs) || null
+    return (
+      processParagraphDescriptor(next, wNs, mNs, {
+        bodyChildren: children,
+        paragraphIndex: index,
+      }) || null
+    )
   }
 
   function getFollowingTableWrap(children, index, firstParagraph, wNs, mNs) {
@@ -1377,7 +1421,10 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes, oleEmbedR
       secondParagraph?.styleType === "table-caption" &&
       thirdName === "p"
     ) {
-      const thirdParagraph = processParagraphDescriptor(third, wNs, mNs)
+      const thirdParagraph = processParagraphDescriptor(third, wNs, mNs, {
+        bodyChildren: children,
+        paragraphIndex: index + 2,
+      })
       if (thirdParagraph?.styleType === "table-caption-en" && fourthName === "tbl") {
         return {
           html: renderTableBlockHtml({

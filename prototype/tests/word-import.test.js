@@ -1129,13 +1129,27 @@ test("v0.52: figure caption paragraph before image-only paragraph → figure-blo
   assert.match(html, /<figcaption class="figure-caption-ru">/)
 })
 
-test("v0.52: Рисунок1 without space + merged caption splits before «А именно»", () => {
-  const xml = `<?xml version="1.0"?><w:document xmlns:w="${W_NS}"><w:body><w:p><w:r><w:t>Рисунок1. Короткая подпись. А именно, здесь идёт длинное продолжение параграфа с множеством текста для обсуждения солитонов и всего остального.</w:t></w:r></w:p></w:body></w:document>`
-  const html = docxXmlToHtml(xml, {}, {}, {}, {}, new Map())
-  assert.match(html, /style-fig-caption/)
+test("v0.52: Рисунок1 without space + merged caption splits before «А именно» (image next)", () => {
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<w:document xmlns:w="${W_NS}" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+  xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
+  <w:body>
+    <w:p><w:r><w:t>Рисунок1. Короткая подпись. А именно, здесь идёт длинное продолжение параграфа с множеством текста для обсуждения солитонов и всего остального.</w:t></w:r></w:p>
+    <w:p><w:r><w:drawing><a:graphic><a:graphicData><a:pic><a:blipFill><a:blip r:embed="rId1"/></a:blipFill></a:pic></a:graphicData></a:graphic></w:drawing></w:r></w:p>
+  </w:body>
+</w:document>`
+  const html = docxXmlToHtml(xml, {}, { rId1: "img.png" }, {}, {}, new Map())
+  assert.match(html, /figure-caption-ru/)
   assert.match(html, /style-body/)
   assert.match(html, /А именно/u)
   assert.match(html, /Короткая подпись/u)
+  assert.match(html, /<figure[^>]*figure-block/)
+})
+
+test("v0.53: «Рисунок N. демонстрирует…» without adjacent image is not fig-caption", () => {
+  const xml = `<?xml version="1.0"?><w:document xmlns:w="${W_NS}"><w:body><w:p><w:r><w:t>Рисунок 1. демонстрирует классические свойства солитонов и далее обычный текст без рисунка рядом.</w:t></w:r></w:p></w:body></w:document>`
+  const html = docxXmlToHtml(xml, {}, {}, {}, {}, new Map())
+  assert.doesNotMatch(html, /style-fig-caption/)
 })
 
 test("MathLive from npm; MathJax 4 CDN in index — no mathjax-full, no KaTeX", async () => {

@@ -31,6 +31,19 @@ const MULTI_CHAR_FUNCS = [
   'arg'
 ];
 
+function primeMo(embellishment: number): string | null {
+  if (embellishment === 5) return '<mo>&#x2032;</mo>';
+  if (embellishment === 6) return '<mo>&#x2033;</mo>';
+  if (embellishment === 18) return '<mo>&#x2034;</mo>';
+  return null;
+}
+
+/** MTEF often wraps a template in a single-child row; unwrap for embellishment composition. */
+function unwrapSingletonRow(node: MathNode): MathNode {
+  if (node.kind === 'row' && node.children.length === 1) return node.children[0];
+  return node;
+}
+
 function collapseFunctionNamesInRow(children: MathNode[]): MathNode[] {
   const out: MathNode[] = [];
   let i = 0;
@@ -89,8 +102,22 @@ function renderNode(node: MathNode, warnings: ParseWarning[]): string {
       return renderTemplate(node, warnings);
     case 'matrix':
       return `<mtable>${renderMatrixRows(node.cells, node.rows, node.cols, warnings)}</mtable>`;
-    case 'embellished':
-      return renderNode(node.child, warnings);
+    case 'embellished': {
+      const mo = primeMo(node.embellishment);
+      const ch = unwrapSingletonRow(node.child);
+      if (mo && ch.kind === 'template' && ch.selector === 27) {
+        return `<msubsup>${slot(ch.children[0], warnings)}${slot(ch.children[1], warnings)}${mo}</msubsup>`;
+      }
+      if (mo && ch.kind === 'template' && ch.selector === 28) {
+        const base = slot(ch.children[0], warnings);
+        const sup = slot(ch.children[1], warnings);
+        return `<msup><mrow>${base}${mo}</mrow>${sup}</msup>`;
+      }
+      if (mo) {
+        return `<msup>${renderNode(ch, warnings)}${mo}</msup>`;
+      }
+      return renderNode(ch, warnings);
+    }
     case 'unknown':
       return node.value ? renderText(node.value) : '<mtext>?</mtext>';
     default:
@@ -100,6 +127,7 @@ function renderNode(node: MathNode, warnings: ParseWarning[]): string {
 
 function renderText(value: string, unknown = false): string {
   if (unknown) return '<mtext>?</mtext>';
+  if (value === "'" || value === '\u2019') return '<mo>&#x2032;</mo>';
   const escaped = escapeXml(value);
   if (value.trim() === '') return '<mspace width="0.25em"/>';
   if (isNamedFunction(value)) return `<mi>${escaped}</mi>`;

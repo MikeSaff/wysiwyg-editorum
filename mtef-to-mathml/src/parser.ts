@@ -170,7 +170,7 @@ function parseRecordPayload(
     case 5:
       return parseMatrix(reader, version, tag, warnings);
     case 6:
-      return parseEmbellRecord(reader, version, tag);
+      return parseEmbellRecord(reader, version, tag, warnings);
     case 7:
       skipRuler(reader);
       return null;
@@ -423,14 +423,34 @@ function parseMatrix(
   };
 }
 
-function parseEmbellRecord(reader: ByteReader, version: number, tag: RecordTag): MathNode {
+function parseEmbellRecord(
+  reader: ByteReader,
+  version: number,
+  tag: RecordTag,
+  warnings: ParseWarning[]
+): MathNode {
   const options = readOptions(reader, tag, version);
   skipNudgeIfPresent(reader, options);
   const embellishment = reader.readUInt8();
+  const children = parseObjectList(reader, version, warnings);
+  const child = children[0];
+  if (!child) {
+    warnings.push({
+      type: 'malformed-input',
+      position: tag.position,
+      message: 'EMBELL record missing base child'
+    });
+    return {
+      kind: 'unknown',
+      position: tag.position,
+      value: String(embellishment)
+    };
+  }
   return {
-    kind: 'unknown',
+    kind: 'embellished',
     position: tag.position,
-    value: String(embellishment)
+    embellishment,
+    child
   };
 }
 
