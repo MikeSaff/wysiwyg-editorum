@@ -1,11 +1,13 @@
 import test from "node:test"
 import assert from "node:assert/strict"
-import fs from "node:fs/promises"
+import fs, { access, constants } from "node:fs/promises"
+import { fileURLToPath } from "node:url"
 import JSZip from "jszip"
 import { DOMParser } from "xmldom"
 import { parseHTML } from "linkedom"
 import {
   applyWeakPathUppercaseHeadingHeuristicToRoot,
+  docxBufferToNormalizedHtml,
   docxXmlToHtml,
   normalizeImportedHtml,
   ommlToLatex,
@@ -602,6 +604,81 @@ test("docxXmlToHtml wraps multiline non-cases display formulas in left-aligned a
   assert.match(blocks[0].mathml, /<mtable columnalign="left">/)
 })
 
+/** MTEF: single variable x (mtef-to-mathml builders pattern) */
+const minimalMtefX = new Uint8Array([
+  5, 1, 0, 7, 0, 0x54, 0x45, 0x53, 0x54, 0, 0, 1, 0, 2, 0, 0, 0x78, 0, 0, 0
+])
+
+test("docxXmlToHtml MTEF: w:object Equation.DSMT4 + ole blob → display math-block with data-mathml", () => {
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+  <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+              xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+              xmlns:o="urn:schemas-microsoft-com:office:office">
+    <w:body>
+      <w:p>
+        <w:r>
+          <w:object>
+            <o:OLEObject r:id="rIdOLE1" ProgID="Equation.DSMT4"/>
+          </w:object>
+        </w:r>
+      </w:p>
+    </w:body>
+  </w:document>`
+  const oleBlobs = new Map([["embeddings/oleObject1.bin", minimalMtefX]])
+  const oleEmbedRels = { rIdOLE1: "embeddings/oleObject1.bin" }
+  const html = docxXmlToHtml(xml, {}, {}, {}, oleEmbedRels, oleBlobs)
+  assert.match(html, /<div class="math-block"[^>]*data-mathml="[^"]+"/)
+  assert.match(html, /data-mathml="[^"]*&lt;mi&gt;x&lt;\/mi&gt;/)
+})
+
+test("docxXmlToHtml MTEF: inline w:object between text runs → math-inline", () => {
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+  <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+              xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+              xmlns:o="urn:schemas-microsoft-com:office:office">
+    <w:body>
+      <w:p>
+        <w:r><w:t>где </w:t></w:r>
+        <w:r>
+          <w:object>
+            <o:OLEObject r:id="rId1" ProgID="Equation.DSMT4"/>
+          </w:object>
+        </w:r>
+        <w:r><w:t> далее</w:t></w:r>
+      </w:p>
+    </w:body>
+  </w:document>`
+  const oleBlobs = new Map([["embeddings/e1.bin", minimalMtefX]])
+  const oleEmbedRels = { rId1: "embeddings/e1.bin" }
+  const html = docxXmlToHtml(xml, {}, {}, {}, oleEmbedRels, oleBlobs)
+  assert.match(html, /<span class="math-inline"[^>]*data-mathml="/)
+})
+
+test("docxXmlToHtml MTEF: trailing (5) in same paragraph as display OLE → data-label, no separate (5) paragraph", () => {
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+  <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+              xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+              xmlns:o="urn:schemas-microsoft-com:office:office">
+    <w:body>
+      <w:p>
+        <w:r>
+          <w:object>
+            <o:OLEObject r:id="rId1" ProgID="Equation.DSMT4"/>
+          </w:object>
+        </w:r>
+        <w:r><w:t>(5)</w:t></w:r>
+      </w:p>
+    </w:body>
+  </w:document>`
+  const oleBlobs = new Map([["embeddings/e1.bin", minimalMtefX]])
+  const oleEmbedRels = { rId1: "embeddings/e1.bin" }
+  const html = docxXmlToHtml(xml, {}, {}, {}, oleEmbedRels, oleBlobs)
+  const blocks = collectMathBlocks(html)
+  assert.equal(blocks.length, 1)
+  assert.equal(blocks[0].label, "(5)")
+  assert.doesNotMatch(html, /<p[^>]*>\(5\)<\/p>/)
+})
+
 test("real Semion DOCX yields 32 labeled display formulas with preserved multiline math", async () => {
   const docxPath = new URL("../../docs/test_semion_full.docx", import.meta.url)
   const xml = await loadDocumentXmlFromDocx(docxPath)
@@ -663,6 +740,27 @@ test("real Semion DOCX yields 32 labeled display formulas with preserved multili
   assert.match(byLabel.get("(26)"), /\\\\/)
   assert.match(byLabel.get("(31)"), /k_\{p\}/)
   assert.match(byLabel.get("(32)"), /k_\{e\}/)
+})
+
+test("real Trukhachev DOCX: 90+ math from MTEF OLE (fixture optional)", async (t) => {
+  const truPath = fileURLToPath(new URL("./fixtures/trukhachev.docx", import.meta.url))
+  try {
+    await access(truPath, constants.R_OK)
+  } catch {
+    t.skip("Add tests/fixtures/trukhachev.docx (copy from Nauka corpus)")
+    return
+  }
+  const buf = await fs.readFile(truPath)
+  const ab = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength)
+  const html = await docxBufferToNormalizedHtml(ab)
+  const nBlock = (html.match(/class="math-block"/g) || []).length
+  const nInline = (html.match(/class="math-inline"/g) || []).length
+  assert.ok(
+    nBlock + nInline >= 90,
+    `expected >= 90 math nodes, got block=${nBlock} inline=${nInline}`
+  )
+  const lonely = (html.match(/<p[^>]*>\s*\(\d{1,3}\)\s*<\/p>/gi) || []).length
+  assert.ok(lonely <= 5, `unexpected lonely label paragraphs: ${lonely}`)
 })
 
 test("v0.48: weak-path UPPERCASE all-bold <p> → h2 with data-section-type (linkedom)", () => {

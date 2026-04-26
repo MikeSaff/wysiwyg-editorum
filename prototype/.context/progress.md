@@ -60,6 +60,13 @@
 
 ---
 
+## Сессия 2026-04-26 — v0.51.x MTEF OLE + corpus baseline
+
+| # | Задача | Кто | Файлы | Статус | Билд |
+|---|--------|-----|-------|--------|------|
+| — | MTEF/MathType OLE в `word-import.js`, `mtef-to-mathml`, тесты (синтетика + Trukhachev optional), Semion 32 без регрессии | Composer | `package.json`, `package-lock.json`, `src/word-import.js`, `tests/word-import.test.js`, `.context/activeContext.md` | ✅ | OK (`npm test` 81 pass + 1 skip, `npm run build`) |
+| — | Корпус: baseline/diff скрипты, `tests/corpus-baseline.json`, `scripts/README.md` | Composer | `scripts/corpus-metrics.mjs`, `scripts/corpus-baseline.mjs`, `scripts/corpus-diff.mjs`, `scripts/README.md`, `tests/corpus-baseline.json` | ✅ | `npm run corpus:diff` exit 0 |
+
 ## Сессия 2026-04-15 — v0.44 пакет (типографика, поиск, math priority)
 
 | # | Задача | Кто | Файлы | Статус | Билд |

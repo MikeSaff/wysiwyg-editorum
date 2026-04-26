@@ -4,6 +4,7 @@ import { DOMParser as ProseDOMParser } from "prosemirror-model"
 import { normalizeTypographyPlainText } from "./typography-rules.js"
 import { detectSectionType } from "./section-heading.js"
 import { extractMetadataFromImportedHtml } from "./metadata-extract.js"
+import { parseMathTypeSync } from "mtef-to-mathml"
 
 /**
  * Import a .docx file directly, parsing OMML formulas into LaTeX.
@@ -679,10 +680,36 @@ export function ommlToMathML(ommlElement, options = {}) {
   return `<math xmlns="http://www.w3.org/1998/Math/MathML"${display ? ' display="block"' : ""}>${wrapMrow(normalizedContent)}</math>`
 }
 
+function findOleObjectRecord(wObjectEl) {
+  const queue = [wObjectEl]
+  for (let qi = 0; qi < queue.length; qi++) {
+    const n = queue[qi]
+    const ln = n.localName || n.nodeName?.split(":").pop() || ""
+    if (ln === "OLEObject") return n
+    for (let i = 0; i < n.childNodes.length; i++) {
+      const c = n.childNodes[i]
+      if (c.nodeType === 1) queue.push(c)
+    }
+  }
+  return null
+}
+
+function getOleProgID(oleEl) {
+  return (oleEl.getAttribute("ProgID") || oleEl.getAttribute("progID") || "").trim()
+}
+
+function isEquationProgID(progId) {
+  if (!progId) return false
+  const p = progId.trim()
+  return p === "Equation.3" || p === "Equation.DSMT4" || /^MathType(\.|$)/i.test(p)
+}
+
 /**
  * Parse DOCX document.xml and convert to HTML with LaTeX math.
+ * @param {Record<string, string>} [oleEmbedRels] relationship Id → embeddings/*.bin path (under word/)
+ * @param {Map<string, Uint8Array>} [oleBlobs] map path like "embeddings/foo.bin" → bytes
  */
-export function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
+export function docxXmlToHtml(xmlString, images, imageRels, footnotes, oleEmbedRels, oleBlobs) {
   const parser = new DOMParser()
   const doc = parser.parseFromString(xmlString, "application/xml")
 
@@ -691,10 +718,138 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
   const wpNs = "http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"
   const rNs = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
 
+  const oleRelsById = oleEmbedRels && typeof oleEmbedRels === "object" ? oleEmbedRels : {}
+  const oleBlobByPath = oleBlobs instanceof Map ? oleBlobs : new Map()
+
   const body = doc.getElementsByTagNameNS(wNs, "body")[0]
   if (!body) return "<p>Не удалось прочитать документ</p>"
 
   let html = ""
+
+  function paragraphHasEquationStyle(p) {
+    const pPr = p.getElementsByTagNameNS(wNs, "pPr")[0]
+    if (!pPr) return false
+    const pStyle = pPr.getElementsByTagNameNS(wNs, "pStyle")[0]
+    if (!pStyle) return false
+    const val = (pStyle.getAttribute("w:val") || pStyle.getAttributeNS(wNs, "val") || "").trim()
+    return /^equation$/i.test(val)
+  }
+
+  function getEquationOleObjectsInParagraph(p) {
+    const objs = findElementsByLocalName(p, "object")
+    return objs.filter((o) => {
+      const ole = findOleObjectRecord(o)
+      if (!ole) return false
+      return isEquationProgID(getOleProgID(ole))
+    })
+  }
+
+  function walkParagraphRunsForOleLayout(p, callback) {
+    function handleRun(r) {
+      const oles = findElementsByLocalName(r, "object")
+      for (const o of oles) {
+        callback({ kind: "object", o })
+      }
+      const t = extractPlainTextFromRun(r)
+      if (t) callback({ kind: "text", t })
+    }
+    for (let i = 0; i < p.childNodes.length; i++) {
+      const node = p.childNodes[i]
+      if (node.nodeType !== 1) continue
+      const name = node.localName || node.nodeName?.split(":").pop()
+      if (name === "pPr") continue
+      if (name === "r") handleRun(node)
+      else if (name === "hyperlink") {
+        for (let j = 0; j < node.childNodes.length; j++) {
+          const h = node.childNodes[j]
+          if (h.nodeType !== 1) continue
+          const hn = h.localName || h.nodeName?.split(":").pop()
+          if (hn === "r") handleRun(h)
+        }
+      }
+    }
+  }
+
+  function classifyOleParagraphLayout(p, equationOles) {
+    const eqSet = new Set(equationOles)
+    let before = ""
+    let after = ""
+    let seenEqOle = false
+    walkParagraphRunsForOleLayout(p, (seg) => {
+      if (seg.kind === "object" && eqSet.has(seg.o)) {
+        seenEqOle = true
+      } else if (seg.kind === "text") {
+        if (!seenEqOle) before += seg.t
+        else after += seg.t
+      }
+    })
+    const bt = before.trim()
+    const at = after.trim()
+    const lm = at.match(/^\((\d+)\)$/)
+    if (paragraphHasEquationStyle(p)) {
+      return { display: true, label: lm ? `(${lm[1]})` : null }
+    }
+    if (bt === "" && lm) {
+      return { display: true, label: `(${lm[1]})` }
+    }
+    if (bt === "" && at === "") {
+      return { display: true, label: null }
+    }
+    return { display: false, label: null }
+  }
+
+  function tryExtractLabelOnlyParagraph(p) {
+    if (findElementsByLocalName(p, "object").length) return null
+    if (findElementsByLocalName(p, "drawing").length) return null
+    if (findElementsByLocalName(p, "oMath").length) return null
+    if (findElementsByLocalName(p, "oMathPara").length) return null
+    const texts = []
+    const tr = p.getElementsByTagNameNS(wNs, "t")
+    for (let i = 0; i < tr.length; i++) {
+      texts.push(tr[i].textContent || "")
+    }
+    const s = texts.join("").trim()
+    const m = s.match(/^\((\d+)\)$/)
+    return m ? `(${m[1]})` : null
+  }
+
+  function tryParseOleWordObject(wObject) {
+    const ole = findOleObjectRecord(wObject)
+    if (!ole) return null
+    const progId = getOleProgID(ole)
+    if (!isEquationProgID(progId)) {
+      console.warn("[word-import] Skipping OLE object: unsupported ProgID:", progId || "(missing)")
+      return null
+    }
+    const rid = ole.getAttribute("r:id") || ole.getAttributeNS(rNs, "id")
+    if (!rid) return null
+    const target = oleRelsById[rid]
+    if (!target) {
+      console.warn("[word-import] OLE relationship not found:", rid)
+      return null
+    }
+    const blob = oleBlobByPath.get(target)
+    if (!blob) {
+      console.warn("[word-import] OLE binary missing:", target)
+      return null
+    }
+    const fname = target.split("/").pop() || target
+    try {
+      const { mathml, latex, warnings } = parseMathTypeSync(blob)
+      if (warnings?.length) console.warn("[mtef]", fname, warnings)
+      if (!mathml && !latex) return null
+      return { mathml, latex }
+    } catch (e) {
+      console.warn("[mtef]", fname, e?.message || e)
+      return null
+    }
+  }
+
+  function renderOleObjectEquationHtml(wObject, display, labelAttr = "") {
+    const parsed = tryParseOleWordObject(wObject)
+    if (!parsed) return ""
+    return renderMathHtml({ display, latex: parsed.latex, mathml: parsed.mathml, labelAttr })
+  }
 
   // Collect all child elements into array for look-ahead
   const bodyChildren = []
@@ -747,6 +902,37 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
           }
         }
       } else {
+        const equationOles = getEquationOleObjectsInParagraph(child)
+        if (equationOles.length > 0) {
+          const layout = classifyOleParagraphLayout(child, equationOles)
+          if (layout.display) {
+            let label = layout.label
+            let skipNextLabelPara = false
+            if (!label && idx + 1 < bodyChildren.length) {
+              const nextEl = bodyChildren[idx + 1]
+              const nn = nextEl.localName || nextEl.nodeName?.split(":").pop()
+              if (nn === "p") {
+                const nextLab = tryExtractLabelOnlyParagraph(nextEl)
+                if (nextLab) {
+                  label = nextLab
+                  skipNextLabelPara = true
+                }
+              }
+            }
+            let blocksHtml = ""
+            for (let oi = 0; oi < equationOles.length; oi++) {
+              const isLast = oi === equationOles.length - 1
+              const labelAttr = isLast && label ? ` data-label="${escapeAttr(label)}"` : ""
+              blocksHtml += renderOleObjectEquationHtml(equationOles[oi], true, labelAttr)
+            }
+            if (blocksHtml) {
+              html += blocksHtml
+              if (skipNextLabelPara) skipIndices.add(idx + 1)
+              continue
+            }
+          }
+        }
+
         const paragraph = processParagraphDescriptor(child, wNs, mNs)
         if (!paragraph) continue
 
@@ -851,6 +1037,12 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
         if (inlineMathContent) {
           content = appendInlineMathWithSpacing(content, p.childNodes, i, inlineMathContent, wNs)
         }
+      } else if (cName === "object") {
+        const oleHtml = renderOleObjectEquationHtml(child, false, "")
+        if (oleHtml) {
+          content = appendInlineMathWithSpacing(content, p.childNodes, i, oleHtml.trim(), wNs)
+          hasContent = true
+        }
       } else if (cName === "hyperlink") {
         // Hyperlink
         for (let hi = 0; hi < child.childNodes.length; hi++) {
@@ -858,8 +1050,11 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
           if (hChild.nodeType === 1) {
             const hcName = hChild.localName || hChild.nodeName?.split(":").pop()
             if (hcName === "r") {
-              content += processRun(hChild, wNs)
-              hasContent = true
+              const chunk = processRun(hChild, wNs)
+              if (chunk) {
+                content += chunk
+                hasContent = true
+              }
             }
           }
         }
@@ -1031,11 +1226,37 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
     return `<div class="table-wrap" id="${escapeAttr(tableId)}">${parts.join("")}</div>\n`
   }
 
+  function applyRunFormatting(text, rPr, wNs) {
+    if (!text || !rPr) return text
+    let out = text
+    const bold = rPr.getElementsByTagNameNS(wNs, "b")[0]
+    const italic = rPr.getElementsByTagNameNS(wNs, "i")[0]
+    const underline = rPr.getElementsByTagNameNS(wNs, "u")[0]
+    const strike = rPr.getElementsByTagNameNS(wNs, "strike")[0]
+    const superscript = rPr.getElementsByTagNameNS(wNs, "vertAlign")[0]
+
+    const boldVal = bold?.getAttribute("w:val") || bold?.getAttributeNS(wNs, "val")
+    if (bold && boldVal !== "0" && boldVal !== "false") out = `<strong>${out}</strong>`
+
+    const italicVal = italic?.getAttribute("w:val") || italic?.getAttributeNS(wNs, "val")
+    if (italic && italicVal !== "0" && italicVal !== "false") out = `<em>${out}</em>`
+
+    if (underline) out = `<u>${out}</u>`
+    if (strike) out = `<s>${out}</s>`
+
+    if (superscript) {
+      const va = superscript.getAttribute("w:val") || superscript.getAttributeNS(wNs, "val")
+      if (va === "superscript") out = `<sup>${out}</sup>`
+      else if (va === "subscript") out = `<sub>${out}</sub>`
+    }
+    return out
+  }
+
   function processRun(r, wNs) {
     const rPr = r.getElementsByTagNameNS(wNs, "rPr")[0]
     let text = ""
+    let objectsHtml = ""
 
-    // Get text content
     for (let i = 0; i < r.childNodes.length; i++) {
       const child = r.childNodes[i]
       const cName = child.localName || child.nodeName?.split(":").pop()
@@ -1053,7 +1274,6 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
           text += `<sup>[${fnId}]</sup>`
         }
       } else if (cName === "drawing") {
-        // Extract image from drawing element
         const blips = child.getElementsByTagNameNS("http://schemas.openxmlformats.org/drawingml/2006/main", "blip")
         for (let bi = 0; bi < blips.length; bi++) {
           const blip = blips[bi]
@@ -1062,37 +1282,16 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes) {
             text += `<img src="${imageRels[rEmbed]}" alt="image" class="inline-image">`
           }
         }
+      } else if (cName === "object") {
+        objectsHtml += renderOleObjectEquationHtml(child, false, "")
       }
     }
 
-    if (!text) return ""
-
-    // Apply formatting
-    if (rPr) {
-      const bold = rPr.getElementsByTagNameNS(wNs, "b")[0]
-      const italic = rPr.getElementsByTagNameNS(wNs, "i")[0]
-      const underline = rPr.getElementsByTagNameNS(wNs, "u")[0]
-      const strike = rPr.getElementsByTagNameNS(wNs, "strike")[0]
-      const superscript = rPr.getElementsByTagNameNS(wNs, "vertAlign")[0]
-
-      // Check if bold is explicitly turned off
-      const boldVal = bold?.getAttribute("w:val") || bold?.getAttributeNS(wNs, "val")
-      if (bold && boldVal !== "0" && boldVal !== "false") text = `<strong>${text}</strong>`
-
-      const italicVal = italic?.getAttribute("w:val") || italic?.getAttributeNS(wNs, "val")
-      if (italic && italicVal !== "0" && italicVal !== "false") text = `<em>${text}</em>`
-
-      if (underline) text = `<u>${text}</u>`
-      if (strike) text = `<s>${text}</s>`
-
-      if (superscript) {
-        const va = superscript.getAttribute("w:val") || superscript.getAttributeNS(wNs, "val")
-        if (va === "superscript") text = `<sup>${text}</sup>`
-        else if (va === "subscript") text = `<sub>${text}</sub>`
-      }
+    if (text) {
+      text = applyRunFormatting(text, rPr, wNs)
     }
-
-    return text
+    const out = `${text}${objectsHtml}`
+    return out || ""
   }
 
   /**
@@ -2553,13 +2752,12 @@ function isDelimitedMatrixAlreadyWrapped(innerContent, begChar, endChar) {
 }
 
 /**
- * Main import function: reads .docx file, returns ProseMirror doc.
+ * Load DOCX archive pieces for import or corpus metrics (images, OLE blobs, rels, footnotes).
+ * @param {ArrayBuffer} arrayBuffer
  */
-export async function importDocx(file) {
-  const arrayBuffer = await file.arrayBuffer()
+export async function extractDocxArchiveContext(arrayBuffer) {
   const zip = await JSZip.loadAsync(arrayBuffer)
 
-  // Read document.xml
   const docXmlFile = zip.file("word/document.xml")
   if (!docXmlFile) {
     throw new Error("Не найден word/document.xml в файле")
@@ -2567,12 +2765,10 @@ export async function importDocx(file) {
 
   const xmlString = await docXmlFile.async("string")
 
-  // Read images — convert unsupported formats
   const images = {}
-  for (const [path, file] of Object.entries(zip.files)) {
-    if (path.startsWith("word/media/") && !file.dir) {
+  for (const [path, zf] of Object.entries(zip.files)) {
+    if (path.startsWith("word/media/") && !zf.dir) {
       const ext = path.split(".").pop().toLowerCase()
-      // Skip formats browsers can't display — mark as placeholder
       if (ext === "wmf" || ext === "emf" || ext === "tiff" || ext === "tif") {
         const fname = path.split("/").pop()
         const label = ext.toUpperCase() + ": " + fname
@@ -2583,15 +2779,26 @@ export async function importDocx(file) {
         images[path.replace("word/", "")] = "data:image/svg+xml," + encodeURIComponent(svg)
         continue
       }
-      const data = await file.async("base64")
+      const data = await zf.async("base64")
       const mime = ext === "png" ? "image/png" : ext === "jpg" || ext === "jpeg" ? "image/jpeg" : ext === "gif" ? "image/gif" : "image/" + ext
       images[path.replace("word/", "")] = `data:${mime};base64,${data}`
     }
   }
 
-  // Read relationships to map rId -> media path
-  const relsFile = zip.file("word/_rels/document.xml.rels")
+  const oleBlobs = new Map()
+  for (const [path, zf] of Object.entries(zip.files)) {
+    if (zf.dir) continue
+    const norm = path.replace(/\\/g, "/")
+    const em = norm.match(/^word\/(embeddings\/[^/]+\.bin)$/i)
+    if (em) {
+      const data = await zf.async("uint8array")
+      oleBlobs.set(em[1], data)
+    }
+  }
+
   const imageRels = {}
+  const oleEmbedRels = {}
+  const relsFile = zip.file("word/_rels/document.xml.rels")
   if (relsFile) {
     const relsXml = await relsFile.async("string")
     const relsParser = new DOMParser()
@@ -2601,39 +2808,69 @@ export async function importDocx(file) {
       const rel = rels[i]
       const id = rel.getAttribute("Id")
       const target = rel.getAttribute("Target")
-      if (target && target.startsWith("media/")) {
-        imageRels[id] = images[target] || null
+      const type = rel.getAttribute("Type") || ""
+      if (!id || !target) continue
+      const normTarget = target.replace(/^\.?\//, "")
+      if (normTarget.startsWith("media/")) {
+        imageRels[id] = images[normTarget] || null
+      } else if (/^embeddings\//i.test(normTarget) && /\.bin$/i.test(normTarget) && oleBlobs.has(normTarget)) {
+        oleEmbedRels[id] = normTarget
       }
     }
   }
 
-  // Read footnotes if present
   const footnotesFile = zip.file("word/footnotes.xml")
   let footnotes = {}
   if (footnotesFile) {
     const fnXml = await footnotesFile.async("string")
     const fnParser = new DOMParser()
     const fnDoc = fnParser.parseFromString(fnXml, "application/xml")
-    const wNs = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
-    const fnNodes = fnDoc.getElementsByTagNameNS(wNs, "footnote")
+    const wNsFoot = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+    const fnNodes = fnDoc.getElementsByTagNameNS(wNsFoot, "footnote")
     for (let i = 0; i < fnNodes.length; i++) {
       const fn = fnNodes[i]
-      const fnId = fn.getAttribute("w:id") || fn.getAttributeNS(wNs, "id")
+      const fnId = fn.getAttribute("w:id") || fn.getAttributeNS(wNsFoot, "id")
       if (fnId && fnId !== "0" && fnId !== "-1") {
-        // Get text content of footnote
         let fnText = ""
-        const runs = fn.getElementsByTagNameNS(wNs, "t")
+        const runs = fn.getElementsByTagNameNS(wNsFoot, "t")
         for (let ri = 0; ri < runs.length; ri++) {
-          const t = runs[ri]
-          fnText += t.textContent || ""
+          fnText += runs[ri].textContent || ""
         }
         footnotes[fnId] = fnText.trim()
       }
     }
   }
 
+  return { xmlString, images, imageRels, oleEmbedRels, oleBlobs, footnotes }
+}
+
+/**
+ * @param {ArrayBuffer} arrayBuffer
+ * @returns {Promise<string>}
+ */
+export async function docxBufferToNormalizedHtml(arrayBuffer) {
+  const ctx = await extractDocxArchiveContext(arrayBuffer)
+  const rawHtml = docxXmlToHtml(
+    ctx.xmlString,
+    ctx.images,
+    ctx.imageRels,
+    ctx.footnotes,
+    ctx.oleEmbedRels,
+    ctx.oleBlobs
+  )
+  return normalizeImportedHtml(rawHtml)
+}
+
+/**
+ * Main import function: reads .docx file, returns ProseMirror doc.
+ */
+export async function importDocx(file) {
+  const arrayBuffer = await file.arrayBuffer()
+  const { xmlString, images, imageRels, oleEmbedRels, oleBlobs, footnotes } =
+    await extractDocxArchiveContext(arrayBuffer)
+
   // Convert to HTML
-  const rawHtml = docxXmlToHtml(xmlString, images, imageRels, footnotes)
+  const rawHtml = docxXmlToHtml(xmlString, images, imageRels, footnotes, oleEmbedRels, oleBlobs)
   const html = normalizeImportedHtml(rawHtml)
 
   const extraction = extractMetadataFromImportedHtml(html, { rootDocument: document })
