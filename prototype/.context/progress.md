@@ -42,6 +42,7 @@
 | **v0.48** | **2026-04-15** | **Weak-path: UPPERCASE + весь абзац bold → `h2` + `detectSectionType`; MathJax `mtextInheritFont` / `merrorInheritFont`; CSS mjx-utext/mtext; новые section types; linkedom devDep; тесты** |
 | **v0.52** | **2026-04-15** | **Pleiades `pStyle` → теги и `style-*`; caption до/после image + split caption+body; OLE несколько `(n)` + хвост в `<p>`; corpus `~$`; mtef merge func + `tmLDIV` → `mfrac`** |
 | **v0.53** | **2026-04-15** | **OLE tail `peelOleTailLabels` (регрессия v0.52); fig-caption только у соседнего `<img>` / `Figure`; metadata: abstracts/dates/keywords split, email→contributor, `aff_1`; MTEF EMBELL+prime `msubsup`; corpus baseline refresh** |
+| **v0.54** | **2026-04-27** | **MTEF: пустые sub/sup не оборачиваются (`mathml.ts`); EMBELL lookahead + `embell-orphan`; LaTeX пробелы после `\\cmd`, `validateLatex`, пустые `_{}` убраны. Импорт: floating figure + placeholder; полные RU/bilingual captions; single-author `*e-mail` → corresponding; Pleiades EN-блок. QA: `formula-quality` + baseline/diff, `formula-diff.mjs`; corpus `figures_extracted_total`.** |
 | **v0.45b** | **2026-04-15** | **Codex: без static split и без `{\displaystyle}` в block LaTeX; см. сессию** |
 | **v0.44b–h** | **2026-04-15** | **Codex: OMML/импорт — `cdots`, `bmatrix`, пробелы вокруг inline math, прямой шрифт индексов (см. сессию 2026-04-15)** |
 | **v0.44d** | **2026-04-15** | **Пробелы перед `,.;:!?)]}»"` — input rule + `normalizeSpaceBeforePunctuation`** |
@@ -74,6 +75,19 @@
 | # | Задача | Кто | Файлы | Статус | Билд |
 |---|--------|-----|-------|--------|------|
 | — | `pStyle` Pleiades/Nauka, metadata-extract по `style-*`, fig-caption до/после image, split caption+body, OLE multi-label + tail, corpus `~$` | Composer | `src/word-import.js`, `src/metadata-extract.js`, `scripts/corpus-baseline.mjs`, `tests/word-import.test.js`, `../mtef-to-mathml/src/mathml.ts`, `../mtef-to-mathml/src/util.ts`, `.context/*` | ✅ | OK (`npm test`, `npm run build`; `mtef-to-mathml` vitest) |
+
+## Сессия v0.54 — 2026-04-27 (корпус Науки: формулы, фигуры, метаданные, QA)
+
+| # | Задача | Кто | Файлы | Статус | Билд / метрики |
+|---|--------|-----|-------|--------|----------------|
+| 1 | Пустые sub/sup/supsub: не emit `msub`/`msup`/`msubsup`/`mover`/`munder`/`munderover` без содержательного script; вложенный collapse | Composer | `mtef-to-mathml/src/mathml.ts`, `test/parser.test.ts` | ✅ | `empty_msub_count` на корпусе «Сложные журналы» ≪ прежнего (>2000→1 в прогоне) |
+| 2 | EMBELL: lookahead base при null child; иначе `embell-orphan` + standalone; golden `embell-lookahead` / `embell-orphan` | Composer | `mtef-to-mathml/src/parser.ts`, `types.ts`, golden | ✅ | «EMBELL missing base» → structured warning; Trukhachev-тип кейсы восстанавливаются |
+| 3 | LaTeX: пробел после `\\команда` перед буквой; `validateLatex`; пустые скрипты симметрично; multi-char sub в `{}`; golden + все goldens валидны | Composer | `mtef-to-mathml/src/latex.ts`, `index.ts`, tests | ✅ | `invalid_latex_count` на корпусе низкий (2/1456 в прогоне) |
+| 4 | Figure: floating `drawing`/caption соседями; orphan FigCaption → `figure-placeholder`; corpus `figures_extracted_total` | Composer | `word-import.js`, `corpus-metrics.mjs`, tests | ✅ | Trukhachev: 4 figure-блока (вкл. Рис. 3 placeholder при отсутствии embed) |
+| 5 | `splitBilingualFigureCaptionHtml`: RU-only полный текст; bilingual по маркеру Fig; тесты 3 паттерна | Composer | `word-import.js`, tests | ✅ | Полные подписи RU; Сазыкина без регрессии (тесты) |
+| 6 | Single-author `*e-mail:` → email + is_corresponding; второй блок стилей Pleiades → EN title/abstract/keywords/contributors | Composer | `metadata-extract.js`, `document-model.js`, tests | ✅ | Trukhachev: contributors + EN поля; multi-author логика сохранена |
+| 7 | `scripts/formula-quality.mjs` + lib, baseline `tests/formula-quality-baseline.json`, `formula-quality:diff`; `formula-diff.mjs` (`--docx` / `--all`); README | Composer | `scripts/*`, `package.json` | ✅ | JSON-отчёт; diff exit 0 vs baseline |
+| — | Финал: `mtef` build+test; prototype test+vite build; `corpus:baseline` + `corpus:diff` exit 0 | Composer | `corpus-baseline.json`, etc. | ✅ | OK |
 
 ## Сессия 2026-04-15 — v0.53 Trukhachev hardening (D→A→B/C→E)
 

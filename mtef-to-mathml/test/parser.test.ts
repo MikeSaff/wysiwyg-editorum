@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseMathTypeSync } from '../src/index.js';
+import { parseMathTypeSync, validateLatex } from '../src/index.js';
 import { char, char8, embellish, line, matrix, mtef, template } from './builders.js';
 
 describe('parseMathTypeSync', () => {
@@ -53,7 +53,7 @@ describe('parseMathTypeSync', () => {
   it('parses subscript', () => {
     const result = parseMathTypeSync(mtef(line(template(27, 0, [line(char(0x0078)), line(char(0x0069))]))));
     expect(result.mathml).toContain('<msub>');
-    expect(result.latex).toBe('x_{i}');
+    expect(result.latex).toBe('x_i');
   });
 
   it('parses prime embellishment on subscript (υ′ᵢ)', () => {
@@ -70,7 +70,7 @@ describe('parseMathTypeSync', () => {
   it('parses combined script', () => {
     const result = parseMathTypeSync(mtef(line(template(29, 0, [line(char(0x0078)), line(char(0x0069)), line(char(0x0032))]))));
     expect(result.mathml).toContain('<msubsup>');
-    expect(result.latex).toBe('x_{i}^{2}');
+    expect(result.latex).toBe('x_i^{2}');
   });
 
   it('parses square root', () => {
@@ -167,5 +167,92 @@ describe('character and template coverage', () => {
     const variation = selector === 24 ? 1 : 0;
     const result = parseMathTypeSync(mtef(line(template(selector, variation, [line(char(0x0078))]))));
     expect(result.latex).toBe(latex);
+  });
+});
+
+describe('v0.54: empty scripts, EMBELL lookahead, LaTeX', () => {
+  it('identifier with empty subscript emits mi only (no msub)', () => {
+    const result = parseMathTypeSync(mtef(line(template(27, 0, [line(char(0x0078)), line([])]))));
+    expect(result.mathml).toContain('<mi>x</mi>');
+    expect(result.mathml).not.toContain('<msub>');
+    expect(validateLatex(result.latex).valid).toBe(true);
+  });
+
+  it('identifier with empty superscript emits mi only (no msup)', () => {
+    const result = parseMathTypeSync(mtef(line(template(28, 0, [line(char(0x0078)), line([])]))));
+    expect(result.mathml).toContain('<mi>x</mi>');
+    expect(result.mathml).not.toContain('<msup>');
+    expect(validateLatex(result.latex).valid).toBe(true);
+  });
+
+  it('nested empty-sub msub collapses (outer empty sub, inner W with empty sub)', () => {
+    const result = parseMathTypeSync(
+      mtef(
+        line(
+          template(27, 0, [
+            line(template(27, 0, [line(char(0x0057)), line([])])),
+            line([])
+          ])
+        )
+      )
+    );
+    expect(result.mathml.match(/<msub>/g) || []).toHaveLength(0);
+    expect(result.mathml).toContain('<mi>W</mi>');
+    expect(validateLatex(result.latex).valid).toBe(true);
+  });
+
+  it('non-empty subscript keeps msub', () => {
+    const result = parseMathTypeSync(
+      mtef(line(template(27, 0, [line(char(0x0057)), line(char(0x0032))])))
+    );
+    expect(result.mathml).toContain('<msub>');
+    expect(result.mathml).toContain('<mi>W</mi>');
+    expect(result.mathml).toContain('<mn>2</mn>');
+    expect(validateLatex(result.latex).valid).toBe(true);
+  });
+
+  it('msubsup with empty sub but non-empty sup emits msup', () => {
+    const result = parseMathTypeSync(
+      mtef(line(template(29, 0, [line(char(0x0078)), line([]), line(char(0x0032))])))
+    );
+    expect(result.mathml).toContain('<msup>');
+    expect(result.mathml).not.toContain('<msubsup>');
+    expect(validateLatex(result.latex).valid).toBe(true);
+  });
+
+  it('EMBELL with null inner base uses lookahead char', () => {
+    const result = parseMathTypeSync(mtef(line([...embellish(5, []), ...char(0x0078)])));
+    expect(result.mathml).toContain('<msup>');
+    expect(result.mathml).toContain('<mi>x</mi>');
+    expect(result.warnings.some((w) => w.type === 'embell-orphan')).toBe(false);
+  });
+
+  it('EMBELL with no base and no lookahead yields embell-orphan warning', () => {
+    const result = parseMathTypeSync(mtef(line(embellish(5, []))));
+    expect(result.warnings.some((w) => w.type === 'embell-orphan')).toBe(true);
+    expect(result.mathml).toContain('2032');
+  });
+
+  it('multi-character subscript is wrapped in braces in LaTeX', () => {
+    const result = parseMathTypeSync(
+      mtef(line(template(27, 0, [line(char(0x0066)), line([...char(0x0057), ...char(0x0069)])])))
+    );
+    expect(result.latex).toContain('f_{Wi}');
+    expect(validateLatex(result.latex).valid).toBe(true);
+  });
+
+  it('validateLatex accepts representative golden-style outputs', () => {
+    const samples = [
+      mtef(line(template(11, 0, [line(char(0x0061)), line(char(0x0062))]))),
+      mtef(line(template(10, 0, [line(char(0x0078))]))),
+      mtef(line(char(0x03c0))),
+      mtef(line(template(15, 0x0030, [line(char(0x0030)), line(char(0x0031)), line(char(0x0078))]))),
+      mtef(line(template(27, 0, [line(char(0x0078)), line(char(0x0069))])))
+    ];
+    for (const buf of samples) {
+      const { latex } = parseMathTypeSync(buf);
+      const v = validateLatex(latex);
+      expect(v.valid, v.errors.join('; ')).toBe(true);
+    }
   });
 });

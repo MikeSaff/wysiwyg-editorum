@@ -62,6 +62,11 @@ function assignEmailToAuthors(meta, email, opts) {
       corr[0].email = email
       return
     }
+    if (corr.length === 0 && authors.length === 1) {
+      authors[0].email = email
+      authors[0].isCorresponding = true
+      return
+    }
     if (corr.length === 0) {
       console.warn("[metadata] starred e-mail paragraph but no * on author line")
       return
@@ -162,6 +167,16 @@ function buildContributorsFromAuthors(authors) {
   }))
 }
 
+/** Pleiades second metadata block (English): Latin-heavy, almost no Cyrillic. */
+function isLikelyEnglishParagraphText(t) {
+  const s = (t || "").trim()
+  if (!s) return false
+  const lat = (s.match(/[A-Za-z]/g) || []).length
+  const cyr = (s.match(/[\u0400-\u04FF]/g) || []).length
+  if (lat + cyr === 0) return false
+  return lat / (lat + cyr) > 0.5 && cyr / (lat + cyr) < 0.1
+}
+
 function extractDoiFromString(s) {
   const m = String(s).match(/\b(10\.\d{4,9}\/[^\s"'<>[\]]+)\b/i)
   if (!m) return ""
@@ -245,6 +260,8 @@ export function extractMetadataFromImportedHtml(html, options = {}) {
   const meta = emptyMeta()
   const references = []
   const remove = new Set()
+  /** After a second English title-article, map Author/Abstract/Keywords into *En fields */
+  let englishMetaActive = false
 
   let firstBody = -1
   for (let i = 0; i < blocks.length; i++) {
@@ -272,9 +289,16 @@ export function extractMetadataFromImportedHtml(html, options = {}) {
         if (t) {
           const hasCyr = /[\u0400-\u04FF]/.test(t)
           const hasLat = /[A-Za-z]{3,}/.test(t)
-          if (hasCyr && hasLat) meta.title.ru = t
-          else if (!hasCyr && hasLat) meta.title.en = t
-          else meta.title.ru = t
+          if (englishMetaActive) {
+            if (hasLat) meta.title.en = t
+          } else if (!meta.title.ru) {
+            if (hasCyr && hasLat) meta.title.ru = t
+            else if (!hasCyr && hasLat) meta.title.en = t
+            else meta.title.ru = t
+          } else if (!meta.title.en && isLikelyEnglishParagraphText(t)) {
+            meta.title.en = t
+            englishMetaActive = true
+          }
         }
         remove.add(z)
         continue
@@ -282,7 +306,10 @@ export function extractMetadataFromImportedHtml(html, options = {}) {
       if (cls.includes("style-author")) {
         const authPlain = authorPlainWithSupStars(el)
         const parsed = parseAuthorsLine(authPlain || t)
-        if (parsed.length) meta.authors = parsed
+        if (parsed.length) {
+          if (englishMetaActive) meta.authorsEn = parsed
+          else meta.authors = parsed
+        }
         remove.add(z)
         continue
       }
@@ -306,12 +333,28 @@ export function extractMetadataFromImportedHtml(html, options = {}) {
         continue
       }
       if (cls.includes("style-abstract")) {
-        ingestPleiadesStyleAbstractElement(el, meta)
+        if (englishMetaActive) {
+          const plainFull = plainText(el)
+          const h = el.innerHTML.trim()
+          if (h) {
+            meta.abstract.en = h
+            meta.abstracts.en =
+              plainFull || h.replace(/<[^>]+>/gu, " ").replace(/\s+/gu, " ").trim()
+          }
+        } else {
+          ingestPleiadesStyleAbstractElement(el, meta)
+        }
         remove.add(z)
         continue
       }
       if (cls.includes("style-keywords")) {
-        if (kwMatch) {
+        if (englishMetaActive) {
+          if (kwMatch) {
+            meta.keywords.en = kwMatch[1].split(/[,;]/u).map((s) => s.trim()).filter(Boolean)
+          } else if (t) {
+            meta.keywords.en = t.split(/[,;]/u).map((s) => s.trim()).filter(Boolean)
+          }
+        } else if (kwMatch) {
           meta.keywords.ru = kwMatch[1].split(/[,;]/u).map((s) => s.trim()).filter(Boolean)
         } else if (t) {
           meta.keywords.ru = t.split(/[,;]/u).map((s) => s.trim()).filter(Boolean)
@@ -425,6 +468,9 @@ export function extractMetadataFromImportedHtml(html, options = {}) {
   if (!references.length) miss("references not detected")
 
   meta.contributors = buildContributorsFromAuthors(meta.authors)
+  if (meta.authorsEn.length) {
+    meta.contributorsEn = buildContributorsFromAuthors(meta.authorsEn)
+  }
 
   const kept = blocks.filter((_, idx) => !remove.has(idx))
   const out = rootDoc.createElement("div")
@@ -468,6 +514,10 @@ export function mergeExtractedPublication(envelope, extraction) {
     }
     if (Array.isArray(sm.contributors) && sm.contributors.length) {
       envelope.meta.contributors = sm.contributors
+    }
+    if (Array.isArray(sm.authorsEn) && sm.authorsEn.length) envelope.meta.authorsEn = sm.authorsEn
+    if (Array.isArray(sm.contributorsEn) && sm.contributorsEn.length) {
+      envelope.meta.contributorsEn = sm.contributorsEn
     }
     for (const k of ["udk", "doi", "publicationDate", "fundingInfo", "authorInfo", "authorContributions", "acknowledgments", "conflictsOfInterest"]) {
       if (sm[k]) envelope.meta[k] = sm[k]

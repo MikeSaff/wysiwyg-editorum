@@ -722,6 +722,8 @@ export const PLEIADES_PARAGRAPH_STYLE_MAP = {
   BodyL: { tag: "p", styleType: "body" },
   BodyLNoTab: { tag: "p", styleType: "body-no-indent" },
   Figure: { tag: "p", styleType: "figure" },
+  /** Pleiades caption paragraph (floating figures, caption-only cells) */
+  FigCaption: { tag: "p", styleType: "fig-caption" },
   Equation: { tag: "p", styleType: "equation" },
   TableTitle: { tag: "p", styleType: "table-title" },
 }
@@ -807,30 +809,6 @@ function trySplitMergedFigCaption(content, plainText) {
     if (m && m.index != null) {
       splitPlainIdx = m.index + 1
       break
-    }
-  }
-
-  if (splitPlainIdx < 0 && plain.length > 200) {
-    const prefixRe = /^((?:Рис\.|Рисунок)\s*\d+\.?\s*)/i
-    const pm = plain.match(prefixRe)
-    if (pm) {
-      const afterPref = plain.slice(pm[1].length)
-      const ds = afterPref.search(/\.\s+(?=[А-ЯA-ZЁ\u0400-\u04FF])/)
-      if (ds >= 0) {
-        splitPlainIdx = pm[1].length + ds + 1
-      }
-    }
-  }
-
-  if (splitPlainIdx < 0) {
-    const prefixRe = /^((?:Рис\.|Рисунок)\s*\d+\.?\s*)/i
-    const pm = plain.match(prefixRe)
-    if (pm && plain.length > 150) {
-      const afterPref = plain.slice(pm[1].length)
-      const ds = afterPref.search(/\.\s+/)
-      if (ds >= 0 && pm[1].length + ds + 1 <= pm[1].length + 150) {
-        splitPlainIdx = pm[1].length + ds + 1
-      }
     }
   }
 
@@ -1307,6 +1285,7 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes, oleEmbedR
           styleType === "table-caption-en") &&
         (pleiades.styleType === "body" ||
           pleiades.styleType === "figure" ||
+          pleiades.styleType === "fig-caption" ||
           pleiades.styleType === "body-no-indent" ||
           pleiades.styleType === "equation")
       if (!keepHeuristic) {
@@ -2063,6 +2042,7 @@ export function splitBilingualFigureCaptionHtml(html) {
     .trim()
   const hasRu = /(?:^|[^A-Za-zА-Яа-я])(?:Рис|Рисунок|Рис\.)\s*\d/iu.test(text)
   const hasEn = /(?:^|[^A-Za-zА-Яа-я])(?:Fig\.?|Figure)\s*\d/iu.test(text)
+  // v0.54: RU-only captions — no split; full HTML stays in figure-caption-ru via caller.
   if (!hasRu || !hasEn) return null
 
   // 1. <br> separator
@@ -2082,10 +2062,19 @@ export function splitBilingualFigureCaptionHtml(html) {
     return { ruHtml: m[1].trim(), enHtml: html.slice(m[1].length).trim() }
   }
 
-  // 3. Plain Fig boundary (no <strong>)
-  m = html.match(/([\s\S]*?[^A-Za-zА-Яа-я])((?:Fig\.?|Figure)\s*\d)/iu)
-  if (m) {
-    return { ruHtml: m[1].trim(), enHtml: html.slice(m[1].length).trim() }
+  // 3. First English figure marker: RU = everything before, EN = from marker (full tails, not truncated at first dot).
+  const figStartRe = /(?:^|[^A-Za-zА-Яа-я])((?:Fig\.?|Figure)\s*\d)/giu
+  figStartRe.lastIndex = 0
+  let figStart = -1
+  let fm
+  while ((fm = figStartRe.exec(html)) !== null) {
+    if (fm.index !== undefined) {
+      figStart = fm.index + (fm[0].length - fm[1].length)
+      break
+    }
+  }
+  if (figStart >= 0) {
+    return { ruHtml: html.slice(0, figStart).trim(), enHtml: html.slice(figStart).trim() }
   }
 
   return null
@@ -2222,6 +2211,151 @@ export function promoteFigureAsTableFramesInRoot(root, doc) {
     }
 
     table.replaceWith(fig)
+  }
+}
+
+/**
+ * v0.54: Promote Pleiades `style-figure` paragraphs that carry an inline &lt;img&gt;
+ * plus an adjacent `style-fig-caption` into &lt;figure.figure-block&gt; (floating layout).
+ * Orphan `style-fig-caption` (no paired image) becomes a figure with placeholder.
+ *
+ * @param {ParentNode} root
+ * @param {Document} doc
+ */
+export function promoteFloatingFiguresAndCaptionsInRoot(root, doc) {
+  if (!root || typeof root.querySelectorAll !== "function" || !doc?.createElement) return
+
+  const isCaptionClass = (p) => /\bstyle-fig-caption\b/u.test(p.getAttribute("class") || "")
+  const captionLooksRuEn = (p) => {
+    const t = (p.textContent || "").replace(/\s+/gu, " ").trim()
+    return (
+      /(?:^|[^A-Za-zА-Яа-я])(?:Рис|Рисунок|Рис\.)\s*\d/iu.test(t) ||
+      /(?:^|[^A-Za-zА-Яа-я])(?:Fig\.?|Figure)\s*\d/iu.test(t)
+    )
+  }
+
+  const figureParas = [...root.querySelectorAll("p")].filter(
+    (p) =>
+      !p.closest("figure") &&
+      /\bstyle-figure\b/u.test(p.getAttribute("class") || "") &&
+      p.querySelector("img")
+  )
+
+  for (const p of figureParas) {
+    if (!p.parentNode) continue
+    const allP = [...root.querySelectorAll("p")]
+    const i = allP.indexOf(p)
+    if (i < 0) continue
+    const prev = allP[i - 1]
+    const next = allP[i + 1]
+    const captionP =
+      next && isCaptionClass(next) && captionLooksRuEn(next)
+        ? next
+        : prev && isCaptionClass(prev) && captionLooksRuEn(prev)
+          ? prev
+          : null
+    if (!captionP) continue
+
+    const fig = doc.createElement("figure")
+    fig.className = "figure-block"
+    fig.setAttribute("data-schema-v2", "")
+    fig.setAttribute("data-id", createImportedNodeId())
+    fig.id = createImportedNodeId()
+    const capPlain = (captionP.textContent || "").replace(/\s+/gu, " ").trim()
+    const numMatch =
+      capPlain.match(/(?:^|[^A-Za-zА-Яа-я])(?:Рис(?:унок)?|Рис\.)\s*(\d+)/iu) ||
+      capPlain.match(/(?:^|[^A-Za-zА-Яа-я])(?:Fig\.?|Figure)\s*(\d+)/iu)
+    if (numMatch?.[1]) fig.setAttribute("data-number", numMatch[1])
+
+    const img = p.querySelector("img")
+    if (img) {
+      const cloned = /** @type {HTMLImageElement} */ (img.cloneNode(true))
+      const cls = cloned.getAttribute("class") || ""
+      if (!/\bfigure-block-img\b/u.test(cls)) {
+        cloned.setAttribute("class", [cls.trim(), "figure-block-img"].filter(Boolean).join(" "))
+      }
+      fig.appendChild(cloned)
+    }
+
+    const captionContent = normalizeImportedParagraphHtml(captionP.innerHTML, ' class="style-fig-caption"')
+    const split = splitBilingualFigureCaptionHtml(captionContent)
+    if (split) {
+      const ruFc = doc.createElement("figcaption")
+      ruFc.className = "figure-caption-ru"
+      ruFc.innerHTML = split.ruHtml
+      const enFc = doc.createElement("figcaption")
+      enFc.className = "figure-caption-en"
+      enFc.innerHTML = split.enHtml
+      fig.appendChild(ruFc)
+      fig.appendChild(enFc)
+    } else {
+      const fc = doc.createElement("figcaption")
+      fc.className = "figure-caption-ru"
+      fc.innerHTML = captionContent
+      fig.appendChild(fc)
+    }
+
+    p.parentNode.insertBefore(fig, p)
+    captionP.remove()
+    p.remove()
+  }
+
+  const orphanCaps = [...root.querySelectorAll("p")].filter(
+    (p) =>
+      !p.closest("figure") &&
+      isCaptionClass(p) &&
+      captionLooksRuEn(p) &&
+      (p.textContent || "").replace(/\s+/gu, " ").trim().length > 0
+  )
+
+  for (const p of orphanCaps) {
+    if (!p.parentNode) continue
+    const prev = p.previousElementSibling
+    const next = p.nextElementSibling
+    if (
+      (prev && prev.classList?.contains("figure-block")) ||
+      (next && next.classList?.contains("figure-block"))
+    ) {
+      continue
+    }
+
+    const fig = doc.createElement("figure")
+    fig.className = "figure-block"
+    fig.setAttribute("data-schema-v2", "")
+    fig.setAttribute("data-id", createImportedNodeId())
+    fig.id = createImportedNodeId()
+    const t = (p.textContent || "").replace(/\s+/gu, " ").trim()
+    const numM =
+      t.match(/(?:^|[^A-Za-zА-Яа-я])(?:Рис(?:унок)?|Рис\.)\s*(\d+)/iu) ||
+      t.match(/(?:^|[^A-Za-zА-Яа-я])(?:Fig\.?|Figure)\s*(\d+)/iu)
+    if (numM?.[1]) fig.setAttribute("data-number", numM[1])
+
+    const ph = doc.createElement("div")
+    ph.className = "figure-placeholder"
+    ph.setAttribute("data-needs-image", "true")
+    ph.textContent = "🖼 Перетащите изображение сюда или щёлкните правой кнопкой"
+    fig.appendChild(ph)
+
+    const captionContent = normalizeImportedParagraphHtml(p.innerHTML, ' class="style-fig-caption"')
+    const split = splitBilingualFigureCaptionHtml(captionContent)
+    if (split) {
+      const ruFc = doc.createElement("figcaption")
+      ruFc.className = "figure-caption-ru"
+      ruFc.innerHTML = split.ruHtml
+      const enFc = doc.createElement("figcaption")
+      enFc.className = "figure-caption-en"
+      enFc.innerHTML = split.enHtml
+      fig.appendChild(ruFc)
+      fig.appendChild(enFc)
+    } else {
+      const fc = doc.createElement("figcaption")
+      fc.className = "figure-caption-ru"
+      fc.innerHTML = captionContent
+      fig.appendChild(fc)
+    }
+
+    p.parentNode.insertBefore(fig, p)
+    p.remove()
   }
 }
 
@@ -2465,6 +2599,7 @@ export function normalizeImportedHtml(html) {
       const holder = document.createElement("div")
       holder.innerHTML = out
       promoteFigureAsTableFramesInRoot(holder, document)
+      promoteFloatingFiguresAndCaptionsInRoot(holder, document)
       // v0.50.4: pick up Рис./Fig. captions that live as siblings of bare <img>
       // paragraphs (Sazykina pattern) — promote them into figure-blocks too.
       promoteLooseFigureCaptionsAroundImagesInRoot(holder, document)

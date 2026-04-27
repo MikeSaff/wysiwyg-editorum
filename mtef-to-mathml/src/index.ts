@@ -20,3 +20,4 @@ export async function parseMathType(input: ArrayBuffer | Uint8Array): Promise<Pa
 }
 
 export { parseMtef } from './parser.js';
+export { validateLatex, fixLatexSpacing } from './latex.js';

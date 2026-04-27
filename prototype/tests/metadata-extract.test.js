@@ -101,3 +101,49 @@ test("v0.53: corresponding author receives e-mail from style-email", () => {
   assert.equal(meta.contributors[0].email, "z@example.com")
   assert.equal(meta.contributors[0].is_corresponding, true)
 })
+
+test("v0.54: single author with *e-mail is corresponding without star on name", () => {
+  const d = docFromHtml(`
+<p class="style-title-article">Title</p>
+<p class="style-author">И. И. Иванов</p>
+<p class="style-email">*E-mail: sole@example.com</p>
+<p class="style-affiliation">Институт</p>
+<p class="style-abstract">Аннотация.</p>
+<h2 data-section-type="introduction">ВВЕДЕНИЕ</h2>
+<p>x</p>
+<h2 data-section-type="references">ЛИТЕРАТУРА</h2>
+<p>[1] r</p>
+`)
+  const holder = d.getElementById("x")
+  const { meta } = extractMetadataFromImportedHtml(holder.innerHTML, { rootDocument: d })
+  assert.equal(meta.authors.length, 1)
+  assert.equal(meta.authors[0].email, "sole@example.com")
+  assert.equal(meta.authors[0].isCorresponding, true)
+  assert.equal(meta.contributors[0].is_corresponding, true)
+})
+
+test("v0.54: second English metadata block fills title.en, abstracts.en, keywords.en", () => {
+  const d = docFromHtml(`
+<p class="style-title-article">Заголовок на русском</p>
+<p class="style-author">И. И. Иванов</p>
+<p class="style-affiliation">Институт</p>
+<p class="style-abstract">Русская аннотация короткая.</p>
+<p class="style-keywords">Ключевые слова: один</p>
+<p class="style-title-article">English Title For Journal</p>
+<p class="style-author">I. I. Ivanov</p>
+<p class="style-abstract">English abstract narrative here.</p>
+<p class="style-keywords">Keywords: alpha, beta</p>
+<h2 data-section-type="introduction">INTRODUCTION</h2>
+<p>Body.</p>
+<h2 data-section-type="references">REFERENCES</h2>
+<p>[1] ref</p>
+`)
+  const holder = d.getElementById("x")
+  const { meta } = extractMetadataFromImportedHtml(holder.innerHTML, { rootDocument: d })
+  assert.match(meta.title.ru || "", /Заголовок/u)
+  assert.match(meta.title.en || "", /English Title/u)
+  assert.match(meta.abstracts.en || "", /English abstract/u)
+  assert.deepEqual(meta.keywords.en, ["alpha", "beta"])
+  assert.ok(meta.authorsEn.length >= 1)
+  assert.ok(meta.contributorsEn.length >= 1)
+})

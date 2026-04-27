@@ -38,6 +38,35 @@ function primeMo(embellishment: number): string | null {
   return null;
 }
 
+/** True if rendered script/accent slot has semantic math (not empty mrow / whitespace-only). */
+export function scriptHtmlMeaningful(html: string): boolean {
+  const t = html.replace(/\s+/g, ' ').trim();
+  if (!t) return false;
+  if (/^<mrow\s*\/>\s*$/i.test(t)) return false;
+  if (/^<mrow>\s*<\/mrow>\s*$/i.test(t)) return false;
+  if (/^<mspace\b[^>]*\/>\s*$/i.test(t)) return false;
+  if (/^<mrow>\s*<mspace\b[^>]*\/>\s*<\/mrow>\s*$/i.test(t)) return false;
+  return /<(mi|mn|mo|mtext|mfrac|msqrt|mroot|msub|msup|msubsup|mtable)\b/i.test(t);
+}
+
+function emitSubSup(base: string, sub: string, sup: string): string {
+  const hs = scriptHtmlMeaningful(sub);
+  const hu = scriptHtmlMeaningful(sup);
+  if (!hs && !hu) return base;
+  if (!hs && hu) return `<msup>${base}${sup}</msup>`;
+  if (hs && !hu) return `<msub>${base}${sub}</msub>`;
+  return `<msubsup>${base}${sub}${sup}</msubsup>`;
+}
+
+function emitUnderOver(base: string, under: string, over: string, closeSuffix: string): string {
+  const hu = scriptHtmlMeaningful(under);
+  const ho = scriptHtmlMeaningful(over);
+  if (!hu && !ho) return `<mrow>${base}${closeSuffix}</mrow>`;
+  if (!hu && ho) return `<mover>${base}${over}</mover>${closeSuffix}`;
+  if (hu && !ho) return `<munder>${base}${under}</munder>${closeSuffix}`;
+  return `<munderover>${base}${under}${over}</munderover>${closeSuffix}`;
+}
+
 /** MTEF often wraps a template in a single-child row; unwrap for embellishment composition. */
 function unwrapSingletonRow(node: MathNode): MathNode {
   if (node.kind === 'row' && node.children.length === 1) return node.children[0];
@@ -106,12 +135,21 @@ function renderNode(node: MathNode, warnings: ParseWarning[]): string {
       const mo = primeMo(node.embellishment);
       const ch = unwrapSingletonRow(node.child);
       if (mo && ch.kind === 'template' && ch.selector === 27) {
-        return `<msubsup>${slot(ch.children[0], warnings)}${slot(ch.children[1], warnings)}${mo}</msubsup>`;
+        const base = slot(ch.children[0], warnings);
+        const sub = slot(ch.children[1], warnings);
+        if (!scriptHtmlMeaningful(sub)) {
+          return `<msup>${base}${mo}</msup>`;
+        }
+        return `<msubsup>${base}${sub}${mo}</msubsup>`;
       }
       if (mo && ch.kind === 'template' && ch.selector === 28) {
         const base = slot(ch.children[0], warnings);
         const sup = slot(ch.children[1], warnings);
-        return `<msup><mrow>${base}${mo}</mrow>${sup}</msup>`;
+        const inner = `<mrow>${base}${mo}</mrow>`;
+        if (!scriptHtmlMeaningful(sup)) {
+          return inner;
+        }
+        return `<msup>${inner}${sup}</msup>`;
       }
       if (mo) {
         return `<msup>${renderNode(ch, warnings)}${mo}</msup>`;
@@ -128,6 +166,9 @@ function renderNode(node: MathNode, warnings: ParseWarning[]): string {
 function renderText(value: string, unknown = false): string {
   if (unknown) return '<mtext>?</mtext>';
   if (value === "'" || value === '\u2019') return '<mo>&#x2032;</mo>';
+  if (value === '\u2032') return '<mo>&#x2032;</mo>';
+  if (value === '\u2033') return '<mo>&#x2033;</mo>';
+  if (value === '\u2034') return '<mo>&#x2034;</mo>';
   const escaped = escapeXml(value);
   if (value.trim() === '') return '<mspace width="0.25em"/>';
   if (isNamedFunction(value)) return `<mi>${escaped}</mi>`;
@@ -159,12 +200,17 @@ function renderTemplate(node: TemplateNode, warnings: ParseWarning[]): string {
     case 11:
       return `<mfrac>${slot(slots[0], warnings)}${slot(slots[1], warnings)}</mfrac>`;
     case 26:
-      // tmLDIV — linear fraction in MathType (often emitted as stacked fraction in output)
       return `<mfrac>${slot(slots[0], warnings)}${slot(slots[1], warnings)}</mfrac>`;
-    case 12:
-      return `<munder>${slot(slots[0], warnings)}<mo>_</mo></munder>`;
-    case 13:
-      return `<mover>${slot(slots[0], warnings)}<mo>¯</mo></mover>`;
+    case 12: {
+      const b = slot(slots[0], warnings);
+      if (!scriptHtmlMeaningful(b)) return '<mo>_</mo>';
+      return `<munder>${b}<mo>_</mo></munder>`;
+    }
+    case 13: {
+      const b = slot(slots[0], warnings);
+      if (!scriptHtmlMeaningful(b)) return '<mo>¯</mo>';
+      return `<mover>${b}<mo>¯</mo></mover>`;
+    }
     case 15:
       return bigOperator('∫', node, warnings);
     case 16:
@@ -179,24 +225,43 @@ function renderTemplate(node: TemplateNode, warnings: ParseWarning[]): string {
       return bigOperator('∫', node, warnings);
     case 22:
       return bigOperator('∑', node, warnings);
-    case 23:
-      return `<munder><mi>lim</mi>${slot(slots[0], warnings)}</munder>`;
+    case 23: {
+      const limArg = slot(slots[0], warnings);
+      if (!scriptHtmlMeaningful(limArg)) return '<mi>lim</mi>';
+      return `<munder><mi>lim</mi>${limArg}</munder>`;
+    }
     case 27:
-      return `<msub>${slot(slots[0], warnings)}${slot(slots[1], warnings)}</msub>`;
+      return emitSubSup(slot(slots[0], warnings), slot(slots[1], warnings), '');
     case 28:
-      return `<msup>${slot(slots[0], warnings)}${slot(slots[1], warnings)}</msup>`;
+      return emitSubSup(slot(slots[0], warnings), '', slot(slots[1], warnings));
     case 29:
-      return `<msubsup>${slot(slots[0], warnings)}${slot(slots[1], warnings)}${slot(slots[2], warnings)}</msubsup>`;
-    case 31:
-      return `<mover>${slot(slots[0], warnings)}<mo>→</mo></mover>`;
-    case 32:
-      return `<mover>${slot(slots[0], warnings)}<mo>~</mo></mover>`;
-    case 33:
-      return `<mover>${slot(slots[0], warnings)}<mo>^</mo></mover>`;
+      return emitSubSup(slot(slots[0], warnings), slot(slots[1], warnings), slot(slots[2], warnings));
+    case 31: {
+      const b = slot(slots[0], warnings);
+      if (!scriptHtmlMeaningful(b)) return '<mo>→</mo>';
+      return `<mover>${b}<mo>→</mo></mover>`;
+    }
+    case 32: {
+      const b = slot(slots[0], warnings);
+      if (!scriptHtmlMeaningful(b)) return '<mo>~</mo>';
+      return `<mover>${b}<mo>~</mo></mover>`;
+    }
+    case 33: {
+      const b = slot(slots[0], warnings);
+      if (!scriptHtmlMeaningful(b)) return '<mo>^</mo>';
+      return `<mover>${b}<mo>^</mo></mover>`;
+    }
     case 24:
-      return node.variation & 0x0001
-        ? `<mover>${slot(slots[0], warnings)}<mo>⏞</mo></mover>`
-        : `<munder>${slot(slots[0], warnings)}<mo>⏟</mo></munder>`;
+      if (node.variation & 0x0001) {
+        const b = slot(slots[0], warnings);
+        if (!scriptHtmlMeaningful(b)) return '<mo>⏞</mo>';
+        return `<mover>${b}<mo>⏞</mo></mover>`;
+      }
+      {
+        const b = slot(slots[0], warnings);
+        if (!scriptHtmlMeaningful(b)) return '<mo>⏟</mo>';
+        return `<munder>${b}<mo>⏟</mo></munder>`;
+      }
     default:
       warnings.push({
         type: 'unknown-template',
@@ -222,10 +287,23 @@ function bigOperator(symbol: string, node: TemplateNode, warnings: ParseWarning[
   const hasUpper = (node.variation & 0x0020) !== 0;
   const op = `<mo>${symbol}</mo>`;
   if (hasLower && hasUpper) {
-    return `<munderover>${op}${slot(slots[0], warnings)}${slot(slots[1], warnings)}</munderover>${slot(slots[2], warnings)}`;
+    const low = slot(slots[0], warnings);
+    const up = slot(slots[1], warnings);
+    const rest = slot(slots[2], warnings);
+    return emitUnderOver(op, low, up, rest);
   }
-  if (hasLower) return `<munder>${op}${slot(slots[0], warnings)}</munder>${slot(slots[1], warnings)}`;
-  if (hasUpper) return `<mover>${op}${slot(slots[0], warnings)}</mover>${slot(slots[1], warnings)}`;
+  if (hasLower) {
+    const low = slot(slots[0], warnings);
+    const rest = slot(slots[1], warnings);
+    if (!scriptHtmlMeaningful(low)) return `<mrow>${op}${rest}</mrow>`;
+    return `<munder>${op}${low}</munder>${rest}`;
+  }
+  if (hasUpper) {
+    const up = slot(slots[0], warnings);
+    const rest = slot(slots[1], warnings);
+    if (!scriptHtmlMeaningful(up)) return `<mrow>${op}${rest}</mrow>`;
+    return `<mover>${op}${up}</mover>${rest}`;
+  }
   return `<mrow>${op}${slot(slots[0], warnings)}</mrow>`;
 }
 

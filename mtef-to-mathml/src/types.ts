@@ -4,7 +4,8 @@ export type WarningType =
   | 'unknown-template'
   | 'unsupported-record'
   | 'malformed-input'
-  | 'latex-best-effort';
+  | 'latex-best-effort'
+  | 'embell-orphan';
 
 export interface ParseWarning {
   type: WarningType;

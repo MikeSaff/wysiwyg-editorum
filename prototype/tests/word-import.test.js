@@ -13,7 +13,8 @@ import {
   normalizeImportedHtml,
   ommlToLatex,
   ommlToMathML,
-  splitBilingualFigureCaptionHtml
+  splitBilingualFigureCaptionHtml,
+  promoteFloatingFiguresAndCaptionsInRoot
 } from "../src/word-import.js"
 import {
   integralOmml,
@@ -1144,6 +1145,67 @@ test("v0.52: Рисунок1 without space + merged caption splits before «А �
   assert.match(html, /А именно/u)
   assert.match(html, /Короткая подпись/u)
   assert.match(html, /<figure[^>]*figure-block/)
+})
+
+test("v0.54: splitBilingual RU-only returns null (full caption preserved by caller)", () => {
+  assert.equal(splitBilingualFigureCaptionHtml("Рис. 1. Зависимость X от Y."), null)
+})
+
+test("v0.54: splitBilingual bilingual splits at Fig with full tails", () => {
+  const s = splitBilingualFigureCaptionHtml(
+    "Рис. 1. Полный русский текст. Fig. 1. Full English text here."
+  )
+  assert.ok(s)
+  assert.match(s.ruHtml, /Полный русский/u)
+  assert.match(s.enHtml, /Full English/u)
+})
+
+test("v0.54: normalizeImportedHtml promotes style-figure + adjacent fig-caption", () => {
+  const { document: doc } = parseHTML("<!DOCTYPE html><html><body></body></html>")
+  const prevDoc = globalThis.document
+  globalThis.document = doc
+  try {
+    const html =
+      '<p class="style-figure"><img src="x.png" alt=""></p>\n' +
+      '<p class="style-fig-caption">Рис. 1. Длинная подпись для проверки импорта.</p>\n'
+    const out = normalizeImportedHtml(html)
+    assert.match(out, /figure-block/)
+    assert.match(out, /Длинная подпись/u)
+  } finally {
+    globalThis.document = prevDoc
+  }
+})
+
+test("v0.54: orphan style-fig-caption becomes figure with placeholder", () => {
+  const { document: doc } = parseHTML("<!DOCTYPE html><html><body></body></html>")
+  const prevDoc = globalThis.document
+  globalThis.document = doc
+  try {
+    const html = '<p class="style-fig-caption">Рис. 2. Только подпись без картинки.</p>\n'
+    const out = normalizeImportedHtml(html)
+    assert.match(out, /figure-placeholder/)
+    assert.match(out, /Только подпись/u)
+  } finally {
+    globalThis.document = prevDoc
+  }
+})
+
+test("v0.54: promoteFloatingFiguresAndCaptionsInRoot pairs figure paragraph + caption", () => {
+  const { document } = parseHTML("<!DOCTYPE html><html><body></body></html>")
+  const root = document.body
+  const figP = document.createElement("p")
+  figP.className = "style-figure"
+  const img = document.createElement("img")
+  img.src = "a.png"
+  figP.appendChild(img)
+  const cap = document.createElement("p")
+  cap.className = "style-fig-caption"
+  cap.textContent = "Рис. 3. Синтетическая подпись."
+  root.appendChild(figP)
+  root.appendChild(cap)
+  promoteFloatingFiguresAndCaptionsInRoot(root, document)
+  assert.match(root.innerHTML, /figure-block/)
+  assert.match(root.innerHTML, /Синтетическая/u)
 })
 
 test("v0.53: «Рисунок N. демонстрирует…» without adjacent image is not fig-caption", () => {

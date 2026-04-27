@@ -8,7 +8,9 @@
     "build": "vite build",
     "test": "node --test",
     "corpus:baseline": "node scripts/corpus-baseline.mjs",
-    "corpus:diff": "node scripts/corpus-diff.mjs"
+    "corpus:diff": "node scripts/corpus-diff.mjs",
+    "formula-quality": "node scripts/formula-quality.mjs",
+    "formula-quality:diff": "node scripts/formula-quality-diff.mjs"
   },
   "dependencies": {
     "mtef-to-mathml": "file:../mtef-to-mathml",

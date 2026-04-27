@@ -7,6 +7,7 @@
 export function computeFileMetrics(xml, html) {
   const figure_blocks = (html.match(/class="figure-block"/g) || []).length
   const figure_placeholders = (html.match(/figure-placeholder/g) || []).length
+  const figures_extracted_total = figure_blocks + figure_placeholders
   const figure_caption_ru = (html.match(/figure-caption-ru/g) || []).length
   const figure_caption_en = (html.match(/figure-caption-en/g) || []).length
   const table_blocks = (html.match(/<table\b/g) || []).length
@@ -27,6 +28,7 @@ export function computeFileMetrics(xml, html) {
   return {
     figure_blocks,
     figure_placeholders,
+    figures_extracted_total,
     figure_caption_ru,
     figure_caption_en,
     table_blocks,
@@ -49,6 +51,7 @@ export function computeFileMetrics(xml, html) {
 export const HIGHER_IS_BETTER = {
   figure_blocks: true,
   figure_placeholders: false,
+  figures_extracted_total: true,
   figure_caption_ru: true,
   figure_caption_en: true,
   table_blocks: true,

@@ -112,6 +112,47 @@ function parseObjectList(
     if (tag.type === 0) break;
 
     try {
+      if (tag.type === 6) {
+        const emb = readEmbellishmentRecord(reader, version, tag, warnings);
+        if (emb.child) {
+          nodes.push({
+            kind: 'embellished',
+            position: tag.position,
+            embellishment: emb.embellishment,
+            child: emb.child
+          });
+          continue;
+        }
+        const tag2 = readRecordTag(reader, version);
+        if (tag2.type === 0) {
+          warnings.push({
+            type: 'embell-orphan',
+            position: tag.position,
+            decoration_hex: hex(emb.embellishment),
+            message: 'EMBELL had no inner base and no following record'
+          });
+          nodes.push(standaloneEmbellFallbackNode(tag.position, emb.embellishment));
+          continue;
+        }
+        const base = parseRecordPayload(reader, version, tag2, warnings);
+        if (!base) {
+          warnings.push({
+            type: 'embell-orphan',
+            position: tag.position,
+            decoration_hex: hex(emb.embellishment),
+            message: 'EMBELL lookahead record produced no node'
+          });
+          nodes.push(standaloneEmbellFallbackNode(tag.position, emb.embellishment));
+          continue;
+        }
+        nodes.push({
+          kind: 'embellished',
+          position: tag.position,
+          embellishment: emb.embellishment,
+          child: base
+        });
+        continue;
+      }
       const node = parseRecordPayload(reader, version, tag, warnings);
       if (node) nodes.push(node);
     } catch (error) {
@@ -169,8 +210,6 @@ function parseRecordPayload(
       return parsePile(reader, version, tag, warnings);
     case 5:
       return parseMatrix(reader, version, tag, warnings);
-    case 6:
-      return parseEmbellRecord(reader, version, tag, warnings);
     case 7:
       skipRuler(reader);
       return null;
@@ -423,35 +462,27 @@ function parseMatrix(
   };
 }
 
-function parseEmbellRecord(
+/** Reads EMBELL (type 6) payload; if inner list has no child, `child` is undefined (caller does lookahead). */
+function readEmbellishmentRecord(
   reader: ByteReader,
   version: number,
   tag: RecordTag,
   warnings: ParseWarning[]
-): MathNode {
+): { embellishment: number; child?: MathNode } {
   const options = readOptions(reader, tag, version);
   skipNudgeIfPresent(reader, options);
   const embellishment = reader.readUInt8();
   const children = parseObjectList(reader, version, warnings);
-  const child = children[0];
-  if (!child) {
-    warnings.push({
-      type: 'malformed-input',
-      position: tag.position,
-      message: 'EMBELL record missing base child'
-    });
-    return {
-      kind: 'unknown',
-      position: tag.position,
-      value: String(embellishment)
-    };
-  }
-  return {
-    kind: 'embellished',
-    position: tag.position,
-    embellishment,
-    child
-  };
+  const first = children[0];
+  if (first) return { embellishment, child: first };
+  return { embellishment };
+}
+
+function standaloneEmbellFallbackNode(position: number, embellishment: number): TextNode {
+  if (embellishment === 5) return makeTextNode(position, '\u2032', undefined, undefined, false, false);
+  if (embellishment === 6) return makeTextNode(position, '\u2033', undefined, undefined, false, false);
+  if (embellishment === 18) return makeTextNode(position, '\u2034', undefined, undefined, false, false);
+  return makeTextNode(position, '?', undefined, undefined, false, true);
 }
 
 function skipFutureRecord(reader: ByteReader, tag: RecordTag, warnings: ParseWarning[]): void {

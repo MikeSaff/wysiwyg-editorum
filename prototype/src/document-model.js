@@ -6,6 +6,8 @@ function clone(obj) {
 export const EMPTY_META = {
   title: { ru: "", en: "" },
   authors: [],
+  /** Second Pleiades metadata block (English); DocumentJSON extension */
+  authorsEn: [],
   affiliations: [],
   abstract: { ru: "", en: "" },
   /** DocumentJSON §5 — same text as abstract.* for prototype envelope compatibility */
@@ -13,6 +15,7 @@ export const EMPTY_META = {
   keywords: { ru: [], en: [] },
   /** DocumentJSON §6.1 — minimal contributor rows (full shape filled by Editorum) */
   contributors: [],
+  contributorsEn: [],
   dates: {
     received: "",
     accepted: "",
@@ -63,6 +66,8 @@ function mergeMeta(target, source) {
         ru: Array.isArray(source[k].ru) ? [...source[k].ru] : target[k].ru,
         en: Array.isArray(source[k].en) ? [...source[k].en] : target[k].en
       }
+    } else if (k === "authorsEn" || k === "contributorsEn") {
+      if (Array.isArray(source[k]) && source[k].length) target[k] = [...source[k]]
     } else if (Array.isArray(EMPTY_META[k])) {
       target[k] = Array.isArray(source[k]) ? [...source[k]] : target[k]
     } else {

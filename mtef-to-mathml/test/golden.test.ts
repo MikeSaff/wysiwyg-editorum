@@ -1,12 +1,17 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { parseMathTypeSync } from '../src/index.js';
+import { parseMathTypeSync, validateLatex } from '../src/index.js';
 
 const fixturesDir = join(process.cwd(), '..', 'docs', 'mtef-test-fixtures');
-const goldenBins = existsSync(fixturesDir)
-  ? readdirSync(fixturesDir).filter((name) => name.endsWith('.bin')).sort()
-  : [];
+const localGoldenDir = join(process.cwd(), 'test', 'golden');
+
+function listGoldenBins(dir: string): string[] {
+  return existsSync(dir) ? readdirSync(dir).filter((name) => name.endsWith('.bin')).sort() : [];
+}
+
+const goldenBins = listGoldenBins(fixturesDir);
+const localGoldenBins = listGoldenBins(localGoldenDir);
 
 describe('golden fixtures', () => {
   it('discovers golden fixture files when Claude adds them', () => {
@@ -23,6 +28,17 @@ describe('golden fixtures', () => {
     const result = parseMathTypeSync(readFileSync(join(fixturesDir, binName)));
     expect(normalizeXml(result.mathml)).toBe(normalizeXml(readFileSync(mathmlPath, 'utf8')));
     expect(result.latex).toBe(readFileSync(texPath, 'utf8').trim());
+    expect(validateLatex(result.latex).valid).toBe(true);
+  });
+
+  it.each(localGoldenBins)('local golden %s MathML, LaTeX, validateLatex', (binName) => {
+    const stem = basename(binName, '.bin');
+    const mathmlPath = join(localGoldenDir, `${stem}.mathml`);
+    const texPath = join(localGoldenDir, `${stem}.tex`);
+    const result = parseMathTypeSync(readFileSync(join(localGoldenDir, binName)));
+    expect(normalizeXml(result.mathml)).toBe(normalizeXml(readFileSync(mathmlPath, 'utf8')));
+    expect(result.latex).toBe(readFileSync(texPath, 'utf8').trim());
+    expect(validateLatex(result.latex).valid).toBe(true);
   });
 });
 
