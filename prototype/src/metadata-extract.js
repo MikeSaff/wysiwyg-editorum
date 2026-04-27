@@ -165,13 +165,21 @@ function ingestPleiadesStyleAbstractElement(el, meta) {
   }
 }
 
-function buildContributorsFromAuthors(authors) {
-  return authors.map((a) => ({
-    id: a.id,
-    email: a.email || "",
-    is_corresponding: !!a.isCorresponding,
-    affiliation_ids: (a.affRefs || []).map((r) => `aff_${r}`),
-  }))
+function buildContributorsFromAuthors(authors, affiliations = []) {
+  const hasAffiliations = Array.isArray(affiliations) && affiliations.length > 0
+  const anyExplicitAffRefs = authors.some((a) => (a.affRefs || []).length > 0)
+  if (hasAffiliations && affiliations.length > 1 && !anyExplicitAffRefs) {
+    console.warn("[metadata] several affiliations but no author markers — defaulting contributors to aff_1")
+  }
+  return authors.map((a) => {
+    const explicit = (a.affRefs || []).map((r) => `aff_${r}`)
+    return {
+      id: a.id,
+      email: a.email || "",
+      is_corresponding: !!a.isCorresponding,
+      affiliation_ids: explicit.length ? explicit : hasAffiliations ? ["aff_1"] : [],
+    }
+  })
 }
 
 /** Pleiades second metadata block (English): Latin-heavy, almost no Cyrillic. */
@@ -188,6 +196,22 @@ function extractDoiFromString(s) {
   const m = String(s).match(/\b(10\.\d{4,9}\/[^\s"'<>[\]]+)\b/i)
   if (!m) return ""
   return m[1].replace(/[.,;:\])]+$/u, "")
+}
+
+function isReferenceStyleElement(el) {
+  const cls = (el.getAttribute("class") || "").toLowerCase()
+  return /\bstyle-reference\b/u.test(cls)
+}
+
+function isReferenceStopParagraph(el, sawExplicitReferences = false) {
+  const t = plainText(el)
+  if (!t) return false
+  if (/^(?:подписи\s+к\s+рисункам|figure\s+captions?|captions?\s+to\s+figures?)\b/iu.test(t)) {
+    return true
+  }
+  if (/^(?:рис\.?|рисунок|fig\.?|figure)\s*\d+\.?(?:\s|$)/iu.test(t)) return true
+  if (sawExplicitReferences && !isReferenceStyleElement(el)) return true
+  return false
 }
 
 function newId() {
@@ -443,11 +467,14 @@ export function extractMetadataFromImportedHtml(html, options = {}) {
     if (st === "references") {
       let k = j + 1
       let n = 0
+      let sawExplicitReferences = false
       while (k < blocks.length) {
         const b = blocks[k]
         if (/^h[1-4]$/iu.test(b.tagName || "")) break
         const bt = (b.tagName || "").toLowerCase()
         if (bt === "p") {
+          if (isReferenceStopParagraph(b, sawExplicitReferences)) break
+          if (isReferenceStyleElement(b)) sawExplicitReferences = true
           n++
           references.push({
             id: `ref-${n}`,
@@ -491,9 +518,9 @@ export function extractMetadataFromImportedHtml(html, options = {}) {
   if (!meta.keywords.ru.length) miss("keywords not detected")
   if (!references.length) miss("references not detected")
 
-  meta.contributors = buildContributorsFromAuthors(meta.authors)
+  meta.contributors = buildContributorsFromAuthors(meta.authors, meta.affiliations)
   if (meta.authorsEn.length) {
-    meta.contributorsEn = buildContributorsFromAuthors(meta.authorsEn)
+    meta.contributorsEn = buildContributorsFromAuthors(meta.authorsEn, meta.affiliations)
   }
 
   const kept = blocks.filter((_, idx) => !remove.has(idx))

@@ -221,6 +221,12 @@
 |---|--------|-----|-------|--------|------|
 | v0.56 | Hotfix title regression, fail-loud corpus root, EMBELL real golden fixtures, Trukhachev figure/caption recovery, corresponding contributors, Pleiades EN-block guard. Diagnostic root cause: `formula-diff --inspect-figures` showed drawing PNG captions at pi=111/114/116 and VML/WMF MathType previews; Trukhachev DOCX XML has no EN TitleArticle/Abstract/Keywords outside references, so EN fields were not fabricated. | Codex | `prototype/src/metadata-extract.js`, `prototype/src/word-import.js`, `prototype/scripts/*`, `prototype/tests/*`, `mtef-to-mathml/src/*`, `mtef-to-mathml/test/*`, `.context/*` | ✅ с caveat по отсутствующему EN-source в Trukhachev | `mtef npm run build && npm test` OK; `prototype npm install && npm test && npx vite build` OK; `corpus:baseline`, `corpus:diff`, `formula-quality`, `formula-quality:diff` OK |
 
+## Сессия 2026-04-27 — v0.57
+
+| # | Задача | Кто | Файлы | Статус | Билд |
+|---|--------|-----|-------|--------|------|
+| v0.57 | Metadata cleanup + corpus artifact logging. `v0.57-EN diagnosis: на Trukhachev найдено 1 TitleArticle-параграфов, из них 0 распознано как EN; v0.57-Task1: Trukhachev does not contain EN-block in source, marker for next bench-doc with Pleiades EN`. References extraction narrowed to true bibliography (`26` on Trukhachev); contributors without explicit aff-refs now inherit `aff_1`; `corpus-baseline` writes local JSONL artifacts for all docs with extracted XML, including parse-error cases. | Codex | `prototype/src/metadata-extract.js`, `prototype/src/word-import.js`, `prototype/scripts/corpus-baseline.mjs`, `prototype/tests/*`, `.gitignore`, `.context/*` | ✅ | `mtef npm run build && npm test` OK; `prototype npm install && npm test && npx vite build` OK; `corpus:baseline`, `corpus:diff`, `formula-quality` OK; `corpus-artifacts` count `94` |
+
 ---
 
 ## История (краткая хронология)

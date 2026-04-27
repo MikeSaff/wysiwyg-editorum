@@ -735,6 +735,8 @@ export const PLEIADES_PARAGRAPH_STYLE_MAP = {
   /** Pleiades caption paragraph (floating figures, caption-only cells) */
   FigCaption: { tag: "p", styleType: "fig-caption" },
   Equation: { tag: "p", styleType: "equation" },
+  Reference: { tag: "p", styleType: "reference" },
+  References: { tag: "p", styleType: "reference" },
   TableTitle: { tag: "p", styleType: "table-title" },
 }
 

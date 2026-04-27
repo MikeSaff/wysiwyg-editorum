@@ -239,3 +239,29 @@ Single-author `*e-mail:` fallback сохранён synthetic test-ом и выс
 Существующий extractor второго латинского `TitleArticle`/`Abstract`/`Keywords` блока сохранён и покрыт тестом.
 Проверка пакета Trukhachev DOCX по XML не нашла EN TitleArticle/Abstract/Keywords: латиница присутствует только в references.
 EN metadata не синтезировалась; для Trukhachev `bilingual_extraction_score` остаётся 0 из-за отсутствующего source block, без регрессий Radbio на `corpus:diff`.
+
+## v0.57 — что сделано
+
+### 1. Pleiades EN-block diagnosis
+
+Повторная диагностика Trukhachev по `word/document.xml` и нормализованному import HTML подтвердила: в source есть только один `TitleArticle`, а EN-кандидатов среди `TitleArticle` / `Abstract` / `Keywords` нет.
+Для этой bench-статьи сработала явная STOP-ветка: EN metadata не синтезируется, extractor не менялся под фиктивный кейс.
+Диагноз и reason записаны в `progress.md` как marker для следующего Pleiades bench-doc с реальным вторым EN-блоком.
+
+### 2. References: true bibliography only
+
+В `word-import.js` стили `Reference` / `References` размечаются как `style-reference`, чтобы metadata extractor видел явную bibliography zone.
+В `metadata-extract.js` references extraction теперь останавливается на `ПОДПИСИ К РИСУНКАМ` / `FIGURE CAPTIONS`, следующем heading или первом non-reference paragraph после непрерывного reference-style блока.
+На Trukhachev восстановлен истинный bibliography count: `meta.references.length = 26`; figure-caption backmatter больше не попадает в references.
+
+### 3. Contributors common affiliation
+
+Сборка contributors теперь получает `meta.affiliations` и по умолчанию назначает `aff_1`, если у автора нет явных aff-маркеров, но аффилиация в документе есть.
+Если affiliations несколько и markers отсутствуют у всех, пишется warning и применяется best-effort default `aff_1`.
+На Trukhachev все три contributors получили `affiliation_ids = ['aff_1']`; corresponding/e-mail у первого автора сохранены.
+
+### 4. Corpus artifact logging
+
+`scripts/corpus-baseline.mjs` теперь пишет локальные JSONL-артефакты в `prototype/corpus-artifacts/` с deterministic ASCII slug + hash и header-строкой по документу.
+Для каждого source paragraph сохраняются `pi`, `pStyle`, `raw_text`, image/OLE поля, `preceding_caption` и `imported_as`; артефакты пишутся и для parse-error DOCX, если XML уже извлечён.
+После v0.57 `corpus:baseline` создал 94 artifact-файла; Trukhachev artifact содержит 123 записи и >95% paragraph classification coverage.
