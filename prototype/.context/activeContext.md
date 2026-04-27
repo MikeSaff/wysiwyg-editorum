@@ -285,3 +285,47 @@ UDK-параграф удаляется из cleaned body так же, как о
 `formula-diff.mjs` получил режим `--inspect-equation-mapping`: он строит source-side inventory OLE/labels из `word/document.xml` и DOM-side inventory `math-block` после полного import pipeline.
 Для display OLE в `word-import.js` добавлены `data-source-rid` и `data-source-ole`, чтобы сопоставление шло по реальному blob target, а не только по latex/hash.
 На Trukhachev mismatch не подтвердился: label `(18)` и в source, и в DOM соответствует `embeddings/oleObject62.bin`; DOM latex совпадает с full expanded source-dump, STOP-ветка не потребовалась.
+
+## v0.59 — что сделано
+
+### 0. UI acceptance suite (Playwright)
+
+В `prototype` добавлен Playwright с отдельным `playwright.config.js`, стабильным `vite preview` на `127.0.0.1:4173` и скриптами `ui-acceptance` / `ui-acceptance:install`.
+Собран реальный headless acceptance на Trukhachev: import DOCX через `<input type="file">`, ожидание ProseMirror + MathJax, проверки headings, TOC, figures, metadata panel и visible formula labels.
+Ключевой infra-fix: `reuseExistingServer` выключен, иначе Playwright подхватывал stale preview и показывал уже исправленные баги как «живые».
+
+### 1. Section-type coverage
+
+`detectSectionType()` расширен под `ТЕОРЕТИЧЕСКАЯ МОДЕЛЬ` → `methods` и `ВОЗМУЩЕННЫЕ ФУНКЦИИ ...` / `distribution functions` / `analysis` / `numerical` → `results`.
+Fallback больше не возвращает пустоту: теперь это `other`, с явным label/color в schema и CSS.
+На Trukhachev все 4 body `h2` получили непустой `data-section-type`, и ни один не ушёл в `other`; для контроля в quality добавлен `section_type_other_count`.
+
+### 2. TOC navigation + structural-only model
+
+Корневая причина task 2: старый TOC был position-based, тянул paragraph heuristics (`Рисунок 1...`) и после click делал второй скролл через ProseMirror selection, из-за чего viewport улетал мимо target.
+Навигация вынесена в `navigation.js`: группы `Разделы`, `Рисунки`, `Таблицы`, `Формулы` собираются только из структурных узлов, а пункты TOC стали настоящими anchor-link'ами с `href="#id"`.
+Click теперь скроллит детерминированно с offset под sticky toolbar; активный пункт подсвечивается через `IntersectionObserver`. На Trukhachev TOC = `4 + 3 + 0 + 22 = 29`, и body-параграф про `Рисунок 1... демонстрирует...` больше туда не попадает.
+
+### 3. Figure rendering / rendered-state diagnosis
+
+Диагностика по Trukhachev показала, что raw import уже давал правильные `3 figure-block + 1 loose image`; визуальная регрессия была в другом: в body переживал хвост `ПОДПИСИ К РИСУНКАМ` и одиночный `Рис. 4.`.
+Добавлен cleanup backmatter caption-list после figure-caption expansion: marker `ПОДПИСИ К РИСУНКАМ` и неиспользованные caption-only paragraphs удаляются, при этом orphan `image93.png` остаётся loose inline image, а реальные `Рис. 1/2/3` остаются figure-block'ами.
+В quality добавлен `figure_caption_gap_count` с логикой primary-number + sub-letter (`1А, 1Б, 2, 3` не считаются gap). На Trukhachev `figure_caption_gap_count = 0`.
+
+### 4. Metadata panel rendering
+
+Root cause бага UDK оказался не в extractor, а в panel binding: `pullForm()` / `pushSimpleFields()` слушали только `.md-inp[data-k]`, но поля UDK/DOI/publicationDate живут в `.md-inp-sm[data-k]`.
+Исправлен read/write binding для compact inputs, добавлены стабильные `data-testid`, а import merge теперь зеркалит `dates.published_*` в canonical `meta.publicationDate`, если он ещё пуст.
+UI acceptance на Trukhachev подтверждает, что panel после import показывает title.ru, `UDK = 533.9` и e-mail contributor'а; synthetic DOM test покрывает round-trip для UDK input.
+
+### 5. Formula numbers visible in DOM
+
+В `schema.js` `math_block.toDOM()` теперь всегда зеркалит номер в `data-label`, сохраняя уже существующий visible `.math-label` справа от формулы.
+Playwright проверяет все 22 numbered `math-block[data-label]` на Trukhachev: у каждого есть видимый `.math-label`, а текст лейбла совпадает с `data-label`.
+Один unnumbered math-block по-прежнему остаётся без TOC-item, так что visible numbering и structural navigation больше не расходятся.
+
+### 6. Verification snapshot
+
+`npm run ui-acceptance` теперь проходит на свежем preview и ловит именно browser-state после import/hydration, а не только PM JSON или quality counters.
+Trukhachev после v0.59: `formulas_total=96`, `single_char_formula_count=0`, `embell_decoration_unknown_count=0`, `figure_count=3`, `figure_caption_gap_count=0`, `section_type_other_count=0`, UI показывает 1 loose image + 3 figure captions `Рис. 1/2/3`.
+Полный финализационный прогон пройден: `mtef build/test`, `prototype test/build`, `corpus:baseline`, `corpus:diff`, `formula-quality`, `ui-acceptance`.

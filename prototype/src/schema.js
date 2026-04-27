@@ -10,6 +10,7 @@ export const sectionTypeLabels = {
   results: "Результаты",
   discussion: "Обсуждение",
   conclusion: "Заключение",
+  other: "Прочее",
   acknowledgments: "Благодарности",
   /** @deprecated use `acknowledgments`; kept for older saved documents */
   acknowledgements: "Благодарности",
@@ -30,6 +31,7 @@ export const sectionTypeColors = {
   results: "#f57c00",
   discussion: "#7b1fa2",
   conclusion: "#c62828",
+  other: "#616161",
   acknowledgments: "#78909c",
   acknowledgements: "#78909c",
   funding: "#5c6bc0",
@@ -117,6 +119,7 @@ const mathBlockSpec = {
     if (node.attrs.id) div.id = node.attrs.id
     div.setAttribute("data-mathml", node.attrs.mathml || "")
     div.setAttribute("data-latex", node.attrs.latex)
+    if (node.attrs.label) div.setAttribute("data-label", node.attrs.label)
     div.setAttribute("title", "Кликните для редактирования формулы")
     div.style.cursor = "pointer"
     const host = document.createElement("div")
@@ -126,6 +129,7 @@ const mathBlockSpec = {
     if (node.attrs.label) {
       const labelSpan = document.createElement("span")
       labelSpan.classList.add("math-label")
+      labelSpan.setAttribute("data-testid", "math-label")
       labelSpan.textContent = node.attrs.label
       div.appendChild(labelSpan)
     }

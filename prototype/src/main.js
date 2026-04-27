@@ -20,6 +20,7 @@ import { importDocx } from "./word-import.js"
 import { serializeEnvelope, deserializeEnvelope, createEmptyEnvelope } from "./document-model.js"
 import { mergeExtractedPublication } from "./metadata-extract.js"
 import { mountMetadataPanel } from "./metadata-panel.js"
+import { collectNavigationGroups } from "./navigation.js"
 import { typographyQuoteAndDashRules } from "./typography-rules.js"
 import "mathlive/fonts.css"
 import "mathlive"
@@ -170,176 +171,107 @@ const initialDoc = {
 
 // === Navigation panel ===
 let _editorView = null  // Module-level reference
+let _navObserver = null
+
+function disconnectNavigationObserver() {
+  if (_navObserver) {
+    _navObserver.disconnect()
+    _navObserver = null
+  }
+}
+
+function escapeHtmlNav(text) {
+  return String(text || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+}
+
+function setActiveNavigationItem(targetId) {
+  const navItems = document.getElementById("nav-items")
+  if (!navItems) return
+  navItems.querySelectorAll('[data-testid="nav-item"]').forEach((el) => {
+    el.classList.toggle("active", el.getAttribute("data-target-id") === targetId)
+  })
+}
+
+function bindNavigationObserver(navItems) {
+  disconnectNavigationObserver()
+  const anchors = [...navItems.querySelectorAll('[data-testid="nav-item"][data-target-id]')]
+  if (!anchors.length) return
+
+  const targetMap = new Map()
+  for (const anchor of anchors) {
+    const targetId = anchor.getAttribute("data-target-id") || ""
+    const target = targetId ? document.getElementById(targetId) : null
+    if (target) targetMap.set(target, targetId)
+  }
+  if (!targetMap.size) return
+
+  _navObserver = new IntersectionObserver(
+    (entries) => {
+      const visible = entries
+        .filter((entry) => entry.isIntersecting)
+        .sort((a, b) => Math.abs(a.boundingClientRect.top) - Math.abs(b.boundingClientRect.top))
+      if (!visible.length) return
+      const targetId = targetMap.get(visible[0].target)
+      if (targetId) setActiveNavigationItem(targetId)
+    },
+    {
+      root: null,
+      rootMargin: "-15% 0px -70% 0px",
+      threshold: [0, 0.25, 0.5, 0.75, 1],
+    }
+  )
+
+  for (const target of targetMap.keys()) {
+    _navObserver.observe(target)
+  }
+}
 
 function updateNavigation(state) {
   const navItems = document.getElementById("nav-items")
   if (!navItems) return
-
-  const items = []
-  let figNum = 0, tblNum = 0, formulaNum = 0
-
-  state.doc.forEach((node, offset) => {
-    // Headings
-    if (node.type.name === "heading") {
-      const level = node.attrs.level || 1
-      const text = node.textContent.trim()
-      if (text) {
-        items.push({ type: "heading", level, text: text.substring(0, 55), pos: offset })
-      }
-    }
-    if (node.type.name === "figure_block") {
-      figNum++
-      let capRu = ""
-      let capAny = ""
-      node.forEach((ch) => {
-        if (ch.type.name !== "figcaption") return
-        const t = ch.textContent.trim()
-        if (!capAny) capAny = t
-        if (ch.attrs.lang !== "en" && !capRu) capRu = t
-      })
-      const text = (capRu || capAny || "Рисунок").substring(0, 50)
-      items.push({ type: "fig", text, pos: offset })
-    }
-    if (node.type.name === "table_block") {
-      tblNum++
-      let capRu = ""
-      let capAny = ""
-      node.forEach((ch) => {
-        if (ch.type.name !== "table_caption") return
-        const t = ch.textContent.trim()
-        if (!capAny) capAny = t
-        if (ch.attrs.lang !== "en" && !capRu) capRu = t
-      })
-      const text = (capRu || capAny || "Таблица").substring(0, 50)
-      items.push({ type: "tbl", text, pos: offset })
-    }
-    // Figures — find image paragraph BEFORE the caption
-    if (node.type.name === "paragraph") {
-      const text = node.textContent.trim()
-      if (/^(Рис\.|Рисунок)\s*\d/i.test(text)) {
-        figNum++
-        // Navigate to image above caption, not to caption itself
-        // Look back for nearest image paragraph
-        let imgPos = offset
-        state.doc.nodesBetween(Math.max(0, offset - 2000), offset, (n, p) => {
-          if (n.type.name === "paragraph") {
-            let hasImage = false
-            n.forEach(child => { if (child.type.name === "image") hasImage = true })
-            if (hasImage) imgPos = p
-          }
-        })
-        items.push({ type: "fig", text: text.substring(0, 50), pos: imgPos })
-      }
-      if (/^(Табл\.|Таблица)\s*\d/i.test(text)) {
-        tblNum++
-        items.push({ type: "tbl", text: text.substring(0, 50), pos: offset })
-      }
-    }
-    // Formulas with labels
-    if (node.type.name === "math_block" && node.attrs.label) {
-      formulaNum++
-      items.push({ type: "formula", text: `Формула ${node.attrs.label}`, pos: offset })
-    }
-  })
-
-  // Build HTML — hierarchical tree with collapsible headings
+  const groups = collectNavigationGroups(state.doc)
   let html = ""
-  let openSections = [] // stack of open section divs
-
-  function closeToLevel(level) {
-    while (openSections.length > 0 && openSections[openSections.length - 1] >= level) {
-      html += "</div>"
-      openSections.pop()
+  for (const group of groups) {
+    html += `<div class="nav-group" data-testid="nav-group" data-nav-group="${group.key}">`
+    html += `<div class="nav-group-header" data-testid="nav-group-header" data-nav-group="${group.key}">${escapeHtmlNav(group.label)}</div>`
+    html += `<div class="nav-group-items" data-testid="nav-group-items">`
+    for (const item of group.items) {
+      const extraClass =
+        item.kind === "section"
+          ? `nav-item-section level-${item.level || 1}`
+          : item.kind === "figure"
+            ? "nav-fig"
+            : item.kind === "table"
+              ? "nav-tbl"
+              : "nav-formula"
+      html += `<a class="nav-item ${extraClass}" data-testid="nav-item" data-nav-type="${item.kind}" data-target-id="${escapeHtmlNav(item.targetId)}" href="#${escapeHtmlNav(item.targetId)}" title="${escapeHtmlNav(item.title)}">${escapeHtmlNav(item.label)}</a>`
     }
+    html += "</div></div>"
   }
-
-  // Group items: each heading opens a section, non-heading items go inside
-  for (let i = 0; i < items.length; i++) {
-    const item = items[i]
-
-    if (item.type === "heading") {
-      closeToLevel(item.level)
-
-      // Check if this heading has any children (next items before next same/higher level heading)
-      let hasChildren = false
-      for (let j = i + 1; j < items.length; j++) {
-        if (items[j].type === "heading" && items[j].level <= item.level) break
-        hasChildren = true
-        break
-      }
-
-      if (hasChildren) {
-        html += `<div class="nav-item level-${item.level} nav-section-toggle" data-pos="${item.pos}">${escapeHtmlNav(item.text)}</div>`
-        html += `<div class="nav-section">`
-        openSections.push(item.level)
-      } else {
-        html += `<div class="nav-item level-${item.level}" data-pos="${item.pos}">${escapeHtmlNav(item.text)}</div>`
-      }
-    } else if (item.type === "fig") {
-      html += `<div class="nav-item nav-fig" data-pos="${item.pos}">🖼 ${escapeHtmlNav(item.text)}</div>`
-    } else if (item.type === "tbl") {
-      html += `<div class="nav-item nav-tbl" data-pos="${item.pos}">▦ ${escapeHtmlNav(item.text)}</div>`
-    } else if (item.type === "formula") {
-      html += `<div class="nav-item nav-formula" data-pos="${item.pos}">∑ ${escapeHtmlNav(item.text)}</div>`
-    }
-  }
-
-  closeToLevel(0)
-
   navItems.innerHTML = html
-
-  // Default: show level 1-2, collapse level 3+
-  navItems.querySelectorAll(".nav-section").forEach(sec => {
-    const toggle = sec.previousElementSibling
-    if (!toggle) return
-    let depth = 0
-    let p = sec.parentElement
-    while (p && p !== navItems) {
-      if (p.classList.contains("nav-section")) depth++
-      p = p.parentElement
-    }
-    if (depth >= 1) {
-      sec.classList.add("collapsed")
-      toggle.classList.add("collapsed")
-    }
-  })
-}
-
-function escapeHtmlNav(text) {
-  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+  bindNavigationObserver(navItems)
 }
 
 // Event delegation for nav clicks — works even after innerHTML updates
 document.getElementById("nav-items")?.addEventListener("click", (e) => {
-  const item = e.target.closest(".nav-item")
+  const item = e.target.closest('[data-testid="nav-item"]')
   if (!item) return
-
-  // Toggle section collapse
-  if (item.classList.contains("nav-section-toggle")) {
-    item.classList.toggle("collapsed")
-    const section = item.nextElementSibling
-    if (section && section.classList.contains("nav-section")) {
-      section.classList.toggle("collapsed")
-    }
-    // Don't navigate, just toggle
-    if (!e.ctrlKey) return
-  }
-
-  if (!_editorView) return
-  const pos = parseInt(item.dataset.pos)
-  if (isNaN(pos)) return
+  e.preventDefault()
+  const targetId = item.getAttribute("data-target-id") || ""
+  if (!targetId) return
 
   try {
-    _editorView.focus()
-    const resolvedPos = _editorView.state.doc.resolve(Math.min(pos + 1, _editorView.state.doc.content.size))
-    const selection = _editorView.state.selection.constructor.near(resolvedPos)
-    const tr = _editorView.state.tr.setSelection(selection)
-    _editorView.dispatch(tr)
-
-    const coords = _editorView.coordsAtPos(pos + 1)
-    if (coords) {
-      window.scrollTo({ top: window.scrollY + (coords.top - window.innerHeight * 0.15), behavior: "smooth" })
-    }
+    const target = document.getElementById(targetId)
+    if (!target) return
+    setActiveNavigationItem(targetId)
+    const stickyOffset = 96
+    const top = window.scrollY + target.getBoundingClientRect().top - stickyOffset
+    window.scrollTo({ top: Math.max(0, top), behavior: "auto" })
+    _editorView?.focus()
   } catch (err) {
     console.warn("Nav click error:", err)
   }

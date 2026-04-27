@@ -2540,6 +2540,39 @@ export function applyBackMatterFigureCaptionFullTextInRoot(root, doc) {
   }
 }
 
+export function stripBackMatterFigureCaptionListFromRoot(root) {
+  if (!root || typeof root.children === "undefined") return
+  const children = [...root.children]
+  const markerIndex = children.findIndex((el) => {
+    if (el.tagName !== "P") return false
+    const plain = (el.textContent || "").replace(/\s+/gu, " ").trim()
+    return /^(?:ПОДПИСИ К РИСУНКАМ|FIGURE CAPTIONS)$/iu.test(plain)
+  })
+  if (markerIndex < 0) return
+
+  children[markerIndex].remove()
+
+  for (let i = markerIndex + 1; i < children.length; i += 1) {
+    const el = children[i]
+    if (!el?.parentNode) continue
+    if (el.matches?.("figure.figure-block, div.table-wrap, table")) continue
+    if (el.tagName === "P" && el.querySelector("img, table, .math-block, .math-inline")) continue
+    if (el.tagName !== "P") continue
+
+    const plain = (el.textContent || "").replace(/\s+/gu, " ").trim()
+    if (!plain) {
+      el.remove()
+      continue
+    }
+
+    const looksLikeFigureNumber = /^(?:Рис(?:унок)?\.?|Fig\.?|Figure)\s*\d+[A-Za-zА-Яа-яЁё]?\.?$/iu.test(plain)
+    const looksLikeCaptionText = /\bstyle-figure\b/iu.test(el.getAttribute("class") || "")
+    if (looksLikeFigureNumber || looksLikeCaptionText) {
+      el.remove()
+    }
+  }
+}
+
 /**
  * v0.50.4: For each <figure.figure-block> that has NO <figcaption>, look at
  * adjacent <p> siblings (after first, then before) for Рис./Fig. captions and
@@ -2789,6 +2822,7 @@ export function normalizeImportedHtml(html) {
       // captions outside the table) gets adjacent Рис./Fig. paragraphs absorbed.
       attachLooseFigureCaptionsToFiguresInRoot(holder, document)
       applyBackMatterFigureCaptionFullTextInRoot(holder, document)
+      stripBackMatterFigureCaptionListFromRoot(holder)
       promoteLooseTableCaptionsInRoot(holder, document)
       applyWeakPathUppercaseHeadingHeuristicToRoot(holder)
       out = holder.innerHTML

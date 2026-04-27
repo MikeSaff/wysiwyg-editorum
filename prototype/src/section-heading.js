@@ -14,13 +14,17 @@ export function normalizeSectionHeadingText(text) {
 
 export function detectSectionType(text) {
   const normalized = normalizeSectionHeadingText(text)
-  if (!normalized) return null
+  if (!normalized) return "other"
   if (/^результаты\s+и\s+обсуждени/iu.test(normalized)) return "results"
   if (/^(введение|introduction)$/iu.test(normalized)) return "introduction"
+  if (/^(теоретическая модель|theoretical model)$/iu.test(normalized)) return "methods"
   if (/^(методы|материалы и методы|материалы и методика|methods|materials and methods)$/iu.test(normalized)) {
     return "methods"
   }
+  if (/(^|[\s-])(модель|model)([\s-]|$)/iu.test(normalized)) return "methods"
   if (/^(результаты|results)$/iu.test(normalized)) return "results"
+  if (/^(возмущенные функции|perturbed distribution functions?)/iu.test(normalized)) return "results"
+  if (/(distribution functions?|numerical|analysis)/iu.test(normalized)) return "results"
   if (/^(обсуждение|discussion)$/iu.test(normalized)) return "discussion"
   if (/^(заключение|выводы|conclusion|conclusions)$/iu.test(normalized)) return "conclusion"
   if (/^(финансирование|funding)$/iu.test(normalized)) return "funding"
@@ -41,5 +45,5 @@ export function detectSectionType(text) {
   if (/постановка задач|problem statement|задач[аи]\s/iu.test(normalized)) return "methods"
   if (/предмет исследования|subject|объект исследования/iu.test(normalized)) return "methods"
   if (/цел[ьи] исследования|objectives|aims/iu.test(normalized)) return "methods"
-  return null
+  return "other"
 }

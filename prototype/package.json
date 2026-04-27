@@ -10,13 +10,16 @@
     "corpus:baseline": "node scripts/corpus-baseline.mjs",
     "corpus:diff": "node scripts/corpus-diff.mjs",
     "formula-quality": "node scripts/formula-quality.mjs",
-    "formula-quality:diff": "node scripts/formula-quality-diff.mjs"
+    "formula-quality:diff": "node scripts/formula-quality-diff.mjs",
+    "ui-acceptance": "playwright test",
+    "ui-acceptance:install": "playwright install chromium"
   },
   "dependencies": {
-    "mtef-to-mathml": "file:../mtef-to-mathml",
     "jszip": "^3.10.1",
+    "linkedom": "^0.18.12",
     "mathlive": "^0.109.1",
     "mathml-to-latex": "^1.5.0",
+    "mtef-to-mathml": "file:../mtef-to-mathml",
     "prosemirror-commands": "^1.7.1",
     "prosemirror-dropcursor": "^1.8.2",
     "prosemirror-gapcursor": "^1.4.1",
@@ -32,7 +35,9 @@
     "prosemirror-transform": "^1.12.0",
     "prosemirror-view": "^1.41.8",
     "vite": "^8.0.5",
-    "xmldom": "^0.6.0",
-    "linkedom": "^0.18.12"
+    "xmldom": "^0.6.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.59.1"
   }
 }

@@ -18,7 +18,7 @@ export function mountMetadataPanel(hostEl, api) {
   root.className = "metadata-panel"
   root.innerHTML = `
     <div class="metadata-panel-bar">
-      <button type="button" class="metadata-panel-toggle" aria-expanded="false"></button>
+      <button type="button" class="metadata-panel-toggle" aria-expanded="false" data-testid="metadata-panel-toggle"></button>
       <span class="metadata-panel-preview"></span>
     </div>
     <div class="metadata-panel-body" hidden>
@@ -27,8 +27,8 @@ export function mountMetadataPanel(hostEl, api) {
           <strong>Метаданные публикации</strong>
           <button type="button" class="metadata-panel-collapse">Свернуть</button>
         </div>
-        <label>Заголовок (RU)<input type="text" class="md-inp" data-k="title.ru" /></label>
-        <label>Заголовок (EN)<input type="text" class="md-inp" data-k="title.en" /></label>
+        <label>Заголовок (RU)<input type="text" class="md-inp" data-k="title.ru" data-testid="metadata-title-ru" /></label>
+        <label>Заголовок (EN)<input type="text" class="md-inp" data-k="title.en" data-testid="metadata-title-en" /></label>
         <div class="md-authors-block">
           <div class="md-row"><span>Авторы</span><button type="button" class="md-add-author">+ Добавить автора</button></div>
           <div class="md-authors-list"></div>
@@ -42,11 +42,11 @@ export function mountMetadataPanel(hostEl, api) {
         <label>Ключевые слова (RU, через запятую)<input type="text" class="md-inp" data-kw="ru" /></label>
         <label>Ключевые слова (EN, через запятую)<input type="text" class="md-inp" data-kw="en" /></label>
         <div class="md-inline-row">
-          <label>DOI<input type="text" class="md-inp-sm" data-k="doi" /></label>
-          <label>УДК<input type="text" class="md-inp-sm" data-k="udk" /></label>
-          <label>Дата публикации<input type="date" class="md-inp-sm" data-k="publicationDate" /></label>
+          <label>DOI<input type="text" class="md-inp-sm" data-k="doi" data-testid="metadata-doi" /></label>
+          <label>УДК<input type="text" class="md-inp-sm" data-k="udk" data-testid="metadata-udk" /></label>
+          <label>Дата публикации<input type="date" class="md-inp-sm" data-k="publicationDate" data-testid="metadata-publication-date" /></label>
         </div>
-        <label>Финансирование<textarea class="md-ta" data-k="fundingInfo" rows="2"></textarea></label>
+        <label>Финансирование<textarea class="md-ta" data-k="fundingInfo" rows="2" data-testid="metadata-funding"></textarea></label>
         <label>Информация об авторах<textarea class="md-ta" data-k="authorInfo" rows="2"></textarea></label>
         <label>Вклад авторов<textarea class="md-ta" data-k="authorContributions" rows="2"></textarea></label>
         <label>Благодарности<textarea class="md-ta" data-k="acknowledgments" rows="2"></textarea></label>
@@ -126,7 +126,7 @@ export function mountMetadataPanel(hostEl, api) {
 
   function pullForm() {
     const m = getM()
-    root.querySelectorAll(".md-inp[data-k]").forEach((inp) => {
+    root.querySelectorAll(".md-inp[data-k], .md-inp-sm[data-k]").forEach((inp) => {
       const k = inp.getAttribute("data-k")
       if (k === "title.ru") inp.value = m.title?.ru || ""
       else if (k === "title.en") inp.value = m.title?.en || ""
@@ -155,7 +155,7 @@ export function mountMetadataPanel(hostEl, api) {
 
   function pushSimpleFields() {
     const m = getM()
-    root.querySelectorAll(".md-inp[data-k]").forEach((inp) => {
+    root.querySelectorAll(".md-inp[data-k], .md-inp-sm[data-k]").forEach((inp) => {
       const k = inp.getAttribute("data-k")
       if (k === "title.ru") m.title.ru = inp.value
       else if (k === "title.en") m.title.en = inp.value
@@ -187,7 +187,7 @@ export function mountMetadataPanel(hostEl, api) {
 
   root.addEventListener("input", (e) => {
     const t = e.target
-    if (t.matches(".md-inp[data-k], .md-ta[data-k], .md-inp[data-kw]")) {
+    if (t.matches(".md-inp[data-k], .md-inp-sm[data-k], .md-ta[data-k], .md-inp[data-kw]")) {
       pushSimpleFields()
       api.scheduleAutosave()
       preview.textContent = titlePreview(getM())

@@ -7,6 +7,8 @@ import { validateLatex } from "mtef-to-mathml"
 import {
   countSemanticAtomsInMathML,
   countSingleCharFormula,
+  countSectionTypeOther,
+  computeFigureCaptionGapCount,
   computeMetadataCompletenessPct,
   scoreFormulaQualityForHtml,
   scoreFigureMetrics,
@@ -49,9 +51,27 @@ test("figure_caption_truncated: short Рис. prefix only", () => {
   const html = `<figure class="figure-block"><figcaption class="figure-caption-ru">Рис. 1.</figcaption></figure>`
   const s = scoreFigureMetrics(html)
   assert.equal(s.figure_caption_truncated_count, 1)
+  assert.equal(s.figure_caption_gap_count, 0)
   const html2 = `<figure class="figure-block"><figcaption class="figure-caption-ru">Рис. 1. Зависимость X от Y.</figcaption></figure>`
   const s2 = scoreFigureMetrics(html2)
   assert.equal(s2.figure_caption_truncated_count, 0)
+})
+
+test("figure_caption_gap_count: sub-numbered captions stay gap-free", () => {
+  assert.equal(
+    computeFigureCaptionGapCount(["Рис. 1А", "Рис. 1Б", "Рис. 2", "Рис. 3"]),
+    0
+  )
+  assert.equal(computeFigureCaptionGapCount(["Рис. 1", "Рис. 2", "Рис. 4"]), 1)
+})
+
+test("countSectionTypeOther counts explicit fallback section types", () => {
+  const html = [
+    '<h2 data-section-type="methods">Теоретическая модель</h2>',
+    '<h2 data-section-type="other">Прочее</h2>',
+    '<h3 data-section-type="other">Ещё прочее</h3>',
+  ].join("")
+  assert.equal(countSectionTypeOther(html), 2)
 })
 
 test("metadata_completeness_pct: empty EN fields < 100%", () => {

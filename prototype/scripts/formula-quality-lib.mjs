@@ -86,27 +86,73 @@ export function scoreFigureMetrics(html) {
   let figure_count = 0
   let figure_caption_truncated_count = 0
   let figure_placeholder_count = 0
+  let figure_caption_gap_count = 0
   try {
     const { document: d } = parseHTML(`<div id="fq-root">${html || ""}</div>`)
     const root = d.getElementById("fq-root")
-    if (!root) return { figure_count, figure_caption_truncated_count, figure_placeholder_count }
+    if (!root) {
+      return { figure_count, figure_caption_truncated_count, figure_placeholder_count, figure_caption_gap_count }
+    }
     const figures = [...root.querySelectorAll("figure.figure-block")]
     figure_count = figures.length
     const prefixRe = /^(?:Рис\.|Рисунок|Fig\.?|Figure)\s*\d+/iu
+    const captions = []
     for (const fig of figures) {
       if (fig.querySelector(".figure-placeholder")) figure_placeholder_count += 1
       const fc =
         fig.querySelector("figcaption.figure-caption-ru") || fig.querySelector("figcaption")
       if (!fc) continue
       const plain = (fc.textContent || "").replace(/\s+/gu, " ").trim()
+      captions.push(plain)
       if (plain.length > 0 && plain.length <= 15 && prefixRe.test(plain)) {
         figure_caption_truncated_count += 1
       }
     }
+    figure_caption_gap_count = computeFigureCaptionGapCount(captions)
   } catch {
     /* ignore */
   }
-  return { figure_count, figure_caption_truncated_count, figure_placeholder_count }
+  return { figure_count, figure_caption_truncated_count, figure_placeholder_count, figure_caption_gap_count }
+}
+
+export function parseFigureCaptionNumber(text) {
+  const plain = (text || "").replace(/\s+/gu, " ").trim()
+  const m = plain.match(/^(?:Рис\.|Рисунок|Fig\.?|Figure)\s*(\d+)\s*([A-Za-zА-Яа-яЁё]?)/u)
+  if (!m) return null
+  return { primary: Number(m[1]), suffix: (m[2] || "").toUpperCase() }
+}
+
+export function computeFigureCaptionGapCount(captions) {
+  let gapCount = 0
+  let previousPrimary = null
+  for (const caption of captions || []) {
+    const parsed = parseFigureCaptionNumber(caption)
+    if (!parsed) continue
+    if (previousPrimary == null) {
+      previousPrimary = parsed.primary
+      continue
+    }
+    if (parsed.primary === previousPrimary) {
+      continue
+    }
+    if (parsed.primary > previousPrimary + 1) {
+      gapCount += parsed.primary - previousPrimary - 1
+    }
+    previousPrimary = parsed.primary
+  }
+  return gapCount
+}
+
+export function countSectionTypeOther(html) {
+  if (!html) return 0
+  try {
+    const { document: d } = parseHTML(`<div id="fq-root">${html}</div>`)
+    const root = d.getElementById("fq-root")
+    if (!root) return 0
+    return root.querySelectorAll("h1[data-section-type=\"other\"],h2[data-section-type=\"other\"],h3[data-section-type=\"other\"],h4[data-section-type=\"other\"]").length
+  } catch {
+    return 0
+  }
 }
 
 /**
@@ -149,6 +195,7 @@ export function scoreFormulaQualityForHtml(html, oleBlobs, meta = null) {
   let invalid_latex_count = 0
   let single_char_formula_count = 0
   let mathjax_render_error_count = 0
+  let section_type_other_count = countSectionTypeOther(html)
 
   try {
     const { document: d } = parseHTML(`<div id="fq-root">${html || ""}</div>`)
@@ -208,6 +255,8 @@ export function scoreFormulaQualityForHtml(html, oleBlobs, meta = null) {
     figure_count: fig.figure_count,
     figure_caption_truncated_count: fig.figure_caption_truncated_count,
     figure_placeholder_count: fig.figure_placeholder_count,
+    figure_caption_gap_count: fig.figure_caption_gap_count,
+    section_type_other_count,
     metadata_completeness_pct,
     bilingual_extraction_score,
   }
@@ -224,6 +273,8 @@ const ZERO_EXT = {
   figure_count: 0,
   figure_caption_truncated_count: 0,
   figure_placeholder_count: 0,
+  figure_caption_gap_count: 0,
+  section_type_other_count: 0,
   metadata_completeness_pct: 0,
   bilingual_extraction_score: null,
 }

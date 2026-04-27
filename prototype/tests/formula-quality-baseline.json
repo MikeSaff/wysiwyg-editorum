@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-27T20:12:24.265Z",
+  "generated_at": "2026-04-27T21:59:58.222Z",
   "corpus_root": "C:\\Projects\\WYSIWYG\\Docx\\Nauka\\Сложные журналы",
   "file_count": 94,
   "totals": {
@@ -13,6 +13,8 @@
     "figure_count": 253,
     "figure_caption_truncated_count": 27,
     "figure_placeholder_count": 17,
+    "figure_caption_gap_count": 49,
+    "section_type_other_count": 162,
     "metadata_completeness_pct": 2187.5,
     "bilingual_extraction_score": 0
   },
@@ -30,6 +32,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -46,6 +50,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 1,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -62,6 +68,8 @@
       "figure_count": 2,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -78,6 +86,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -94,6 +104,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -110,6 +122,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 6,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -126,6 +140,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -142,6 +158,8 @@
       "figure_count": 3,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 3,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -158,6 +176,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 1,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -174,6 +194,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 37.5,
       "bilingual_extraction_score": null
     },
@@ -190,6 +212,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -206,6 +230,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -222,6 +248,8 @@
       "figure_count": 1,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -238,6 +266,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -254,6 +284,8 @@
       "figure_count": 4,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -270,6 +302,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 1,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -286,6 +320,8 @@
       "figure_count": 1,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 1,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -302,6 +338,8 @@
       "figure_count": 1,
       "figure_caption_truncated_count": 1,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -318,6 +356,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 1,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -334,6 +374,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -350,6 +392,8 @@
       "figure_count": 4,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 1,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -366,6 +410,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 4,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -382,6 +428,8 @@
       "figure_count": 1,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 1,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -398,6 +446,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -414,6 +464,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -430,6 +482,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -446,6 +500,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -462,6 +518,8 @@
       "figure_count": 4,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 37.5,
       "bilingual_extraction_score": 0
     },
@@ -478,6 +536,8 @@
       "figure_count": 2,
       "figure_caption_truncated_count": 2,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 6,
       "metadata_completeness_pct": 12.5,
       "bilingual_extraction_score": null
     },
@@ -494,6 +554,8 @@
       "figure_count": 1,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 5,
       "metadata_completeness_pct": 50,
       "bilingual_extraction_score": 0
     },
@@ -510,6 +572,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -526,6 +590,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 2,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -542,6 +608,8 @@
       "figure_count": 7,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 9,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 25,
       "bilingual_extraction_score": null
     },
@@ -558,6 +626,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -574,6 +644,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -590,6 +662,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -606,6 +680,8 @@
       "figure_count": 1,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 1,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 50,
       "bilingual_extraction_score": 0
     },
@@ -622,6 +698,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 37.5,
       "bilingual_extraction_score": 0
     },
@@ -638,6 +716,8 @@
       "figure_count": 6,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 1,
+      "section_type_other_count": 4,
       "metadata_completeness_pct": 37.5,
       "bilingual_extraction_score": 0
     },
@@ -654,6 +734,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 1,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -670,6 +752,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -686,6 +770,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -702,6 +788,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -718,6 +806,8 @@
       "figure_count": 1,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 11,
       "metadata_completeness_pct": 50,
       "bilingual_extraction_score": 0
     },
@@ -734,6 +824,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -750,6 +842,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -766,6 +860,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -782,6 +878,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -798,6 +896,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 18,
       "metadata_completeness_pct": 37.5,
       "bilingual_extraction_score": null
     },
@@ -814,6 +914,8 @@
       "figure_count": 1,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 1,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -830,6 +932,8 @@
       "figure_count": 2,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -846,6 +950,8 @@
       "figure_count": 4,
       "figure_caption_truncated_count": 4,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -862,6 +968,8 @@
       "figure_count": 4,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 2,
       "metadata_completeness_pct": 75,
       "bilingual_extraction_score": 0
     },
@@ -878,6 +986,8 @@
       "figure_count": 9,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 1,
+      "section_type_other_count": 3,
       "metadata_completeness_pct": 75,
       "bilingual_extraction_score": 0
     },
@@ -894,6 +1004,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -910,6 +1022,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -926,6 +1040,8 @@
       "figure_count": 14,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 3,
+      "section_type_other_count": 7,
       "metadata_completeness_pct": 62.5,
       "bilingual_extraction_score": 0
     },
@@ -942,6 +1058,8 @@
       "figure_count": 8,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 2,
+      "section_type_other_count": 5,
       "metadata_completeness_pct": 75,
       "bilingual_extraction_score": 0
     },
@@ -958,6 +1076,8 @@
       "figure_count": 3,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 75,
       "bilingual_extraction_score": 0
     },
@@ -974,6 +1094,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -990,6 +1112,8 @@
       "figure_count": 2,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 1,
+      "section_type_other_count": 5,
       "metadata_completeness_pct": 50,
       "bilingual_extraction_score": 0
     },
@@ -1006,6 +1130,8 @@
       "figure_count": 2,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 2,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 3,
       "metadata_completeness_pct": 50,
       "bilingual_extraction_score": 0
     },
@@ -1022,6 +1148,8 @@
       "figure_count": 5,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 1,
+      "figure_caption_gap_count": 1,
+      "section_type_other_count": 1,
       "metadata_completeness_pct": 37.5,
       "bilingual_extraction_score": 0
     },
@@ -1038,6 +1166,8 @@
       "figure_count": 8,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 2,
+      "section_type_other_count": 2,
       "metadata_completeness_pct": 62.5,
       "bilingual_extraction_score": 0
     },
@@ -1054,6 +1184,8 @@
       "figure_count": 14,
       "figure_caption_truncated_count": 2,
       "figure_placeholder_count": 2,
+      "figure_caption_gap_count": 4,
+      "section_type_other_count": 1,
       "metadata_completeness_pct": 62.5,
       "bilingual_extraction_score": 0
     },
@@ -1070,6 +1202,8 @@
       "figure_count": 8,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 6,
+      "section_type_other_count": 5,
       "metadata_completeness_pct": 37.5,
       "bilingual_extraction_score": 0
     },
@@ -1086,6 +1220,8 @@
       "figure_count": 3,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 2,
+      "section_type_other_count": 5,
       "metadata_completeness_pct": 62.5,
       "bilingual_extraction_score": 0
     },
@@ -1102,6 +1238,8 @@
       "figure_count": 5,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 1,
+      "section_type_other_count": 1,
       "metadata_completeness_pct": 75,
       "bilingual_extraction_score": 0
     },
@@ -1118,6 +1256,8 @@
       "figure_count": 1,
       "figure_caption_truncated_count": 1,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 4,
       "metadata_completeness_pct": 75,
       "bilingual_extraction_score": 0
     },
@@ -1134,6 +1274,8 @@
       "figure_count": 10,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 2,
+      "figure_caption_gap_count": 5,
+      "section_type_other_count": 6,
       "metadata_completeness_pct": 62.5,
       "bilingual_extraction_score": 0
     },
@@ -1150,6 +1292,8 @@
       "figure_count": 1,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 3,
       "metadata_completeness_pct": 62.5,
       "bilingual_extraction_score": 0
     },
@@ -1166,6 +1310,8 @@
       "figure_count": 6,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 1,
+      "section_type_other_count": 3,
       "metadata_completeness_pct": 62.5,
       "bilingual_extraction_score": 0
     },
@@ -1182,6 +1328,8 @@
       "figure_count": 20,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 2,
+      "section_type_other_count": 3,
       "metadata_completeness_pct": 62.5,
       "bilingual_extraction_score": 0
     },
@@ -1198,6 +1346,8 @@
       "figure_count": 7,
       "figure_caption_truncated_count": 7,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 1,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -1214,6 +1364,8 @@
       "figure_count": 13,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 7,
+      "figure_caption_gap_count": 3,
+      "section_type_other_count": 4,
       "metadata_completeness_pct": 62.5,
       "bilingual_extraction_score": 0
     },
@@ -1230,6 +1382,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -1246,6 +1400,8 @@
       "figure_count": 2,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 1,
       "metadata_completeness_pct": 62.5,
       "bilingual_extraction_score": 0
     },
@@ -1262,6 +1418,8 @@
       "figure_count": 12,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 1,
+      "section_type_other_count": 5,
       "metadata_completeness_pct": 75,
       "bilingual_extraction_score": 0
     },
@@ -1278,6 +1436,8 @@
       "figure_count": 8,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 2,
       "metadata_completeness_pct": 50,
       "bilingual_extraction_score": 0
     },
@@ -1294,6 +1454,8 @@
       "figure_count": 3,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 2,
       "metadata_completeness_pct": 62.5,
       "bilingual_extraction_score": 0
     },
@@ -1310,6 +1472,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -1326,6 +1490,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -1342,6 +1508,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 7,
       "metadata_completeness_pct": 37.5,
       "bilingual_extraction_score": 0
     },
@@ -1358,6 +1526,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -1374,6 +1544,8 @@
       "figure_count": 10,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 4,
       "metadata_completeness_pct": 62.5,
       "bilingual_extraction_score": 0
     },
@@ -1390,6 +1562,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -1406,6 +1580,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -1422,6 +1598,8 @@
       "figure_count": 6,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 2,
+      "section_type_other_count": 4,
       "metadata_completeness_pct": 75,
       "bilingual_extraction_score": 0
     },
@@ -1438,6 +1616,8 @@
       "figure_count": 10,
       "figure_caption_truncated_count": 9,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 2,
       "metadata_completeness_pct": 62.5,
       "bilingual_extraction_score": 0
     },
@@ -1454,6 +1634,8 @@
       "figure_count": 3,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -1470,6 +1652,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 1,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -1486,6 +1670,8 @@
       "figure_count": 7,
       "figure_caption_truncated_count": 1,
       "figure_placeholder_count": 1,
+      "figure_caption_gap_count": 2,
+      "section_type_other_count": 2,
       "metadata_completeness_pct": 75,
       "bilingual_extraction_score": 0
     },
@@ -1502,6 +1688,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -1518,6 +1706,8 @@
       "figure_count": 3,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 1,
       "metadata_completeness_pct": 62.5,
       "bilingual_extraction_score": 0
     }
@@ -1536,6 +1726,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -1552,6 +1744,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 1,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -1568,6 +1762,8 @@
       "figure_count": 2,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -1584,6 +1780,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -1600,6 +1798,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -1616,6 +1816,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 6,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -1632,6 +1834,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -1648,6 +1852,8 @@
       "figure_count": 3,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 3,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -1664,6 +1870,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 1,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -1680,6 +1888,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 37.5,
       "bilingual_extraction_score": null
     },
@@ -1696,6 +1906,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -1712,6 +1924,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -1728,6 +1942,8 @@
       "figure_count": 1,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -1744,6 +1960,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -1760,6 +1978,8 @@
       "figure_count": 4,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -1776,6 +1996,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 1,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -1792,6 +2014,8 @@
       "figure_count": 1,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 1,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -1808,6 +2032,8 @@
       "figure_count": 1,
       "figure_caption_truncated_count": 1,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -1824,6 +2050,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 1,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -1840,6 +2068,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -1856,6 +2086,8 @@
       "figure_count": 4,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 1,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -1872,6 +2104,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 4,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -1888,6 +2122,8 @@
       "figure_count": 1,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 1,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -1904,6 +2140,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -1920,6 +2158,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -1936,6 +2176,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -1952,6 +2194,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -1968,6 +2212,8 @@
       "figure_count": 4,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 37.5,
       "bilingual_extraction_score": 0
     },
@@ -1984,6 +2230,8 @@
       "figure_count": 2,
       "figure_caption_truncated_count": 2,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 6,
       "metadata_completeness_pct": 12.5,
       "bilingual_extraction_score": null
     },
@@ -2000,6 +2248,8 @@
       "figure_count": 1,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 5,
       "metadata_completeness_pct": 50,
       "bilingual_extraction_score": 0
     },
@@ -2016,6 +2266,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -2032,6 +2284,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 2,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -2048,6 +2302,8 @@
       "figure_count": 7,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 9,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 25,
       "bilingual_extraction_score": null
     },
@@ -2064,6 +2320,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -2080,6 +2338,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -2096,6 +2356,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -2112,6 +2374,8 @@
       "figure_count": 1,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 1,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 50,
       "bilingual_extraction_score": 0
     },
@@ -2128,6 +2392,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 37.5,
       "bilingual_extraction_score": 0
     },
@@ -2144,6 +2410,8 @@
       "figure_count": 6,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 1,
+      "section_type_other_count": 4,
       "metadata_completeness_pct": 37.5,
       "bilingual_extraction_score": 0
     },
@@ -2160,6 +2428,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 1,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -2176,6 +2446,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -2192,6 +2464,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -2208,6 +2482,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -2224,6 +2500,8 @@
       "figure_count": 1,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 11,
       "metadata_completeness_pct": 50,
       "bilingual_extraction_score": 0
     },
@@ -2240,6 +2518,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -2256,6 +2536,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -2272,6 +2554,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -2288,6 +2572,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -2304,6 +2590,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 18,
       "metadata_completeness_pct": 37.5,
       "bilingual_extraction_score": null
     },
@@ -2320,6 +2608,8 @@
       "figure_count": 1,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 1,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -2336,6 +2626,8 @@
       "figure_count": 2,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -2352,6 +2644,8 @@
       "figure_count": 4,
       "figure_caption_truncated_count": 4,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -2368,6 +2662,8 @@
       "figure_count": 4,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 2,
       "metadata_completeness_pct": 75,
       "bilingual_extraction_score": 0
     },
@@ -2384,6 +2680,8 @@
       "figure_count": 9,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 1,
+      "section_type_other_count": 3,
       "metadata_completeness_pct": 75,
       "bilingual_extraction_score": 0
     },
@@ -2400,6 +2698,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -2416,6 +2716,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -2432,6 +2734,8 @@
       "figure_count": 14,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 3,
+      "section_type_other_count": 7,
       "metadata_completeness_pct": 62.5,
       "bilingual_extraction_score": 0
     },
@@ -2448,6 +2752,8 @@
       "figure_count": 8,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 2,
+      "section_type_other_count": 5,
       "metadata_completeness_pct": 75,
       "bilingual_extraction_score": 0
     },
@@ -2464,6 +2770,8 @@
       "figure_count": 3,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 75,
       "bilingual_extraction_score": 0
     },
@@ -2480,6 +2788,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -2496,6 +2806,8 @@
       "figure_count": 2,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 1,
+      "section_type_other_count": 5,
       "metadata_completeness_pct": 50,
       "bilingual_extraction_score": 0
     },
@@ -2512,6 +2824,8 @@
       "figure_count": 2,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 2,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 3,
       "metadata_completeness_pct": 50,
       "bilingual_extraction_score": 0
     },
@@ -2528,6 +2842,8 @@
       "figure_count": 5,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 1,
+      "figure_caption_gap_count": 1,
+      "section_type_other_count": 1,
       "metadata_completeness_pct": 37.5,
       "bilingual_extraction_score": 0
     },
@@ -2544,6 +2860,8 @@
       "figure_count": 8,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 2,
+      "section_type_other_count": 2,
       "metadata_completeness_pct": 62.5,
       "bilingual_extraction_score": 0
     },
@@ -2560,6 +2878,8 @@
       "figure_count": 14,
       "figure_caption_truncated_count": 2,
       "figure_placeholder_count": 2,
+      "figure_caption_gap_count": 4,
+      "section_type_other_count": 1,
       "metadata_completeness_pct": 62.5,
       "bilingual_extraction_score": 0
     },
@@ -2576,6 +2896,8 @@
       "figure_count": 8,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 6,
+      "section_type_other_count": 5,
       "metadata_completeness_pct": 37.5,
       "bilingual_extraction_score": 0
     },
@@ -2592,6 +2914,8 @@
       "figure_count": 3,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 2,
+      "section_type_other_count": 5,
       "metadata_completeness_pct": 62.5,
       "bilingual_extraction_score": 0
     },
@@ -2608,6 +2932,8 @@
       "figure_count": 5,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 1,
+      "section_type_other_count": 1,
       "metadata_completeness_pct": 75,
       "bilingual_extraction_score": 0
     },
@@ -2624,6 +2950,8 @@
       "figure_count": 1,
       "figure_caption_truncated_count": 1,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 4,
       "metadata_completeness_pct": 75,
       "bilingual_extraction_score": 0
     },
@@ -2640,6 +2968,8 @@
       "figure_count": 10,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 2,
+      "figure_caption_gap_count": 5,
+      "section_type_other_count": 6,
       "metadata_completeness_pct": 62.5,
       "bilingual_extraction_score": 0
     },
@@ -2656,6 +2986,8 @@
       "figure_count": 1,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 3,
       "metadata_completeness_pct": 62.5,
       "bilingual_extraction_score": 0
     },
@@ -2672,6 +3004,8 @@
       "figure_count": 6,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 1,
+      "section_type_other_count": 3,
       "metadata_completeness_pct": 62.5,
       "bilingual_extraction_score": 0
     },
@@ -2688,6 +3022,8 @@
       "figure_count": 20,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 2,
+      "section_type_other_count": 3,
       "metadata_completeness_pct": 62.5,
       "bilingual_extraction_score": 0
     },
@@ -2704,6 +3040,8 @@
       "figure_count": 7,
       "figure_caption_truncated_count": 7,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 1,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -2720,6 +3058,8 @@
       "figure_count": 13,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 7,
+      "figure_caption_gap_count": 3,
+      "section_type_other_count": 4,
       "metadata_completeness_pct": 62.5,
       "bilingual_extraction_score": 0
     },
@@ -2736,6 +3076,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -2752,6 +3094,8 @@
       "figure_count": 2,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 1,
       "metadata_completeness_pct": 62.5,
       "bilingual_extraction_score": 0
     },
@@ -2768,6 +3112,8 @@
       "figure_count": 12,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 1,
+      "section_type_other_count": 5,
       "metadata_completeness_pct": 75,
       "bilingual_extraction_score": 0
     },
@@ -2784,6 +3130,8 @@
       "figure_count": 8,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 2,
       "metadata_completeness_pct": 50,
       "bilingual_extraction_score": 0
     },
@@ -2800,6 +3148,8 @@
       "figure_count": 3,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 2,
       "metadata_completeness_pct": 62.5,
       "bilingual_extraction_score": 0
     },
@@ -2816,6 +3166,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -2832,6 +3184,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -2848,6 +3202,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 7,
       "metadata_completeness_pct": 37.5,
       "bilingual_extraction_score": 0
     },
@@ -2864,6 +3220,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -2880,6 +3238,8 @@
       "figure_count": 10,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 4,
       "metadata_completeness_pct": 62.5,
       "bilingual_extraction_score": 0
     },
@@ -2896,6 +3256,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -2912,6 +3274,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -2928,6 +3292,8 @@
       "figure_count": 6,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 2,
+      "section_type_other_count": 4,
       "metadata_completeness_pct": 75,
       "bilingual_extraction_score": 0
     },
@@ -2944,6 +3310,8 @@
       "figure_count": 10,
       "figure_caption_truncated_count": 9,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 2,
       "metadata_completeness_pct": 62.5,
       "bilingual_extraction_score": 0
     },
@@ -2960,6 +3328,8 @@
       "figure_count": 3,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -2976,6 +3346,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 1,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -2992,6 +3364,8 @@
       "figure_count": 7,
       "figure_caption_truncated_count": 1,
       "figure_placeholder_count": 1,
+      "figure_caption_gap_count": 2,
+      "section_type_other_count": 2,
       "metadata_completeness_pct": 75,
       "bilingual_extraction_score": 0
     },
@@ -3008,6 +3382,8 @@
       "figure_count": 0,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 0,
       "metadata_completeness_pct": 0,
       "bilingual_extraction_score": null
     },
@@ -3024,6 +3400,8 @@
       "figure_count": 3,
       "figure_caption_truncated_count": 0,
       "figure_placeholder_count": 0,
+      "figure_caption_gap_count": 0,
+      "section_type_other_count": 1,
       "metadata_completeness_pct": 62.5,
       "bilingual_extraction_score": 0
     }

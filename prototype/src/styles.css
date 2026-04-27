@@ -195,26 +195,42 @@ header .hint {
   text-overflow: ellipsis;
 }
 
+#nav-panel .nav-group {
+  margin-bottom: 10px;
+}
+
+#nav-panel .nav-group-header {
+  font-size: 11px;
+  text-transform: uppercase;
+  color: #7a7a7a;
+  padding: 8px 12px 4px;
+  letter-spacing: 0.5px;
+  font-family: 'PT Sans', sans-serif;
+}
+
+#nav-panel .nav-group-items {
+  display: block;
+}
+
 #nav-panel .nav-item:hover {
   background: #f5f5f5;
   color: #1976d2;
 }
 
+#nav-panel .nav-item.active {
+  background: #eef5ff;
+  border-left-color: #1976d2;
+  color: #0d47a1;
+}
+
 #nav-panel .nav-item.level-1 { padding-left: 12px; font-weight: 600; }
-#nav-panel .nav-item.level-2 { padding-left: 24px; }
-#nav-panel .nav-item.level-3 { padding-left: 36px; font-size: 12px; color: #666; }
+#nav-panel .nav-item.level-2 { padding-left: 24px; font-weight: 600; }
+#nav-panel .nav-item.level-3 { padding-left: 36px; font-size: 12px; color: #666; font-weight: 600; }
 
 /* Structural elements in nav */
-#nav-panel .nav-fig { padding-left: 28px; font-size: 11px; color: #0d47a1; }
-#nav-panel .nav-tbl { padding-left: 28px; font-size: 11px; color: #1b5e20; }
-#nav-panel .nav-formula { padding-left: 28px; font-size: 11px; color: #e65100; }
-
-/* Collapsible sections */
-#nav-panel .nav-section-toggle { cursor: pointer; }
-#nav-panel .nav-section-toggle::before { content: "▼ "; font-size: 9px; }
-#nav-panel .nav-section-toggle.collapsed::before { content: "▶ "; }
-#nav-panel .nav-section.collapsed { display: none; }
-#nav-panel .nav-section { margin-bottom: 4px; }
+#nav-panel .nav-fig { padding-left: 28px; font-size: 11px; color: #0d47a1; font-weight: 400; }
+#nav-panel .nav-tbl { padding-left: 28px; font-size: 11px; color: #1b5e20; font-weight: 400; }
+#nav-panel .nav-formula { padding-left: 28px; font-size: 11px; color: #e65100; font-weight: 400; }
 
 
 /* === Editor === */
@@ -460,6 +476,10 @@ header .hint {
 .ProseMirror [data-section-type="conclusion"],
 .ProseMirror .pm-section-body[data-parent-section="conclusion"] { border-left-color: #c62828; }
 .ProseMirror [data-section-type="conclusion"]::before { background: #c62828; }
+
+.ProseMirror [data-section-type="other"],
+.ProseMirror .pm-section-body[data-parent-section="other"] { border-left-color: #616161; }
+.ProseMirror [data-section-type="other"]::before { background: #616161; }
 
 .ProseMirror [data-section-type="acknowledgements"],
 .ProseMirror .pm-section-body[data-parent-section="acknowledgements"] { border-left-color: #78909c; }

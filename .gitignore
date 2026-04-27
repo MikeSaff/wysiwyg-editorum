@@ -1,6 +1,8 @@
 node_modules/
 dist/
 prototype/corpus-artifacts/
+prototype/playwright-report/
+prototype/test-results/
 *.lock
 .DS_Store
 

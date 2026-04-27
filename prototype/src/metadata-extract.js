@@ -577,6 +577,10 @@ export function mergeExtractedPublication(envelope, extraction) {
     }
     if (sm.dates && typeof sm.dates === "object") {
       envelope.meta.dates = { ...envelope.meta.dates, ...sm.dates }
+      if (!envelope.meta.publicationDate) {
+        envelope.meta.publicationDate =
+          sm.dates.published_print || sm.dates.published_online || envelope.meta.publicationDate
+      }
     }
     if (Array.isArray(sm.contributors) && sm.contributors.length) {
       envelope.meta.contributors = sm.contributors
