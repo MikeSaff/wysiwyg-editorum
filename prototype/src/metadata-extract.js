@@ -36,6 +36,8 @@ function authorPlainWithSupStars(el) {
   return (el.innerHTML || "")
     .replace(/<sup>\s*\*+\s*<\/sup>/gi, "*")
     .replace(/<[^>]+>/g, " ")
+    .replace(/&(?:nbsp|#160);/giu, " ")
+    .replace(/\u00A0/gu, " ")
     .replace(/\s+/gu, " ")
     .trim()
 }
@@ -56,7 +58,7 @@ function assignEmailToAuthors(meta, email, opts) {
   const { paragraphStarred } = opts
   const authors = meta.authors
   if (!email || !authors.length) return
-  if (paragraphStarred && authors.length === 1) {
+  if (authors.length === 1 && (paragraphStarred || !authors[0].email)) {
     authors[0].email = email
     authors[0].isCorresponding = true
     return
@@ -205,7 +207,12 @@ function compactSpacedInitials(part) {
 
 function parseAuthorsLine(raw) {
   const authors = []
-  const parts = raw.split(",").map((s) => s.trim()).filter(Boolean)
+  const normalizedRaw = String(raw || "")
+    .replace(/&(?:nbsp|#160);/giu, " ")
+    .replace(/\u00A0/gu, " ")
+    .replace(/\s+/gu, " ")
+    .trim()
+  const parts = normalizedRaw.split(",").map((s) => s.trim()).filter(Boolean)
   for (let part of parts) {
     let affRefs = []
     if (/\*+$/.test(part)) {
@@ -213,10 +220,10 @@ function parseAuthorsLine(raw) {
       part = part.replace(/\*+$/u, "").trim()
     }
     part = compactSpacedInitials(part)
-    let m = part.match(/^([А-ЯA-ZЁ]\.[А-ЯA-ZЁ]?\.\s+)(.+)$/u)
-    if (!m) m = part.match(/^([А-ЯA-ZЁ]\.\s+)(.+)$/u)
+    let m = part.match(/^([А-ЯA-ZЁ]\.\s*[А-ЯA-ZЁ]?\.\s*)(.+)$/u)
+    if (!m) m = part.match(/^([А-ЯA-ZЁ]\.\s*)(.+)$/u)
     if (!m) continue
-    const initials = m[1].replace(/\s+/gu, " ").trim()
+    const initials = m[1].replace(/\s+/gu, "").trim()
     const rest = m[2].trim()
     const surname = (rest.split(/\s+/u)[0] || rest).replace(/[,;]+$/u, "")
     authors.push({
@@ -279,6 +286,14 @@ export function extractMetadataFromImportedHtml(html, options = {}) {
   if (firstBody < 0) {
     miss("no IMRAD heading (introduction/methods/…) — keeping preamble in body")
   } else {
+    const preambleBlocks = blocks.slice(0, firstBody)
+    const hasStyledArticleTitle = preambleBlocks.some((el) => {
+      const cls = (el.getAttribute("class") || "").toLowerCase()
+      return (
+        cls.includes("style-title-article") ||
+        ((el.tagName || "").toLowerCase() === "h1" && el.getAttribute("data-section-type") === "title")
+      )
+    })
     for (let z = 0; z < firstBody; z++) {
       const el = blocks[z]
       const t = plainText(el)
@@ -296,10 +311,10 @@ export function extractMetadataFromImportedHtml(html, options = {}) {
           const hasLat = /[A-Za-z]{3,}/.test(t)
           if (englishMetaActive) {
             if (hasLat) meta.title.en = t
-          } else if (!meta.title.ru) {
-            if (hasCyr && hasLat) meta.title.ru = t
-            else if (!hasCyr && hasLat) meta.title.en = t
-            else meta.title.ru = t
+          } else if (hasCyr || !hasLat) {
+            meta.title.ru = t
+          } else if (!meta.title.ru && hasLat) {
+            meta.title.en = t
           } else if (
             !meta.title.en &&
             (isLikelyEnglishParagraphText(t) || (hasLat && !hasCyr))
@@ -372,7 +387,7 @@ export function extractMetadataFromImportedHtml(html, options = {}) {
         continue
       }
 
-      if (z === 0 && t.length >= 20 && t.length <= 600 && !el.querySelector("table,img,.math-block")) {
+      if (!hasStyledArticleTitle && z === 0 && t.length >= 20 && t.length <= 600 && !el.querySelector("table,img,.math-block")) {
         const hasCyr = /[\u0400-\u04FF]/.test(t)
         const hasLat = /[A-Za-z]{3,}/.test(t)
         if (hasCyr && hasLat) meta.title.ru = t

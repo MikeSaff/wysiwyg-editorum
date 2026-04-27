@@ -2,11 +2,15 @@
  * Shared formula-quality scoring (used by formula-quality.mjs and formula-quality-diff.mjs).
  */
 import { parseHTML } from "linkedom"
-import { readFile, readdir } from "node:fs/promises"
-import { join, relative } from "node:path"
+import { DOMParser } from "xmldom"
+import { readFile } from "node:fs/promises"
+import { relative } from "node:path"
 import { docxXmlToHtml, extractDocxArchiveContext, normalizeImportedHtml } from "../src/word-import.js"
 import { extractMetadataFromImportedHtml } from "../src/metadata-extract.js"
 import { parseMathTypeSync, validateLatex } from "mtef-to-mathml"
+import { walkDocxFiles } from "./corpus-root.mjs"
+
+if (!globalThis.DOMParser) globalThis.DOMParser = DOMParser
 
 function stripOleHeader(u8) {
   if (u8.length > 28 && u8[0] === 0x1c && u8[1] === 0x00) return u8.subarray(28)
@@ -146,16 +150,32 @@ export function scoreFormulaQualityForHtml(html, oleBlobs, meta = null) {
   let single_char_formula_count = 0
   let mathjax_render_error_count = 0
 
-  const tokenRe = /data-mathml="([^"]*)"\s+data-latex="([^"]*)"/g
-  let m
-  while ((m = tokenRe.exec(html)) !== null) {
-    formulas_total++
-    const mathml = decodeXmlAttr(m[1])
-    const latex = decodeXmlAttr(m[2])
-    empty_msub_count += countEmptyScriptsInMathML(mathml)
-    if (!validateLatex(latex).valid) invalid_latex_count++
-    single_char_formula_count += countSingleCharFormula(mathml)
-    if (/<merror\b/i.test(mathml)) mathjax_render_error_count++
+  try {
+    const { document: d } = parseHTML(`<div id="fq-root">${html || ""}</div>`)
+    const root = d.getElementById("fq-root")
+    const formulas = root ? [...root.querySelectorAll(".math-block,.math-inline")] : []
+    for (const el of formulas) {
+      formulas_total++
+      const mathml = el.getAttribute("data-mathml") || ""
+      const latex = el.getAttribute("data-latex") || ""
+      empty_msub_count += countEmptyScriptsInMathML(mathml)
+      if (!validateLatex(latex).valid) invalid_latex_count++
+      if (el.classList?.contains("math-block")) {
+        single_char_formula_count += countSingleCharFormula(mathml)
+      }
+      if (/<merror\b/i.test(mathml)) mathjax_render_error_count++
+    }
+  } catch {
+    const tokenRe = /data-mathml="([^"]*)"\s+data-latex="([^"]*)"/g
+    let m
+    while ((m = tokenRe.exec(html)) !== null) {
+      formulas_total++
+      const mathml = decodeXmlAttr(m[1])
+      const latex = decodeXmlAttr(m[2])
+      empty_msub_count += countEmptyScriptsInMathML(mathml)
+      if (!validateLatex(latex).valid) invalid_latex_count++
+      if (/<merror\b/i.test(mathml)) mathjax_render_error_count++
+    }
   }
 
   let embell_orphan_count = 0
@@ -190,28 +210,6 @@ export function scoreFormulaQualityForHtml(html, oleBlobs, meta = null) {
   }
 }
 
-async function walkDocxFiles(dir, out = []) {
-  let entries
-  try {
-    entries = await readdir(dir, { withFileTypes: true })
-  } catch {
-    return out
-  }
-  for (const e of entries) {
-    const p = join(dir, e.name)
-    if (e.isDirectory()) {
-      await walkDocxFiles(p, out)
-    } else if (
-      e.isFile() &&
-      e.name.toLowerCase().endsWith(".docx") &&
-      !e.name.startsWith("~$")
-    ) {
-      out.push(p)
-    }
-  }
-  return out
-}
-
 const ZERO_EXT = {
   formulas_total: 0,
   empty_msub_count: 0,
@@ -226,8 +224,8 @@ const ZERO_EXT = {
   bilingual_extraction_score: null,
 }
 
-export async function walkDocxAndScore(root) {
-  const files = await walkDocxFiles(root)
+export async function walkDocxAndScore(root, resolvedFiles = null) {
+  const files = resolvedFiles || await walkDocxFiles(root)
   const results = []
   const totals = { ...ZERO_EXT, bilingual_extraction_score: 0, _bilingual_n: 0 }
 
@@ -245,7 +243,16 @@ export async function walkDocxAndScore(root) {
         ctx.oleEmbedRels,
         ctx.oleBlobs
       )
-      const html = normalizeImportedHtml(rawHtml)
+      const { document: importDocument } = parseHTML("<!DOCTYPE html><html><body></body></html>")
+      const prevDocument = globalThis.document
+      let html
+      try {
+        globalThis.document = importDocument
+        html = normalizeImportedHtml(rawHtml)
+      } finally {
+        if (prevDocument) globalThis.document = prevDocument
+        else delete globalThis.document
+      }
       const { document: ldoc } = parseHTML("<!DOCTYPE html><html><body></body></html>")
       const { meta } = extractMetadataFromImportedHtml(html, { rootDocument: ldoc })
       const scores = scoreFormulaQualityForHtml(html, ctx.oleBlobs, meta)

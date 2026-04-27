@@ -7,15 +7,13 @@ import { writeFile } from "node:fs/promises"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
 import { walkDocxAndScore } from "./formula-quality-lib.mjs"
+import { assertUsefulBaseline, resolveCorpusRoot } from "./corpus-root.mjs"
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url))
-const DEFAULT_CORPUS_ROOT = join(
-  fileURLToPath(new URL("../../Docx/Nauka/Сложные журналы", import.meta.url))
-)
 
 async function main() {
-  const root = process.env.CORPUS_DOCX_ROOT || DEFAULT_CORPUS_ROOT
-  const { files, results, totals } = await walkDocxAndScore(root)
+  const { root, files } = await resolveCorpusRoot()
+  const { results, totals } = await walkDocxAndScore(root, files)
 
   const payload = {
     generated_at: new Date().toISOString(),
@@ -23,7 +21,9 @@ async function main() {
     file_count: files.length,
     totals,
     results,
+    per_file: results,
   }
+  assertUsefulBaseline(payload, "formula-quality baseline")
 
   const outPath = join(__dirname, "../tests/formula-quality-baseline.json")
   await writeFile(outPath, JSON.stringify(payload, null, 2), "utf8")

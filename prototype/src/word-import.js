@@ -1118,17 +1118,26 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes, oleEmbedR
 
         for (const paragraph of paragraphRuns) {
           if (paragraph.tag === "p" && paragraph.styleType === "fig-caption") {
-            const nextParagraph = getBodyParagraphDescriptor(bodyChildren, idx + 1, wNs, mNs)
-            if (nextParagraph?.isImageOnly) {
-              html += renderFigureBlockHtml(nextParagraph, paragraph)
-              skipIndices.add(idx + 1)
+            const followingImage = getNearbyFollowingImageDescriptor(bodyChildren, idx, wNs, mNs)
+            if (followingImage) {
+              html += renderFigureBlockHtml(followingImage.descriptor, paragraph)
+              skipIndices.add(followingImage.index)
               continue
             }
           }
 
           if (paragraph.tag === "p" && paragraph.isImageOnly) {
+            const previousCaption = getNearbyPrecedingFigureCaptionDescriptor(bodyChildren, idx, wNs, mNs)
+            if (previousCaption) {
+              html += renderFigureBlockHtml(paragraph, previousCaption.descriptor)
+              skipIndices.add(previousCaption.index)
+              continue
+            }
             const nextParagraph = getBodyParagraphDescriptor(bodyChildren, idx + 1, wNs, mNs)
-            if (nextParagraph?.styleType === "fig-caption") {
+            if (
+              nextParagraph?.styleType === "fig-caption" &&
+              !captionBelongsToFollowingImage(bodyChildren, idx + 1, wNs, mNs)
+            ) {
               html += renderFigureBlockHtml(paragraph, nextParagraph)
               skipIndices.add(idx + 1)
               continue
@@ -1346,6 +1355,59 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes, oleEmbedR
         paragraphIndex: index,
       }) || null
     )
+  }
+
+  function getNearbyPrecedingFigureCaptionDescriptor(children, imageIndex, wNs, mNs) {
+    for (let i = imageIndex - 1, seen = 0; i >= 0 && seen < 4; i--) {
+      const child = children[i]
+      const name = child?.localName || child?.nodeName?.split(":").pop()
+      if (name !== "p") break
+      const desc = getBodyParagraphDescriptor(children, i, wNs, mNs)
+      if (!desc) {
+        seen += 1
+        continue
+      }
+      if (desc.isImageOnly) return null
+      if (desc.styleType === "fig-caption") return { index: i, descriptor: desc }
+      const plain = (desc.plainText || "").replace(/\s+/gu, " ").trim()
+      if (plain) break
+      seen += 1
+    }
+    return null
+  }
+
+  function getNearbyFollowingImageDescriptor(children, captionIndex, wNs, mNs) {
+    for (let i = captionIndex + 1, seen = 0; i < children.length && seen < 3; i++) {
+      const child = children[i]
+      const name = child?.localName || child?.nodeName?.split(":").pop()
+      if (name !== "p") break
+      const desc = getBodyParagraphDescriptor(children, i, wNs, mNs)
+      if (!desc) {
+        seen += 1
+        continue
+      }
+      if (desc.isImageOnly) return { index: i, descriptor: desc }
+      if ((desc.plainText || "").replace(/\s+/gu, " ").trim()) return null
+      seen += 1
+    }
+    return null
+  }
+
+  function captionBelongsToFollowingImage(children, captionIndex, wNs, mNs) {
+    for (let i = captionIndex + 1, seen = 0; i < children.length && seen < 3; i++) {
+      const child = children[i]
+      const name = child?.localName || child?.nodeName?.split(":").pop()
+      if (name !== "p") break
+      const desc = getBodyParagraphDescriptor(children, i, wNs, mNs)
+      if (!desc) {
+        seen += 1
+        continue
+      }
+      if (desc.isImageOnly) return true
+      if ((desc.plainText || "").replace(/\s+/gu, " ").trim()) return false
+      seen += 1
+    }
+    return false
   }
 
   function getFollowingTableWrap(children, index, firstParagraph, wNs, mNs) {
@@ -2430,6 +2492,49 @@ export function promoteFloatingFiguresAndCaptionsInRoot(root, doc) {
   }
 }
 
+export function applyBackMatterFigureCaptionFullTextInRoot(root, doc) {
+  if (!root || typeof root.querySelectorAll !== "function" || !doc?.createElement) return
+  const figures = [...root.querySelectorAll("figure.figure-block")]
+  if (!figures.length) return
+  const shortCaptionFigures = figures.filter((fig) => {
+    const fc = fig.querySelector("figcaption.figure-caption-ru") || fig.querySelector("figcaption")
+    const plain = (fc?.textContent || "").replace(/\s+/gu, " ").trim()
+    return /^(?:Рис\.|Рисунок)\s*\d+\.?$/iu.test(plain)
+  })
+  if (!shortCaptionFigures.length) return
+
+  const pool = [...root.querySelectorAll("p.style-figure")].filter((p) => {
+    if (p.closest("figure") || p.querySelector("img")) return false
+    const t = (p.textContent || "").replace(/\s+/gu, " ").trim()
+    return t.length > 20 && !/^(?:Рис\.|Рисунок|Fig\.?|Figure)\s*\d/iu.test(t)
+  })
+  if (pool.length < shortCaptionFigures.length) return
+
+  const byNumber = new Map()
+  for (let i = 0; i < pool.length; i++) byNumber.set(String(i + 1), pool[i])
+
+  let changed = false
+  const used = new Set()
+  for (let i = 0; i < figures.length; i++) {
+    const fig = figures[i]
+    const fc = fig.querySelector("figcaption.figure-caption-ru") || fig.querySelector("figcaption")
+    if (!fc) continue
+    const plain = (fc.textContent || "").replace(/\s+/gu, " ").trim()
+    if (!/^(?:Рис\.|Рисунок)\s*\d+\.?$/iu.test(plain)) continue
+    const m = plain.match(/(?:Рис(?:унок)?|Рис\.)\s*(\d+)/iu)
+    const n = m?.[1] || String(i + 1)
+    const full = byNumber.get(n)
+    if (!full) continue
+    fc.innerHTML = `${escapeHtml(plain.replace(/\.*$/u, "."))} ${full.innerHTML}`
+    used.add(full)
+    changed = true
+  }
+
+  if (changed) {
+    for (const p of used) p.remove()
+  }
+}
+
 /**
  * v0.50.4: For each <figure.figure-block> that has NO <figcaption>, look at
  * adjacent <p> siblings (after first, then before) for Рис./Fig. captions and
@@ -2678,6 +2783,7 @@ export function normalizeImportedHtml(html) {
       // v0.50.4: any figure-block left without figcaption (table→figure with
       // captions outside the table) gets adjacent Рис./Fig. paragraphs absorbed.
       attachLooseFigureCaptionsToFiguresInRoot(holder, document)
+      applyBackMatterFigureCaptionFullTextInRoot(holder, document)
       promoteLooseTableCaptionsInRoot(holder, document)
       applyWeakPathUppercaseHeadingHeuristicToRoot(holder)
       out = holder.innerHTML

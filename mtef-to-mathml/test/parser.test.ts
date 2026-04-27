@@ -237,7 +237,15 @@ describe('v0.54: empty scripts, EMBELL lookahead, LaTeX', () => {
   it('EMBELL with no base and no lookahead yields embell-orphan warning', () => {
     const result = parseMathTypeSync(mtef(line(embellish(5, []))));
     expect(result.warnings.some((w) => w.type === 'embell-orphan')).toBe(true);
+    expect(result.warnings.some((w) => w.type === 'embell-result-trivial')).toBe(true);
     expect(result.mathml).toContain('2032');
+  });
+
+  it('character-level EMBELL does not consume following formula atoms', () => {
+    const charWithPrime = [2, 0x05, 0, 0xbe, 0x03, 0x78];
+    const result = parseMathTypeSync(mtef(line([...charWithPrime, ...embellish(5, []), ...char(0x003d), ...char(0x0058)])));
+    expect(result.latex).toBe('\\xi=X');
+    expect(result.warnings.some((w) => w.type === 'embell-orphan')).toBe(false);
   });
 
   it('multi-character subscript is wrapped in braces in LaTeX', () => {

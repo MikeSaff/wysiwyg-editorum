@@ -1244,6 +1244,45 @@ test("v0.53: «Рисунок N. демонстрирует…» without adjacen
   assert.doesNotMatch(html, /style-fig-caption/)
 })
 
+test("v0.56: caption before image may skip blank paragraphs and does not steal next figure caption", () => {
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<w:document xmlns:w="${W_NS}" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+  xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
+  <w:body>
+    <w:p><w:r><w:drawing><a:graphic><a:graphicData><a:pic><a:blipFill><a:blip r:embed="rIdDecor"/></a:blipFill></a:pic></a:graphicData></a:graphic></w:drawing></w:r></w:p>
+    <w:p><w:r><w:t>Рис. 1.</w:t></w:r></w:p>
+    <w:p><w:r><w:drawing><a:graphic><a:graphicData><a:pic><a:blipFill><a:blip r:embed="rId1"/></a:blipFill></a:pic></a:graphicData></a:graphic></w:drawing></w:r></w:p>
+    <w:p><w:r><w:t>Рис. 2.</w:t></w:r></w:p>
+    <w:p><w:r><w:t> </w:t></w:r></w:p>
+    <w:p><w:r><w:drawing><a:graphic><a:graphicData><a:pic><a:blipFill><a:blip r:embed="rId2"/></a:blipFill></a:pic></a:graphicData></a:graphic></w:drawing></w:r></w:p>
+  </w:body>
+</w:document>`
+  const html = docxXmlToHtml(xml, {}, { rIdDecor: "decor.png", rId1: "fig1.png", rId2: "fig2.png" }, {}, {}, new Map())
+  assert.match(html, /<p[^>]*><img src="decor\.png"[^>]*><\/p>/u)
+  assert.match(html, /<figure[^>]*><img src="fig1\.png"[^>]*><figcaption class="figure-caption-ru">Рис\. 1\.<\/figcaption><\/figure>/u)
+  assert.match(html, /<figure[^>]*><img src="fig2\.png"[^>]*><figcaption class="figure-caption-ru">Рис\. 2\.<\/figcaption><\/figure>/u)
+})
+
+test("v0.56: normalizeImportedHtml expands short figure captions from Pleiades caption list", () => {
+  const { document: doc } = parseHTML("<!DOCTYPE html><html><body></body></html>")
+  const prevDoc = globalThis.document
+  globalThis.document = doc
+  try {
+    const html = [
+      '<p class="style-figure">Полный текст первой подписи с деталями эксперимента.</p>',
+      '<p class="style-figure">Полный текст второй подписи с деталями эксперимента.</p>',
+      '<figure class="figure-block"><img src="a.png"><figcaption class="figure-caption-ru">Рис. 1.</figcaption></figure>',
+      '<figure class="figure-block"><img src="b.png"><figcaption class="figure-caption-ru">Рис. 2.</figcaption></figure>',
+    ].join("\n")
+    const out = normalizeImportedHtml(html)
+    assert.match(out, /Рис\. 1\. Полный текст первой подписи/u)
+    assert.match(out, /Рис\. 2\. Полный текст второй подписи/u)
+    assert.doesNotMatch(out, /<p class="style-figure">/u)
+  } finally {
+    globalThis.document = prevDoc
+  }
+})
+
 test("MathLive from npm; MathJax 4 CDN in index — no mathjax-full, no KaTeX", async () => {
   const indexPath = new URL("../index.html", import.meta.url)
   const packagePath = new URL("../package.json", import.meta.url)

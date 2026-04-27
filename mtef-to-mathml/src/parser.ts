@@ -142,6 +142,12 @@ function parseObjectList(
             attempts,
             message: 'EMBELL had no inner base; lookahead/nested recovery failed'
           });
+          warnings.push({
+            type: 'embell-result-trivial',
+            position: tag.position,
+            decoration_hex: hex(emb.embellishment),
+            message: 'EMBELL recovery produced only a standalone fallback atom'
+          });
           nodes.push(standaloneEmbellFallbackNode(tag.position, emb.embellishment));
           continue;
         }
@@ -317,9 +323,7 @@ function parseChar(
   }
 
   if ((options & OPT_CHAR_EMBELL) !== 0) {
-    const embellishments = parseObjectList(reader, version, warnings).flatMap((node) =>
-      node.kind === 'unknown' && typeof node.value === 'string' ? [Number(node.value)] : []
-    );
+    const embellishments = parseCharEmbellishmentList(reader, version, warnings);
     if (embellishments.length > 0) {
       return makeTextNode(
         tag.position,
@@ -333,6 +337,36 @@ function parseChar(
   }
 
   return makeTextNode(tag.position, value, mtCode, typeface, (options & OPT_CHAR_FUNC_START) !== 0, unknown);
+}
+
+function parseCharEmbellishmentList(reader: ByteReader, version: number, warnings: ParseWarning[]): number[] {
+  const embellishments: number[] = [];
+  let guard = 0;
+  while (!reader.eof() && guard < 1000) {
+    guard += 1;
+    const tag = readRecordTag(reader, version);
+    if (tag.type === 0) break;
+    if (tag.type !== 6) {
+      reader.seek(tag.position);
+      break;
+    }
+    const emb = readPlainEmbellishmentRecord(reader, version, tag, warnings);
+    embellishments.push(emb.embellishment);
+  }
+  return embellishments;
+}
+
+function readPlainEmbellishmentRecord(
+  reader: ByteReader,
+  version: number,
+  tag: RecordTag,
+  warnings: ParseWarning[]
+): { embellishment: number } {
+  const options = readOptions(reader, tag, version);
+  skipNudgeIfPresent(reader, options);
+  const embellishment = reader.readUInt8();
+  parseObjectList(reader, version, warnings);
+  return { embellishment };
 }
 
 function makeTextNode(

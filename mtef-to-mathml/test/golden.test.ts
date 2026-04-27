@@ -12,6 +12,12 @@ function listGoldenBins(dir: string): string[] {
 
 const goldenBins = listGoldenBins(fixturesDir);
 const localGoldenBins = listGoldenBins(localGoldenDir);
+const localGoldenFixtureDirs = existsSync(localGoldenDir)
+  ? readdirSync(localGoldenDir, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory() && existsSync(join(localGoldenDir, entry.name, 'input.bin')))
+      .map((entry) => entry.name)
+      .sort()
+  : [];
 
 describe('golden fixtures', () => {
   it('discovers golden fixture files when Claude adds them', () => {
@@ -40,8 +46,21 @@ describe('golden fixtures', () => {
     expect(result.latex).toBe(readFileSync(texPath, 'utf8').trim());
     expect(validateLatex(result.latex).valid).toBe(true);
   });
+
+  it.each(localGoldenFixtureDirs)('local fixture %s MathML, LaTeX, validateLatex', (fixtureName) => {
+    const dir = join(localGoldenDir, fixtureName);
+    const result = parseMathTypeSync(readFileSync(join(dir, 'input.bin')));
+    expect(normalizeXml(result.mathml)).toBe(normalizeXml(readFileSync(join(dir, 'expected.mathml'), 'utf8')));
+    expect(result.latex).toBe(readFileSync(join(dir, 'expected.tex'), 'utf8').trim());
+    expect(validateLatex(result.latex).valid).toBe(true);
+    expect(countAtoms(result.mathml)).toBeGreaterThanOrEqual(3);
+  });
 });
 
 function normalizeXml(value: string): string {
   return value.replace(/>\s+</g, '><').replace(/\s+/g, ' ').trim();
+}
+
+function countAtoms(value: string): number {
+  return (value.match(/<(?:mi|mn|mo|mtext)\b/g) || []).length;
 }

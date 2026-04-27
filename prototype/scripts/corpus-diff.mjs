@@ -3,34 +3,18 @@
  * Compare current corpus metrics to tests/corpus-baseline.json — exit 1 on regressions
  */
 import { DOMParser } from "xmldom"
+import { parseHTML } from "linkedom"
 globalThis.DOMParser = DOMParser
 
-import { readFile, readdir } from "node:fs/promises"
+import { readFile } from "node:fs/promises"
 import { join, relative } from "node:path"
 import { fileURLToPath } from "node:url"
 import { docxXmlToHtml, extractDocxArchiveContext, normalizeImportedHtml } from "../src/word-import.js"
 import { computeFileMetrics, HIGHER_IS_BETTER } from "./corpus-metrics.mjs"
+import { walkDocxFiles } from "./corpus-root.mjs"
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url))
 const DEFAULT_CORPUS_ROOT = join(fileURLToPath(new URL("../../Docx/Nauka/Сложные журналы", import.meta.url)))
-
-async function walkDocxFiles(dir, out = []) {
-  let entries
-  try {
-    entries = await readdir(dir, { withFileTypes: true })
-  } catch {
-    return out
-  }
-  for (const e of entries) {
-    const p = join(dir, e.name)
-    if (e.isDirectory()) {
-      await walkDocxFiles(p, out)
-    } else if (e.isFile() && e.name.toLowerCase().endsWith(".docx")) {
-      out.push(p)
-    }
-  }
-  return out
-}
 
 async function runCurrent(root) {
   const files = await walkDocxFiles(root)
@@ -49,7 +33,16 @@ async function runCurrent(root) {
         ctx.oleEmbedRels,
         ctx.oleBlobs
       )
-      const html = normalizeImportedHtml(rawHtml)
+      const { document: importDocument } = parseHTML("<!DOCTYPE html><html><body></body></html>")
+      const prevDocument = globalThis.document
+      let html
+      try {
+        globalThis.document = importDocument
+        html = normalizeImportedHtml(rawHtml)
+      } finally {
+        if (prevDocument) globalThis.document = prevDocument
+        else delete globalThis.document
+      }
       map.set(rel, { parse_error: null, ...computeFileMetrics(ctx.xmlString, html) })
     } catch (e) {
       map.set(rel, {

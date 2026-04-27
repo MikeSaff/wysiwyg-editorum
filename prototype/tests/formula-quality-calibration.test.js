@@ -8,6 +8,7 @@ import {
   countSemanticAtomsInMathML,
   countSingleCharFormula,
   computeMetadataCompletenessPct,
+  scoreFormulaQualityForHtml,
   scoreFigureMetrics,
 } from "../scripts/formula-quality-lib.mjs"
 import { emptyMeta } from "../src/document-model.js"
@@ -21,6 +22,16 @@ test("countSingleCharFormula: x=5 has three atoms → 0", () => {
   const m = "<math><mi>x</mi><mo>=</mo><mn>5</mn></math>"
   assert.equal(countSemanticAtomsInMathML(m), 3)
   assert.equal(countSingleCharFormula(m), 0)
+})
+
+test("scoreFormulaQualityForHtml: single-char metric is block-only", () => {
+  const html = [
+    '<p><span class="math-inline" data-mathml="&lt;math&gt;&lt;mi&gt;ξ&lt;/mi&gt;&lt;/math&gt;" data-latex="\\xi"></span></p>',
+    '<div class="math-block" data-mathml="&lt;math&gt;&lt;mi&gt;x&lt;/mi&gt;&lt;/math&gt;" data-latex="x"></div>',
+  ].join("")
+  const score = scoreFormulaQualityForHtml(html, null)
+  assert.equal(score.formulas_total, 2)
+  assert.equal(score.single_char_formula_count, 1)
 })
 
 test("validateLatex: \\partialt invalid with command-no-space", () => {

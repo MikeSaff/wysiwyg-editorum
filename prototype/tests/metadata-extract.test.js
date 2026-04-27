@@ -147,3 +147,38 @@ test("v0.54: second English metadata block fills title.en, abstracts.en, keyword
   assert.ok(meta.authorsEn.length >= 1)
   assert.ok(meta.contributorsEn.length >= 1)
 })
+
+test("v0.56: styled TitleArticle overrides issue header fallback", () => {
+  const d = docFromHtml(`
+<p>Физика плазмы_1_2025</p>
+<p class="style-title-article">Ионные функции распределения</p>
+<p class="style-author">Ф.М. Трухачев*</p>
+<p class="style-affiliation">Институт</p>
+<p class="style-email">*e-mail: ftru@example.com</p>
+<p class="style-abstract">Аннотация.</p>
+<h2 data-section-type="introduction">ВВЕДЕНИЕ</h2>
+<p>Body.</p>
+`)
+  const holder = d.getElementById("x")
+  const { meta } = extractMetadataFromImportedHtml(holder.innerHTML, { rootDocument: d })
+  assert.equal(meta.title.ru, "Ионные функции распределения")
+  assert.notEqual(meta.title.ru, "Физика плазмы_1_2025")
+})
+
+test("v0.56: multi-author starred author receives e-mail and contributors stay complete", () => {
+  const d = docFromHtml(`
+<p class="style-title-article">Заголовок</p>
+<p class="style-author">Ф.М.&#160;Трухачев*, М.М.&#160;Васильев, О.Ф.&#160;Петров</p>
+<p class="style-affiliation">Объединенный институт</p>
+<p class="style-affiliation">*e-mail: ftru@mail.ru</p>
+<p class="style-abstract">Аннотация.</p>
+<h2 data-section-type="introduction">ВВЕДЕНИЕ</h2>
+<p>Body.</p>
+`)
+  const holder = d.getElementById("x")
+  const { meta } = extractMetadataFromImportedHtml(holder.innerHTML, { rootDocument: d })
+  assert.equal(meta.authors.length, 3)
+  assert.equal(meta.contributors.length, 3)
+  assert.equal(meta.contributors[0].email, "ftru@mail.ru")
+  assert.equal(meta.contributors[0].is_corresponding, true)
+})

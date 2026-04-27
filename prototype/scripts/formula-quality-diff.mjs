@@ -7,6 +7,7 @@ import { readFile } from "node:fs/promises"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
 import { walkDocxAndScore } from "./formula-quality-lib.mjs"
+import { isAllZeroFormulaQualityBaseline, resolveCorpusRoot } from "./corpus-root.mjs"
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url))
 
@@ -22,9 +23,16 @@ async function main() {
   const baselinePath = join(__dirname, "../tests/formula-quality-baseline.json")
   const baselineRaw = await readFile(baselinePath, "utf8")
   const baseline = JSON.parse(baselineRaw)
-  const root = process.env.CORPUS_DOCX_ROOT || baseline.corpus_root
+  if (isAllZeroFormulaQualityBaseline(baseline)) {
+    console.error("formula-quality baseline is all-zero; regenerate with a valid CORPUS_DOCX_ROOT")
+    process.exit(1)
+  }
+  const resolved = process.env.CORPUS_DOCX_ROOT
+    ? await resolveCorpusRoot()
+    : { root: baseline.corpus_root, files: null }
+  const root = resolved.root
 
-  const { totals: now } = await walkDocxAndScore(root)
+  const { totals: now } = await walkDocxAndScore(root, resolved.files)
   const regressions = []
 
   for (const key of Object.keys(now)) {

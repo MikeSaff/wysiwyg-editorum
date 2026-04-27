@@ -215,6 +215,12 @@
 - **Репозиторий:** https://github.com/MikeSaff/wysiwyg-editorum  
 - **Live:** https://mikesaff.github.io/wysiwyg-editorum/
 
+## Сессия 2026-04-27 — v0.56
+
+| # | Задача | Кто | Файлы | Статус | Билд |
+|---|--------|-----|-------|--------|------|
+| v0.56 | Hotfix title regression, fail-loud corpus root, EMBELL real golden fixtures, Trukhachev figure/caption recovery, corresponding contributors, Pleiades EN-block guard. Diagnostic root cause: `formula-diff --inspect-figures` showed drawing PNG captions at pi=111/114/116 and VML/WMF MathType previews; Trukhachev DOCX XML has no EN TitleArticle/Abstract/Keywords outside references, so EN fields were not fabricated. | Codex | `prototype/src/metadata-extract.js`, `prototype/src/word-import.js`, `prototype/scripts/*`, `prototype/tests/*`, `mtef-to-mathml/src/*`, `mtef-to-mathml/test/*`, `.context/*` | ✅ с caveat по отсутствующему EN-source в Trukhachev | `mtef npm run build && npm test` OK; `prototype npm install && npm test && npx vite build` OK; `corpus:baseline`, `corpus:diff`, `formula-quality`, `formula-quality:diff` OK |
+
 ---
 
 ## История (краткая хронология)
