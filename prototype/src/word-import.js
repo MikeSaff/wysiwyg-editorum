@@ -1006,7 +1006,7 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes, oleEmbedR
       const { mathml, latex, warnings } = parseMathTypeSync(blob)
       if (warnings?.length) console.warn("[mtef]", fname, warnings)
       if (!mathml && !latex) return null
-      return { mathml, latex }
+      return { mathml, latex, rid, target, progId }
     } catch (e) {
       console.warn("[mtef]", fname, e?.message || e)
       return null
@@ -1016,7 +1016,10 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes, oleEmbedR
   function renderOleObjectEquationHtml(wObject, display, labelAttr = "") {
     const parsed = tryParseOleWordObject(wObject)
     if (!parsed) return ""
-    return renderMathHtml({ display, latex: parsed.latex, mathml: parsed.mathml, labelAttr })
+    const extraAttrs = parsed.target
+      ? ` data-source-rid="${escapeAttr(parsed.rid || "")}" data-source-ole="${escapeAttr(parsed.target)}"`
+      : ""
+    return renderMathHtml({ display, latex: parsed.latex, mathml: parsed.mathml, labelAttr, extraAttrs })
   }
 
   // Collect all child elements into array for look-ahead
@@ -1975,12 +1978,12 @@ export function docxXmlToHtml(xmlString, images, imageRels, footnotes, oleEmbedR
     return `<p>${content}</p>\n`
   }
 
-  function renderMathHtml({ display, latex, mathml, labelAttr = "" }) {
+  function renderMathHtml({ display, latex, mathml, labelAttr = "", extraAttrs = "" }) {
     const finalLatex = (latex || "").trim()
     const finalMathml = mathml || ""
     const attrs = ` data-mathml="${escapeAttr(finalMathml)}" data-latex="${escapeAttr(finalLatex)}"`
     if (display) {
-      return `<div class="math-block"${attrs}${labelAttr} id="${escapeAttr(createImportedNodeId())}">${finalMathml || escapeHtml(finalLatex)}</div>\n`
+      return `<div class="math-block"${attrs}${labelAttr}${extraAttrs} id="${escapeAttr(createImportedNodeId())}">${finalMathml || escapeHtml(finalLatex)}</div>\n`
     }
     return `<span class="math-inline"${attrs}>${finalMathml || escapeHtml(finalLatex)}</span>`
   }

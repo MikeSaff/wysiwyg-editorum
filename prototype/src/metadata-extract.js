@@ -198,6 +198,11 @@ function extractDoiFromString(s) {
   return m[1].replace(/[.,;:\])]+$/u, "")
 }
 
+function extractUdkValue(s) {
+  const m = String(s || "").match(/^\s*(?:УДК|UDC)\s*[:.]?\s*(.+?)\s*$/iu)
+  return m ? m[1].trim() : ""
+}
+
 function isReferenceStyleElement(el) {
   const cls = (el.getAttribute("class") || "").toLowerCase()
   return /\bstyle-reference\b/u.test(cls)
@@ -368,6 +373,16 @@ export function extractMetadataFromImportedHtml(html, options = {}) {
         if (emailAddr) assignEmailToAuthors(meta, emailAddr, { paragraphStarred })
         if (affText) {
           meta.affiliations.push({ id: "aff_1", text: affText, city: "", country: "", ror: "" })
+        }
+        remove.add(z)
+        continue
+      }
+      if (cls.includes("style-udk")) {
+        const udk = extractUdkValue(t)
+        if (udk) {
+          meta.udk = udk
+        } else {
+          console.warn("[metadata] style-udk paragraph without parsable UDK prefix")
         }
         remove.add(z)
         continue

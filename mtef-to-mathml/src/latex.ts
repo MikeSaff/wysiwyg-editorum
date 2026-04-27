@@ -1,3 +1,4 @@
+import { getEmbellishmentDescriptor } from './embellishments.js';
 import { decodeMtCode, MT_CODE_TO_UNICODE } from './encoding-table.js';
 import type { MathNode, ParseWarning, TemplateNode } from './types.js';
 
@@ -210,28 +211,32 @@ function renderNode(node: MathNode, warnings: ParseWarning[]): string {
       return `\\begin{matrix}${renderMatrix(node, warnings)}\\end{matrix}`;
     case 'embellished': {
       const ch = unwrapSingletonRow(node.child);
-      const prime =
-        node.embellishment === 5
-          ? '\\prime'
-          : node.embellishment === 6
-            ? '\\prime\\prime'
-            : node.embellishment === 18
-              ? '\\prime\\prime\\prime'
-              : '';
-      if (!prime) return renderNode(ch, warnings);
-      if (ch.kind === 'template' && ch.selector === 27) {
+      const descriptor = getEmbellishmentDescriptor(node.embellishment);
+      if (!descriptor) {
+        warnings.push({
+          type: 'embell-decoration-unknown',
+          position: node.position,
+          decoration_hex: `0x${node.embellishment.toString(16).toUpperCase().padStart(2, '0')}`,
+          message: 'Unknown EMBELL decoration; emitted visible placeholder in LaTeX'
+        });
+        return `\\overset{?}{${renderNode(ch, warnings)}}`;
+      }
+      if (descriptor.kind === 'prime' && ch.kind === 'template' && ch.selector === 27) {
         const b = slot(ch.children[0], warnings);
         const sub = slot(ch.children[1], warnings);
-        return emitLatexSubSup(b, sub, prime);
+        return emitLatexSubSup(b, sub, descriptor.latex);
       }
-      if (ch.kind === 'template' && ch.selector === 28) {
+      if (descriptor.kind === 'prime' && ch.kind === 'template' && ch.selector === 28) {
         const b = slot(ch.children[0], warnings);
         const sup = slot(ch.children[1], warnings);
-        const merged = `{${b}^{${prime}}}`;
+        const merged = `{${b}^{${descriptor.latex}}}`;
         if (!sup) return merged;
         return `${merged}^{${sup}}`;
       }
-      return `${renderNode(ch, warnings)}^{${prime}}`;
+      if (descriptor.kind === 'prime') {
+        return `${renderNode(ch, warnings)}^{${descriptor.latex}}`;
+      }
+      return `${descriptor.latex}{${renderNode(ch, warnings)}}`;
     }
     case 'unknown':
       return node.value ?? '?';

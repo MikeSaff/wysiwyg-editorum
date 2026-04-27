@@ -265,3 +265,23 @@ EN metadata не синтезировалась; для Trukhachev `bilingual_ex
 `scripts/corpus-baseline.mjs` теперь пишет локальные JSONL-артефакты в `prototype/corpus-artifacts/` с deterministic ASCII slug + hash и header-строкой по документу.
 Для каждого source paragraph сохраняются `pi`, `pStyle`, `raw_text`, image/OLE поля, `preceding_caption` и `imported_as`; артефакты пишутся и для parse-error DOCX, если XML уже извлечён.
 После v0.57 `corpus:baseline` создал 94 artifact-файла; Trukhachev artifact содержит 123 записи и >95% paragraph classification coverage.
+
+## v0.58 — что сделано
+
+### 1. Leading EMBELL accent recovery
+
+В `mtef-to-mathml` добавлен единый слой `embellishments.ts` для prime/accent mapping, который теперь используют и `mathml.ts`, и `latex.ts`.
+Корневая причина для Trukhachev оказалась в char-level embellishments: parser видел decoration, но non-prime accents не оборачивал base в `EmbellishedNode`, поэтому leading `ξ̈` / `Ẍ` превращались в голые `ξ` / `X`.
+Диагностика реальных golden OLE показала `oleObject43.bin = 0x03` и `oleObject46.bin = 0x03`; это mapped как double-dot, и на Trukhachev формулы `(12)` и `(13)` теперь дают `\ddot{\xi}` / `\ddot{X}` и MathML с `<mover accent="true">`.
+
+### 2. UDK extraction
+
+В `metadata-extract.js` добавлено извлечение `meta.udk` из `style-udk` с поддержкой обоих префиксов: `УДК` и `UDC`.
+UDK-параграф удаляется из cleaned body так же, как остальная front-matter metadata; malformed `style-udk` даёт warning и не заполняет поле.
+Проверка Trukhachev подтвердила `meta.udk = "533.9"`. Наблюдаемые pStyle в source: `Rubric`, `BodyL`, `BodyLNoTab` intentionally остаются body/import styles и не маппятся в отдельные поля DocumentJSON.
+
+### 3. Formula (18) mapping diagnostic
+
+`formula-diff.mjs` получил режим `--inspect-equation-mapping`: он строит source-side inventory OLE/labels из `word/document.xml` и DOM-side inventory `math-block` после полного import pipeline.
+Для display OLE в `word-import.js` добавлены `data-source-rid` и `data-source-ole`, чтобы сопоставление шло по реальному blob target, а не только по latex/hash.
+На Trukhachev mismatch не подтвердился: label `(18)` и в source, и в DOM соответствует `embeddings/oleObject62.bin`; DOM latex совпадает с full expanded source-dump, STOP-ветка не потребовалась.

@@ -179,11 +179,13 @@ export function scoreFormulaQualityForHtml(html, oleBlobs, meta = null) {
   }
 
   let embell_orphan_count = 0
+  let embell_decoration_unknown_count = 0
   if (oleBlobs instanceof Map) {
     for (const u8 of oleBlobs.values()) {
       try {
         const r = parseMathTypeSync(stripOleHeader(u8))
         if (r.warnings.some((w) => w.type === "embell-orphan")) embell_orphan_count++
+        if (r.warnings.some((w) => w.type === "embell-decoration-unknown")) embell_decoration_unknown_count++
       } catch {
         /* non-MTEF */
       }
@@ -199,6 +201,7 @@ export function scoreFormulaQualityForHtml(html, oleBlobs, meta = null) {
     formulas_total,
     empty_msub_count,
     embell_orphan_count,
+    embell_decoration_unknown_count,
     single_char_formula_count,
     invalid_latex_count,
     mathjax_render_error_count,
@@ -214,6 +217,7 @@ const ZERO_EXT = {
   formulas_total: 0,
   empty_msub_count: 0,
   embell_orphan_count: 0,
+  embell_decoration_unknown_count: 0,
   single_char_formula_count: 0,
   invalid_latex_count: 0,
   mathjax_render_error_count: 0,

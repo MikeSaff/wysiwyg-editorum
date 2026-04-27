@@ -182,6 +182,46 @@ test("v0.57: EN-only metadata block fills English fields only", () => {
   assert.equal(meta.title.en, "English Title Only")
 })
 
+test("v0.58: style-udk extracts Russian UDK value", () => {
+  const d = docFromHtml(`
+<p class="style-udk">УДК 533.9</p>
+<p class="style-title-article">Заголовок</p>
+<p class="style-abstract">Аннотация.</p>
+<h2 data-section-type="introduction">ВВЕДЕНИЕ</h2>
+<p>Body.</p>
+`)
+  const holder = d.getElementById("x")
+  const { meta, cleanedBody } = extractMetadataFromImportedHtml(holder.innerHTML, { rootDocument: d })
+  assert.equal(meta.udk, "533.9")
+  assert.doesNotMatch(cleanedBody, /УДК 533\.9/u)
+})
+
+test("v0.58: style-udk extracts English UDC value", () => {
+  const d = docFromHtml(`
+<p class="style-udk">UDC 533.9</p>
+<p class="style-title-article">English Title</p>
+<p class="style-abstract">Abstract.</p>
+<h2 data-section-type="introduction">INTRODUCTION</h2>
+<p>Body.</p>
+`)
+  const holder = d.getElementById("x")
+  const { meta } = extractMetadataFromImportedHtml(holder.innerHTML, { rootDocument: d })
+  assert.equal(meta.udk, "533.9")
+})
+
+test("v0.58: malformed style-udk leaves meta.udk empty", () => {
+  const d = docFromHtml(`
+<p class="style-udk">533.9</p>
+<p class="style-title-article">Заголовок</p>
+<p class="style-abstract">Аннотация.</p>
+<h2 data-section-type="introduction">ВВЕДЕНИЕ</h2>
+<p>Body.</p>
+`)
+  const holder = d.getElementById("x")
+  const { meta } = extractMetadataFromImportedHtml(holder.innerHTML, { rootDocument: d })
+  assert.equal(meta.udk, "")
+})
+
 test("v0.57: reference extraction stops before figure-caption backmatter", () => {
   const refs = Array.from({ length: 26 }, (_, i) => `<p class="style-reference">[${i + 1}] Reference ${i + 1}</p>`).join("\n")
   const d = docFromHtml(`

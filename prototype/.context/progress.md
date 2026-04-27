@@ -227,6 +227,12 @@
 |---|--------|-----|-------|--------|------|
 | v0.57 | Metadata cleanup + corpus artifact logging. `v0.57-EN diagnosis: на Trukhachev найдено 1 TitleArticle-параграфов, из них 0 распознано как EN; v0.57-Task1: Trukhachev does not contain EN-block in source, marker for next bench-doc with Pleiades EN`. References extraction narrowed to true bibliography (`26` on Trukhachev); contributors without explicit aff-refs now inherit `aff_1`; `corpus-baseline` writes local JSONL artifacts for all docs with extracted XML, including parse-error cases. | Codex | `prototype/src/metadata-extract.js`, `prototype/src/word-import.js`, `prototype/scripts/corpus-baseline.mjs`, `prototype/tests/*`, `.gitignore`, `.context/*` | ✅ | `mtef npm run build && npm test` OK; `prototype npm install && npm test && npx vite build` OK; `corpus:baseline`, `corpus:diff`, `formula-quality` OK; `corpus-artifacts` count `94` |
 
+## Сессия 2026-04-27 — v0.58
+
+| # | Задача | Кто | Файлы | Статус | Билд |
+|---|--------|-----|-------|--------|------|
+| v0.58 | Leading EMBELL accent recovery, UDK extraction, formula-18 mapping diagnostic. Trukhachev diagnosis: real leading EMBELL decoration in `oleObject43.bin` and `oleObject46.bin` is `0x03` (double-dot accent), so formulas `(12)` / `(13)` now import as `\ddot{\xi}` and `\ddot{X}` with MathML `<mover>`. `v0.58 task 3 diagnosis:` label `(18)` in source corresponds to `embeddings/oleObject62.bin`, and DOM formula `(18)` maps to the same `embeddings/oleObject62.bin`; mismatch not reproduced, source/DOM latex match exactly. Trukhachev source pStyles observed during diagnostics: `Rubric`, `BodyL`, `BodyLNoTab` are intentionally left as import/body styles with no dedicated DocumentJSON metadata field. | Codex | `mtef-to-mathml/src/*`, `mtef-to-mathml/test/*`, `prototype/src/metadata-extract.js`, `prototype/src/word-import.js`, `prototype/scripts/formula-diff.mjs`, `prototype/scripts/formula-quality-lib.mjs`, `prototype/tests/*`, `.context/*` | ✅ | `mtef npm run build && npm test` OK; `prototype npm install && npm test && npx vite build` OK; `corpus:baseline`, `corpus:diff`, `formula-quality` OK; Trukhachev `meta.udk=533.9`, `formulas_total=96`, `embell_orphan_count=0`, `embell_decoration_unknown_count=0` |
+
 ---
 
 ## История (краткая хронология)

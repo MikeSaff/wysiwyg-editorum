@@ -6,11 +6,16 @@
  */
 import fs from "node:fs"
 import path from "node:path"
+import { createHash } from "node:crypto"
 import { fileURLToPath } from "node:url"
 import { readdir } from "node:fs/promises"
 import JSZip from "jszip"
 import { parseHTML } from "linkedom"
+import { DOMParser } from "xmldom"
 import { parseMathTypeSync } from "mtef-to-mathml"
+import { docxXmlToHtml, extractDocxArchiveContext, normalizeImportedHtml } from "../src/word-import.js"
+
+if (!globalThis.DOMParser) globalThis.DOMParser = DOMParser
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const DEFAULT_ROOT = path.join(__dirname, "../../Docx/Nauka")
@@ -68,6 +73,227 @@ function precedingCaptionPi(paragraphs, pi) {
     }
   }
   return null
+}
+
+function isEquationProgId(progId) {
+  return /(?:Equation|MathType|DSMT)/i.test(progId || "")
+}
+
+function textOfParagraph(p) {
+  return (p.textContent || "").replace(/\s+/g, " ").trim()
+}
+
+function getLabelOnlyParagraph(paragraphs, pi) {
+  const p = paragraphs[pi]
+  if (!p) return null
+  if (p.querySelector("object,OLEObject,oMath,oMathPara,drawing,pict")) return null
+  const t = textOfParagraph(p)
+  return /^\(\d+\)$/.test(t) ? t : null
+}
+
+function walkRunsForEquationLayout(p, onSegment) {
+  function handleRun(r) {
+    for (const o of r.querySelectorAll("object")) onSegment({ kind: "object", node: o })
+    const t = textOfParagraph(r)
+    if (t) onSegment({ kind: "text", text: t })
+  }
+  for (const node of p.children) {
+    const name = (node.localName || node.tagName || "").toLowerCase()
+    if (name === "ppr") continue
+    if (name === "r") handleRun(node)
+    else if (name === "hyperlink") {
+      for (const child of node.children) {
+        const childName = (child.localName || child.tagName || "").toLowerCase()
+        if (childName === "r") handleRun(child)
+      }
+    }
+  }
+}
+
+function classifyEquationParagraphLayout(p, equationObjects) {
+  const eqSet = new Set(equationObjects)
+  let before = ""
+  let after = ""
+  let seen = false
+  walkRunsForEquationLayout(p, (seg) => {
+    if (seg.kind === "object" && eqSet.has(seg.node)) {
+      seen = true
+      return
+    }
+    if (seg.kind === "text") {
+      if (!seen) before += seg.text
+      else after += seg.text
+    }
+  })
+  const pStyle = getPStyleFromParagraph(p)
+  const bt = before.trim()
+  const at = after.trim()
+  const tailLabel = at.match(/^\(\d+\)$/) ? at : null
+  if (/^equation$/i.test(pStyle)) return { display: true, label: tailLabel, oleAfter: at }
+  if (bt === "" && tailLabel) return { display: true, label: tailLabel, oleAfter: at }
+  if (bt === "" && at === "") return { display: true, label: null, oleAfter: at }
+  return { display: false, label: null, oleAfter: at }
+}
+
+function peelTailLabels(tail, nOle) {
+  const perLabels = Array(nOle).fill(null)
+  const rest0 = (tail || "").trim()
+  if (!rest0 || nOle < 1) return { perLabels, tailRest: rest0 }
+  const labels = []
+  let tmp = rest0
+  while (tmp.length) {
+    const m = tmp.match(/^\s*\((\d+)\)\s*/)
+    if (!m) break
+    labels.push(`(${m[1]})`)
+    tmp = tmp.slice(m[0].length).trim()
+  }
+  if (labels.length >= nOle) {
+    for (let i = 0; i < nOle; i++) perLabels[i] = labels[i]
+    return { perLabels, tailRest: tmp }
+  }
+  if (nOle === 1 && labels.length >= 1) {
+    perLabels[0] = labels[0]
+    return { perLabels, tailRest: tmp }
+  }
+  if (nOle > 1 && labels.length === 1) {
+    perLabels[nOle - 1] = labels[0]
+    return { perLabels, tailRest: tmp }
+  }
+  return { perLabels, tailRest: rest0 }
+}
+
+function normalizeFormulaLatex(s) {
+  return String(s || "").replace(/\s+/g, " ").trim()
+}
+
+function formulaHash(s) {
+  return createHash("sha1").update(normalizeFormulaLatex(s)).digest("hex").slice(0, 12)
+}
+
+function decodeXmlAttr(s) {
+  return String(s || "")
+    .replace(/&quot;/g, '"')
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+}
+
+async function inspectEquationMappingInDocx(docxPath) {
+  const buf = fs.readFileSync(docxPath)
+  const ab = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength)
+  const ctx = await extractDocxArchiveContext(ab)
+  const rawHtml = docxXmlToHtml(
+    ctx.xmlString,
+    ctx.images,
+    ctx.imageRels,
+    ctx.footnotes,
+    ctx.oleEmbedRels,
+    ctx.oleBlobs
+  )
+  const prevDocument = globalThis.document
+  let html
+  try {
+    const { document } = parseHTML("<!DOCTYPE html><html><body></body></html>")
+    globalThis.document = document
+    html = normalizeImportedHtml(rawHtml)
+  } finally {
+    if (prevDocument) globalThis.document = prevDocument
+    else delete globalThis.document
+  }
+
+  const stripped = ctx.xmlString
+    .replace(/(<\/?)(w|o|m|r|v|wp|pic|a):/gi, "$1")
+    .replace(/\s(w|o|m|r|v|wp|pic|a):([a-zA-Z]+)=/g, " $2=")
+  const { document: xdoc } = parseHTML(`<root>${stripped}</root>`)
+  const paragraphs = Array.from(xdoc.querySelectorAll("p"))
+
+  const sourceRows = []
+  for (let pi = 0; pi < paragraphs.length; pi++) {
+    const p = paragraphs[pi]
+    const pStyle = getPStyleFromParagraph(p)
+    const equationObjects = [...p.querySelectorAll("object")].filter((o) => {
+      const progId = o.querySelector("OLEObject")?.getAttribute("ProgID") || o.querySelector("OLEObject")?.getAttribute("progID") || ""
+      return isEquationProgId(progId)
+    })
+    if (!equationObjects.length && !/^Equation$/i.test(pStyle)) continue
+    const layout = classifyEquationParagraphLayout(p, equationObjects)
+    let nextLabel = null
+    if (layout.display) nextLabel = getLabelOnlyParagraph(paragraphs, pi + 1)
+    const { perLabels } = peelTailLabels(layout.oleAfter || "", equationObjects.length)
+    for (let oi = 0; oi < equationObjects.length; oi++) {
+      const objectNode = equationObjects[oi]
+      const ole = objectNode.querySelector("OLEObject")
+      const rid = ole?.getAttribute("id") || ole?.getAttribute("rid") || ""
+      const progId = ole?.getAttribute("ProgID") || ole?.getAttribute("progID") || ""
+      const target = ctx.oleEmbedRels?.[rid] || null
+      const blob = target ? ctx.oleBlobs?.get(target) : null
+      const parsed = blob ? parseMathTypeSync(blob) : null
+      let label = perLabels[oi]
+      if (!label && oi === equationObjects.length - 1) label = layout.label || nextLabel || null
+      sourceRows.push({
+        pi,
+        pStyle,
+        source_order: sourceRows.length + 1,
+        ole_index_in_paragraph: oi,
+        rid,
+        progId,
+        target,
+        paragraph_text: textOfParagraph(p),
+        display_expected: layout.display,
+        source_label: label,
+        source_latex: parsed?.latex || null,
+        source_hash: parsed?.latex ? formulaHash(parsed.latex) : null,
+      })
+    }
+  }
+
+  const { document: hdoc } = parseHTML(`<div id="root">${html}</div>`)
+  const domBlocks = [...hdoc.querySelectorAll(".math-block")].map((el, index) => ({
+    emitted_order: index + 1,
+    data_label: el.getAttribute("data-label") || null,
+    data_latex: decodeXmlAttr(el.getAttribute("data-latex") || ""),
+    data_hash: formulaHash(decodeXmlAttr(el.getAttribute("data-latex") || "")),
+    source_ole: el.getAttribute("data-source-ole") || null,
+    source_rid: el.getAttribute("data-source-rid") || null,
+  }))
+
+  const mismatches = []
+  for (const src of sourceRows.filter((row) => row.display_expected)) {
+    const dom = src.target
+      ? domBlocks.find((row) => row.source_ole === src.target)
+      : domBlocks.find((row) => row.data_hash === src.source_hash)
+    if (!dom) {
+      mismatches.push({
+        type: "missing-dom-block",
+        target: src.target,
+        source_label: src.source_label,
+        source_latex: src.source_latex,
+      })
+      continue
+    }
+    if ((src.source_label || null) !== (dom.data_label || null)) {
+      mismatches.push({
+        type: "label-mismatch",
+        target: src.target,
+        source_label: src.source_label,
+        dom_label: dom.data_label,
+        source_latex: src.source_latex,
+        dom_latex: dom.data_latex,
+      })
+    }
+    if (normalizeFormulaLatex(src.source_latex) !== normalizeFormulaLatex(dom.data_latex)) {
+      mismatches.push({
+        type: "latex-mismatch",
+        target: src.target,
+        source_label: src.source_label,
+        dom_label: dom.data_label,
+        source_latex: src.source_latex,
+        dom_latex: dom.data_latex,
+      })
+    }
+  }
+
+  return { docx: docxPath, source_rows: sourceRows, dom_blocks: domBlocks, mismatches }
 }
 
 /**
@@ -206,12 +432,18 @@ async function main() {
   const docx = argVal("--docx")
   const all = process.argv.includes("--all")
   const inspectFigures = process.argv.includes("--inspect-figures")
+  const inspectEquationMapping = process.argv.includes("--inspect-equation-mapping")
   const root = process.env.CORPUS_DOCX_ROOT || DEFAULT_ROOT
 
   if (docx && inspectFigures) {
     const report = await inspectFiguresInDocx(path.resolve(docx))
     console.log(JSON.stringify(report, null, 2))
     return
+  }
+  if (docx && inspectEquationMapping) {
+    const report = await inspectEquationMappingInDocx(path.resolve(docx))
+    console.log(JSON.stringify(report, null, 2))
+    process.exit(report.mismatches.length === 0 ? 0 : 1)
   }
   if (docx) {
     const report = await analyzeDocx(path.resolve(docx))
@@ -223,17 +455,21 @@ async function main() {
     const reports = []
     for (const f of files.sort()) {
       try {
-        reports.push(await analyzeDocx(f))
+        reports.push(inspectEquationMapping ? await inspectEquationMappingInDocx(f) : await analyzeDocx(f))
       } catch (e) {
         reports.push({ docx: f, error: String(e) })
       }
     }
     console.log(JSON.stringify({ root, count: reports.length, reports }, null, 2))
+    if (inspectEquationMapping) {
+      const mismatchCount = reports.reduce((sum, r) => sum + (Array.isArray(r.mismatches) ? r.mismatches.length : 1), 0)
+      process.exit(mismatchCount === 0 ? 0 : 1)
+    }
     return
   }
 
   console.error(
-    "Usage: node scripts/formula-diff.mjs --docx <file.docx> [--inspect-figures] | --all"
+    "Usage: node scripts/formula-diff.mjs --docx <file.docx> [--inspect-figures|--inspect-equation-mapping] | --all [--inspect-equation-mapping]"
   )
   process.exit(1)
 }

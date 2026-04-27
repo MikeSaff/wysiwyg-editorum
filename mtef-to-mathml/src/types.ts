@@ -6,7 +6,8 @@ export type WarningType =
   | 'malformed-input'
   | 'latex-best-effort'
   | 'embell-orphan'
-  | 'embell-result-trivial';
+  | 'embell-result-trivial'
+  | 'embell-decoration-unknown';
 
 export interface ParseWarning {
   type: WarningType;

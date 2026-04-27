@@ -685,6 +685,33 @@ test("docxXmlToHtml MTEF: trailing (5) in same paragraph as display OLE → data
   assert.doesNotMatch(html, /<p[^>]*>\(5\)<\/p>/)
 })
 
+test("docxXmlToHtml MTEF: two display OLEs with one trailing label attach label to last block", () => {
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+  <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+              xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+              xmlns:o="urn:schemas-microsoft-com:office:office">
+    <w:body>
+      <w:p>
+        <w:r><w:object><o:OLEObject r:id="rId1" ProgID="Equation.DSMT4"/></w:object></w:r>
+        <w:r><w:object><o:OLEObject r:id="rId2" ProgID="Equation.DSMT4"/></w:object></w:r>
+        <w:r><w:t>(18)</w:t></w:r>
+      </w:p>
+    </w:body>
+  </w:document>`
+  const oleBlobs = new Map([
+    ["embeddings/e1.bin", minimalMtefX],
+    ["embeddings/e2.bin", minimalMtefX],
+  ])
+  const oleEmbedRels = { rId1: "embeddings/e1.bin", rId2: "embeddings/e2.bin" }
+  const html = docxXmlToHtml(xml, {}, {}, {}, oleEmbedRels, oleBlobs)
+  const blocks = collectMathBlocks(html)
+  assert.equal(blocks.length, 2)
+  assert.equal(blocks[0].label, null)
+  assert.equal(blocks[1].label, "(18)")
+  assert.match(html, /data-source-ole="embeddings\/e1\.bin"/)
+  assert.match(html, /data-source-ole="embeddings\/e2\.bin"/)
+})
+
 test("real Semion DOCX yields 32 labeled display formulas with preserved multiline math", async () => {
   const docxPath = new URL("../../docs/test_semion_full.docx", import.meta.url)
   const xml = await loadDocumentXmlFromDocx(docxPath)

@@ -1,7 +1,9 @@
 import { ByteReader } from './byte-reader.js';
+import { getEmbellishmentDescriptor } from './embellishments.js';
 import { decodeMtCode } from './encoding-table.js';
 import type {
   DocumentNode,
+  EmbellishedNode,
   MathNode,
   MatrixNode,
   MtefHeader,
@@ -284,7 +286,7 @@ function parseChar(
   version: number,
   tag: RecordTag,
   warnings: ParseWarning[]
-): TextNode {
+): MathNode {
   const options = readOptions(reader, tag, version);
   skipNudgeIfPresent(reader, options);
   const typeface = reader.readInt8() + 128;
@@ -322,21 +324,33 @@ function parseChar(
     }
   }
 
+  const baseNode = makeTextNode(
+    tag.position,
+    value,
+    mtCode,
+    typeface,
+    (options & OPT_CHAR_FUNC_START) !== 0,
+    unknown
+  );
+
   if ((options & OPT_CHAR_EMBELL) !== 0) {
     const embellishments = parseCharEmbellishmentList(reader, version, warnings);
     if (embellishments.length > 0) {
-      return makeTextNode(
-        tag.position,
-        applyPrimeEmbellishment(value, embellishments),
-        mtCode,
-        typeface,
-        (options & OPT_CHAR_FUNC_START) !== 0,
-        unknown
-      );
+      if (embellishments.every(isPrimeEmbellishment)) {
+        return makeTextNode(
+          tag.position,
+          applyPrimeEmbellishment(value, embellishments),
+          mtCode,
+          typeface,
+          (options & OPT_CHAR_FUNC_START) !== 0,
+          unknown
+        );
+      }
+      return applyEmbellishmentsToNode(baseNode, embellishments);
     }
   }
 
-  return makeTextNode(tag.position, value, mtCode, typeface, (options & OPT_CHAR_FUNC_START) !== 0, unknown);
+  return baseNode;
 }
 
 function parseCharEmbellishmentList(reader: ByteReader, version: number, warnings: ParseWarning[]): number[] {
@@ -365,6 +379,7 @@ function readPlainEmbellishmentRecord(
   const options = readOptions(reader, tag, version);
   skipNudgeIfPresent(reader, options);
   const embellishment = reader.readUInt8();
+  debugEmbellishment(tag.position, embellishment);
   parseObjectList(reader, version, warnings);
   return { embellishment };
 }
@@ -527,6 +542,7 @@ function readEmbellishmentRecord(
   const options = readOptions(reader, tag, version);
   skipNudgeIfPresent(reader, options);
   const embellishment = reader.readUInt8();
+  debugEmbellishment(tag.position, embellishment);
   const children = parseObjectList(reader, version, warnings);
   const first = children[0];
   if (first) return { embellishment, child: first };
@@ -534,10 +550,18 @@ function readEmbellishmentRecord(
 }
 
 function standaloneEmbellFallbackNode(position: number, embellishment: number): TextNode {
-  if (embellishment === 5) return makeTextNode(position, '\u2032', undefined, undefined, false, false);
-  if (embellishment === 6) return makeTextNode(position, '\u2033', undefined, undefined, false, false);
-  if (embellishment === 18) return makeTextNode(position, '\u2034', undefined, undefined, false, false);
+  const descriptor = getEmbellishmentDescriptor(embellishment);
+  if (descriptor?.kind === 'prime') {
+    return makeTextNode(position, descriptor.mathml, undefined, undefined, false, false);
+  }
   return makeTextNode(position, '?', undefined, undefined, false, true);
+}
+
+function debugEmbellishment(position: number, embellishment: number): void {
+  if (!process?.env?.MTEF_DEBUG_EMBELL) return;
+  console.log(
+    `[mtef-debug] embellishment position=${position} code=${hex(embellishment)} kind=${getEmbellishmentDescriptor(embellishment)?.kind || 'unknown'}`
+  );
 }
 
 function skipFutureRecord(reader: ByteReader, tag: RecordTag, warnings: ParseWarning[]): void {
@@ -616,4 +640,21 @@ function applyPrimeEmbellishment(value: string, embellishments: number[]): strin
     else if (embellishment === 18) result += '‴';
   }
   return result;
+}
+
+function isPrimeEmbellishment(embellishment: number): boolean {
+  return embellishment === 5 || embellishment === 6 || embellishment === 18;
+}
+
+function applyEmbellishmentsToNode(base: MathNode, embellishments: number[]): MathNode {
+  let current = base;
+  for (const embellishment of embellishments) {
+    current = {
+      kind: 'embellished',
+      position: base.position,
+      embellishment,
+      child: current
+    } satisfies EmbellishedNode;
+  }
+  return current;
 }

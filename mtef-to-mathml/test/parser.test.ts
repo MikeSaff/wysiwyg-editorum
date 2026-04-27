@@ -234,6 +234,62 @@ describe('v0.54: empty scripts, EMBELL lookahead, LaTeX', () => {
     expect(result.warnings.some((w) => w.type === 'embell-orphan')).toBe(false);
   });
 
+  it('leading EMBELL prime uses lookahead base char', () => {
+    const result = parseMathTypeSync(mtef(line([...embellish(5, []), ...char(0x03be)])));
+    expect(result.mathml).toContain('<msup>');
+    expect(result.mathml).toContain('&#x2032;');
+    expect(result.latex).toContain('\\prime');
+  });
+
+  it('leading EMBELL single dot renders mover/dot accent', () => {
+    const result = parseMathTypeSync(mtef(line([...embellish(2, []), ...char(0x0058)])));
+    expect(result.mathml).toContain('<mover');
+    expect(result.mathml).toContain('˙');
+    expect(result.latex).toBe('\\dot{X}');
+  });
+
+  it('leading EMBELL double dot renders ddot accent', () => {
+    const result = parseMathTypeSync(mtef(line([...embellish(3, []), ...char(0x03be)])));
+    expect(result.mathml).toContain('<mover');
+    expect(result.mathml).toContain('¨');
+    expect(result.latex).toBe('\\ddot{\\xi}');
+  });
+
+  it('leading EMBELL hat renders hat accent', () => {
+    const result = parseMathTypeSync(mtef(line([...embellish(9, []), ...char(0x0078)])));
+    expect(result.mathml).toContain('<mover');
+    expect(result.mathml).toContain('^');
+    expect(result.latex).toBe('\\hat{x}');
+  });
+
+  it('leading EMBELL tilde renders tilde accent', () => {
+    const result = parseMathTypeSync(mtef(line([...embellish(8, []), ...char(0x0078)])));
+    expect(result.mathml).toContain('<mover');
+    expect(result.mathml).toContain('~');
+    expect(result.latex).toBe('\\tilde{x}');
+  });
+
+  it('leading EMBELL overbar renders bar accent', () => {
+    const result = parseMathTypeSync(mtef(line([...embellish(17, []), ...char(0x0078)])));
+    expect(result.mathml).toContain('<mover');
+    expect(result.mathml).toContain('¯');
+    expect(result.latex).toBe('\\bar{x}');
+  });
+
+  it('leading EMBELL vector arrow renders vec accent', () => {
+    const result = parseMathTypeSync(mtef(line([...embellish(11, []), ...char(0x0078)])));
+    expect(result.mathml).toContain('<mover');
+    expect(result.mathml).toContain('→');
+    expect(result.latex).toBe('\\vec{x}');
+  });
+
+  it('unknown leading EMBELL decoration emits visible placeholder warning', () => {
+    const result = parseMathTypeSync(mtef(line([...embellish(99, []), ...char(0x0078)])));
+    expect(result.warnings.some((w) => w.type === 'embell-decoration-unknown')).toBe(true);
+    expect(result.mathml).toContain('<mtext>?</mtext>');
+    expect(result.latex).toBe('\\overset{?}{x}');
+  });
+
   it('EMBELL with no base and no lookahead yields embell-orphan warning', () => {
     const result = parseMathTypeSync(mtef(line(embellish(5, []))));
     expect(result.warnings.some((w) => w.type === 'embell-orphan')).toBe(true);

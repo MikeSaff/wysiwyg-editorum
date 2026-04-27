@@ -70,3 +70,15 @@ test("metadata_completeness_pct: empty EN fields < 100%", () => {
   const pct2 = computeMetadataCompletenessPct(meta)
   assert.equal(pct2, 100)
 })
+
+test("scoreFormulaQualityForHtml: embell-decoration-unknown counter increments from OLE warnings", () => {
+  const ole = new Map([
+    [
+      "embeddings/u1.bin",
+      Uint8Array.from([5, 1, 0, 7, 0, 0x54, 0x45, 0x53, 0x54, 0, 0, 1, 0, 6, 0, 99, 0, 2, 0, 0, 0x78, 0, 0, 0])
+    ]
+  ])
+  const score = scoreFormulaQualityForHtml("", ole)
+  assert.equal(score.embell_decoration_unknown_count, 1)
+  assert.equal(score.embell_orphan_count, 0)
+})

@@ -1,3 +1,4 @@
+import { getEmbellishmentDescriptor } from './embellishments.js';
 import type { MathNode, ParseWarning, TemplateNode, TextNode } from './types.js';
 import { escapeXml, flattenRow, isIdentifier, isNamedFunction, isNumber, isOperator } from './util.js';
 
@@ -30,13 +31,6 @@ const MULTI_CHAR_FUNCS = [
   'dim',
   'arg'
 ];
-
-function primeMo(embellishment: number): string | null {
-  if (embellishment === 5) return '<mo>&#x2032;</mo>';
-  if (embellishment === 6) return '<mo>&#x2033;</mo>';
-  if (embellishment === 18) return '<mo>&#x2034;</mo>';
-  return null;
-}
 
 /** True if rendered script/accent slot has semantic math (not empty mrow / whitespace-only). */
 export function scriptHtmlMeaningful(html: string): boolean {
@@ -132,9 +126,19 @@ function renderNode(node: MathNode, warnings: ParseWarning[]): string {
     case 'matrix':
       return `<mtable>${renderMatrixRows(node.cells, node.rows, node.cols, warnings)}</mtable>`;
     case 'embellished': {
-      const mo = primeMo(node.embellishment);
+      const descriptor = getEmbellishmentDescriptor(node.embellishment);
       const ch = unwrapSingletonRow(node.child);
-      if (mo && ch.kind === 'template' && ch.selector === 27) {
+      if (!descriptor) {
+        warnings.push({
+          type: 'embell-decoration-unknown',
+          position: node.position,
+          decoration_hex: `0x${node.embellishment.toString(16).toUpperCase().padStart(2, '0')}`,
+          message: 'Unknown EMBELL decoration; emitted visible fallback accent'
+        });
+        return `<mover>${renderNode(ch, warnings)}<mtext>?</mtext></mover>`;
+      }
+      const mo = `<mo>${descriptor.mathmlMarkup || escapeXml(descriptor.mathml)}</mo>`;
+      if (descriptor.kind === 'prime' && ch.kind === 'template' && ch.selector === 27) {
         const base = slot(ch.children[0], warnings);
         const sub = slot(ch.children[1], warnings);
         if (!scriptHtmlMeaningful(sub)) {
@@ -142,7 +146,7 @@ function renderNode(node: MathNode, warnings: ParseWarning[]): string {
         }
         return `<msubsup>${base}${sub}${mo}</msubsup>`;
       }
-      if (mo && ch.kind === 'template' && ch.selector === 28) {
+      if (descriptor.kind === 'prime' && ch.kind === 'template' && ch.selector === 28) {
         const base = slot(ch.children[0], warnings);
         const sup = slot(ch.children[1], warnings);
         const inner = `<mrow>${base}${mo}</mrow>`;
@@ -151,10 +155,10 @@ function renderNode(node: MathNode, warnings: ParseWarning[]): string {
         }
         return `<msup>${inner}${sup}</msup>`;
       }
-      if (mo) {
+      if (descriptor.kind === 'prime') {
         return `<msup>${renderNode(ch, warnings)}${mo}</msup>`;
       }
-      return renderNode(ch, warnings);
+      return `<mover accent="true">${renderNode(ch, warnings)}${mo}</mover>`;
     }
     case 'unknown':
       return node.value ? renderText(node.value) : '<mtext>?</mtext>';
