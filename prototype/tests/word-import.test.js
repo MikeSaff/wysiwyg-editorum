@@ -14,7 +14,8 @@ import {
   ommlToLatex,
   ommlToMathML,
   splitBilingualFigureCaptionHtml,
-  promoteFloatingFiguresAndCaptionsInRoot
+  promoteFloatingFiguresAndCaptionsInRoot,
+  promoteOrphanStyleFigureCaptionParagraphsInRoot
 } from "../src/word-import.js"
 import {
   integralOmml,
@@ -1188,6 +1189,35 @@ test("v0.54: orphan style-fig-caption becomes figure with placeholder", () => {
   } finally {
     globalThis.document = prevDoc
   }
+})
+
+test("v0.55: RU-only long figure caption — splitBilingualFigureCaptionHtml returns null (full RU)", () => {
+  const html =
+    "Рис. 1. Зависимость качества <em>X</em> от параметра <em>Y</em> в условиях эксперимента."
+  assert.equal(splitBilingualFigureCaptionHtml(html), null)
+})
+
+test("v0.55: bilingual single paragraph still splits at strict Fig marker", () => {
+  const html =
+    "Рис. 1. Описание по-русски. Fig. 1. English description continues here with enough text."
+  const sp = splitBilingualFigureCaptionHtml(html)
+  assert.ok(sp)
+  assert.match(sp.ruHtml, /Рис\.\s*1/u)
+  assert.match(sp.enHtml, /Fig\.\s*1/u)
+})
+
+test("v0.55: promoteOrphanStyleFigureCaptionParagraphsInRoot — style-figure caption without img → placeholder", () => {
+  const { document } = parseHTML("<!DOCTYPE html><html><body></body></html>")
+  const root = document.body
+  const p = document.createElement("p")
+  p.className = "style-figure"
+  p.innerHTML = "Рис. 3. Подпись к рисунку без встроенного изображения в параграфе."
+  root.appendChild(p)
+  promoteOrphanStyleFigureCaptionParagraphsInRoot(root, document)
+  assert.match(root.innerHTML, /figure-block/)
+  assert.match(root.innerHTML, /figure-placeholder/)
+  assert.match(root.innerHTML, /Подпись/u)
+  assert.match(root.innerHTML, /рисунку/u)
 })
 
 test("v0.54: promoteFloatingFiguresAndCaptionsInRoot pairs figure paragraph + caption", () => {

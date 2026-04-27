@@ -13,6 +13,9 @@ const __dirname = fileURLToPath(new URL(".", import.meta.url))
 /** @type {Record<string, boolean>} true = larger is better */
 const HIGHER_IS_BETTER = {
   formulas_total: true,
+  figure_count: true,
+  metadata_completeness_pct: true,
+  bilingual_extraction_score: true,
 }
 
 async function main() {

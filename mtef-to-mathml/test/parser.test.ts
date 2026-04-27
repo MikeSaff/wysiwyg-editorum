@@ -227,6 +227,13 @@ describe('v0.54: empty scripts, EMBELL lookahead, LaTeX', () => {
     expect(result.warnings.some((w) => w.type === 'embell-orphan')).toBe(false);
   });
 
+  it('EMBELL with empty inner uses lookahead LINE wrapping base char (nested recovery)', () => {
+    const result = parseMathTypeSync(mtef(line([...embellish(5, []), ...line(char(0x0078))])));
+    expect(result.mathml).toContain('<msup>');
+    expect(result.mathml).toContain('<mi>x</mi>');
+    expect(result.warnings.some((w) => w.type === 'embell-orphan')).toBe(false);
+  });
+
   it('EMBELL with no base and no lookahead yields embell-orphan warning', () => {
     const result = parseMathTypeSync(mtef(line(embellish(5, []))));
     expect(result.warnings.some((w) => w.type === 'embell-orphan')).toBe(true);
@@ -239,6 +246,22 @@ describe('v0.54: empty scripts, EMBELL lookahead, LaTeX', () => {
     );
     expect(result.latex).toContain('f_{Wi}');
     expect(validateLatex(result.latex).valid).toBe(true);
+  });
+
+  it('LaTeX inserts space after \\partial / \\upsilon when next char is a letter (v0.55)', () => {
+    const partialT = parseMathTypeSync(mtef(line([...char(0x2202), ...char(0x0074)])));
+    expect(partialT.latex).toMatch(/\\partial t/);
+    expect(validateLatex(partialT.latex).valid).toBe(true);
+
+    const upsilonI = parseMathTypeSync(mtef(line([...char(0x03c5), ...char(0x0069)])));
+    expect(upsilonI.latex).toMatch(/\\upsilon i/);
+    expect(validateLatex(upsilonI.latex).valid).toBe(true);
+  });
+
+  it('validateLatex rejects glued command+letter and accepts spaced form', () => {
+    expect(validateLatex(String.raw`\partialt`).valid).toBe(false);
+    expect(validateLatex(String.raw`\partialt`).errors).toContain('command-no-space');
+    expect(validateLatex(String.raw`\partial t`).valid).toBe(true);
   });
 
   it('validateLatex accepts representative golden-style outputs', () => {

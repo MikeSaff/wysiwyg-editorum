@@ -56,6 +56,11 @@ function assignEmailToAuthors(meta, email, opts) {
   const { paragraphStarred } = opts
   const authors = meta.authors
   if (!email || !authors.length) return
+  if (paragraphStarred && authors.length === 1) {
+    authors[0].email = email
+    authors[0].isCorresponding = true
+    return
+  }
   const corr = authors.filter((a) => a.isCorresponding)
   if (paragraphStarred) {
     if (corr.length === 1) {
@@ -295,7 +300,11 @@ export function extractMetadataFromImportedHtml(html, options = {}) {
             if (hasCyr && hasLat) meta.title.ru = t
             else if (!hasCyr && hasLat) meta.title.en = t
             else meta.title.ru = t
-          } else if (!meta.title.en && isLikelyEnglishParagraphText(t)) {
+          } else if (
+            !meta.title.en &&
+            (isLikelyEnglishParagraphText(t) || (hasLat && !hasCyr))
+          ) {
+            // v0.55: Pleiades second TitleArticle (EN) after RU title — Latin-only or Latin-heavy
             meta.title.en = t
             englishMetaActive = true
           }

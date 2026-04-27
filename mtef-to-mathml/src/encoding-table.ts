@@ -9,6 +9,7 @@ export interface EncodingEntry {
 // - Common math rows: Unicode mathematical operators and Greek blocks.
 // - MTEF/MTCode behavior cross-checked against Design Science MTEF v5 reference
 //   and corpus-driven warnings from MathType Equation Native streams.
+/** Exported for LaTeX command-name resolution (`fixLatexSpacing`, `validateLatex`). */
 export const MT_CODE_TO_UNICODE: Record<number, EncodingEntry> = {
   0x0020: { unicode: ' ', source: 'Unicode Basic Latin' },
   0x0028: { unicode: '(', latex: '(', source: 'Unicode Basic Latin' },

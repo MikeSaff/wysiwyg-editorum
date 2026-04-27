@@ -6,6 +6,16 @@ import { detectSectionType } from "./section-heading.js"
 import { extractMetadataFromImportedHtml } from "./metadata-extract.js"
 import { parseMathTypeSync } from "mtef-to-mathml"
 
+/** True if content has a real English figure marker (Fig./Figure + digit), not substring false positives. */
+function paragraphHasStrictEnglishFigMarker(htmlFrag, plainText) {
+  const html = htmlFrag || ""
+  const t = (plainText || "").replace(/\s+/gu, " ").trim()
+  return (
+    /<strong[^>]*>\s*(?:Fig\.|Figure)\b/iu.test(html) ||
+    /(?:^|[\s.;:—\-()])(?:Fig\.|Figure)(?:\s|\u00A0)*\d/u.test(t)
+  )
+}
+
 /**
  * Import a .docx file directly, parsing OMML formulas into LaTeX.
  * This is the reliable path for Word documents with equations.
@@ -2041,17 +2051,17 @@ export function splitBilingualFigureCaptionHtml(html) {
     .replace(/\s+/gu, " ")
     .trim()
   const hasRu = /(?:^|[^A-Za-zА-Яа-я])(?:Рис|Рисунок|Рис\.)\s*\d/iu.test(text)
-  const hasEn = /(?:^|[^A-Za-zА-Яа-я])(?:Fig\.?|Figure)\s*\d/iu.test(text)
-  // v0.54: RU-only captions — no split; full HTML stays in figure-caption-ru via caller.
-  if (!hasRu || !hasEn) return null
+  const hasEnStrict = paragraphHasStrictEnglishFigMarker(html, text)
+  // RU-only captions — no split; full HTML stays in figure-caption-ru via caller.
+  if (!hasRu || !hasEnStrict) return null
 
   // 1. <br> separator
   const brMatch = html.match(/^([\s\S]*?)<br\s*\/?>([\s\S]*)$/iu)
-  if (brMatch) {
+    if (brMatch) {
     const left = brMatch[1].replace(/<[^>]+>/gu, " ").trim()
     const right = brMatch[2].replace(/<[^>]+>/gu, " ").trim()
     if (/(?:^|[^A-Za-zА-Яа-я])(?:Рис|Рисунок|Рис\.)\s*\d/iu.test(left) &&
-        /(?:^|[^A-Za-zА-Яа-я])(?:Fig\.?|Figure)\s*\d/iu.test(right)) {
+        paragraphHasStrictEnglishFigMarker(brMatch[2], right)) {
       return { ruHtml: brMatch[1].trim(), enHtml: brMatch[2].trim() }
     }
   }
@@ -2139,7 +2149,7 @@ export function promoteFigureAsTableFramesInRoot(root, doc) {
         if (!t) return
         // Single-paragraph bilingual: text contains both RU and EN markers
         const hasRu = /(?:^|[^A-Za-zА-Яа-я])(?:Рис|Рисунок|Рис\.)\s*\d/iu.test(t)
-        const hasEn = /(?:^|[^A-Za-zА-Яа-я])(?:Fig\.?|Figure)\s*\d/iu.test(t)
+        const hasEn = paragraphHasStrictEnglishFigMarker(p.innerHTML, t)
         if (hasRu && hasEn) {
           // v0.50.5: shared helper covers <br>, <strong>Fig, plain Fig boundary
           const split = splitBilingualFigureCaptionHtml(p.innerHTML)
@@ -2222,6 +2232,67 @@ export function promoteFigureAsTableFramesInRoot(root, doc) {
  * @param {ParentNode} root
  * @param {Document} doc
  */
+/**
+ * v0.55: Pleiades `style-figure` paragraph with caption text but no embedded image → placeholder figure
+ * (e.g. floating image stored outside the paragraph in Word).
+ * @param {ParentNode} root
+ * @param {Document} doc
+ */
+export function promoteOrphanStyleFigureCaptionParagraphsInRoot(root, doc) {
+  if (!root || typeof root.querySelectorAll !== "function" || !doc?.createElement) return
+  const paras = [...root.querySelectorAll("p")].filter(
+    (p) =>
+      !p.closest("figure") &&
+      /\bstyle-figure\b/u.test(p.getAttribute("class") || "") &&
+      !p.querySelector("img")
+  )
+  for (const p of paras) {
+    if (!p.parentNode) continue
+    const t = (p.textContent || "").replace(/\s+/gu, " ").trim()
+    const looksCap =
+      /(?:^|[^A-Za-zА-Яа-я])(?:Рис|Рисунок|Рис\.)\s*\d/iu.test(t) ||
+      paragraphHasStrictEnglishFigMarker(p.innerHTML, t)
+    if (!looksCap || !t) continue
+
+    const fig = doc.createElement("figure")
+    fig.className = "figure-block"
+    fig.setAttribute("data-schema-v2", "")
+    fig.setAttribute("data-id", createImportedNodeId())
+    fig.id = createImportedNodeId()
+    const numM =
+      t.match(/(?:^|[^A-Za-zА-Яа-я])(?:Рис(?:унок)?|Рис\.)\s*(\d+)/iu) ||
+      t.match(/(?:^|[^A-Za-zА-Яа-я])(?:Fig\.?|Figure)\s*(\d+)/iu)
+    if (numM?.[1]) fig.setAttribute("data-number", numM[1])
+
+    const ph = doc.createElement("div")
+    ph.className = "figure-placeholder"
+    ph.setAttribute("data-needs-image", "true")
+    ph.textContent = "🖼 Перетащите изображение сюда или щёлкните правой кнопкой"
+    fig.appendChild(ph)
+
+    const captionContent = normalizeImportedParagraphHtml(p.innerHTML, ' class="style-fig-caption"')
+    const split = splitBilingualFigureCaptionHtml(captionContent)
+    if (split) {
+      const ruFc = doc.createElement("figcaption")
+      ruFc.className = "figure-caption-ru"
+      ruFc.innerHTML = split.ruHtml
+      const enFc = doc.createElement("figcaption")
+      enFc.className = "figure-caption-en"
+      enFc.innerHTML = split.enHtml
+      fig.appendChild(ruFc)
+      fig.appendChild(enFc)
+    } else {
+      const fc = doc.createElement("figcaption")
+      fc.className = "figure-caption-ru"
+      fc.innerHTML = captionContent
+      fig.appendChild(fc)
+    }
+
+    p.parentNode.insertBefore(fig, p)
+    p.remove()
+  }
+}
+
 export function promoteFloatingFiguresAndCaptionsInRoot(root, doc) {
   if (!root || typeof root.querySelectorAll !== "function" || !doc?.createElement) return
 
@@ -2230,7 +2301,7 @@ export function promoteFloatingFiguresAndCaptionsInRoot(root, doc) {
     const t = (p.textContent || "").replace(/\s+/gu, " ").trim()
     return (
       /(?:^|[^A-Za-zА-Яа-я])(?:Рис|Рисунок|Рис\.)\s*\d/iu.test(t) ||
-      /(?:^|[^A-Za-zА-Яа-я])(?:Fig\.?|Figure)\s*\d/iu.test(t)
+      paragraphHasStrictEnglishFigMarker(p.innerHTML, t)
     )
   }
 
@@ -2383,7 +2454,7 @@ export function attachLooseFigureCaptionsToFiguresInRoot(root, doc) {
     while (el && el.tagName === "P" && collected.length < 4) {
       const t = (el.textContent || "").replace(/\s+/gu, " ").trim()
       const hasRu = /(?:^|[^A-Za-zА-Яа-я])(?:Рис|Рисунок|Рис\.)\s*\d/iu.test(t)
-      const hasEn = /(?:^|[^A-Za-zА-Яа-я])(?:Fig\.?|Figure)\s*\d/iu.test(t)
+      const hasEn = paragraphHasStrictEnglishFigMarker(el.innerHTML, t)
       if (hasRu || hasEn) {
         collected.push(el)
         el = el.nextElementSibling
@@ -2396,7 +2467,7 @@ export function attachLooseFigureCaptionsToFiguresInRoot(root, doc) {
       while (prev && prev.tagName === "P" && back.length < 4) {
         const t = (prev.textContent || "").replace(/\s+/gu, " ").trim()
         const hasRu = /(?:^|[^A-Za-zА-Яа-я])(?:Рис|Рисунок|Рис\.)\s*\d/iu.test(t)
-        const hasEn = /(?:^|[^A-Za-zА-Яа-я])(?:Fig\.?|Figure)\s*\d/iu.test(t)
+        const hasEn = paragraphHasStrictEnglishFigMarker(prev.innerHTML, t)
         if (hasRu || hasEn) {
           back.unshift(prev)
           prev = prev.previousElementSibling
@@ -2409,7 +2480,7 @@ export function attachLooseFigureCaptionsToFiguresInRoot(root, doc) {
     for (const p of collected) {
       const t = (p.textContent || "").replace(/\s+/gu, " ").trim()
       const hasRu = /(?:^|[^A-Za-zА-Яа-я])(?:Рис|Рисунок|Рис\.)\s*\d/iu.test(t)
-      const hasEn = /(?:^|[^A-Za-zА-Яа-я])(?:Fig\.?|Figure)\s*\d/iu.test(t)
+      const hasEn = paragraphHasStrictEnglishFigMarker(p.innerHTML, t)
       // Bilingual single <p>: try to split (same logic as in cells)
       if (hasRu && hasEn) {
         const split = splitBilingualFigureCaptionHtml(p.innerHTML)
@@ -2474,7 +2545,7 @@ export function promoteLooseFigureCaptionsAroundImagesInRoot(root, doc) {
     while (el && el.tagName === "P" && captionsAfter.length < 4) {
       const t = (el.textContent || "").replace(/\s+/gu, " ").trim()
       const hasRu = /(?:^|[^A-Za-zА-Яа-я])(?:Рис|Рисунок|Рис\.)\s*\d/iu.test(t)
-      const hasEn = /(?:^|[^A-Za-zА-Яа-я])(?:Fig\.?|Figure)\s*\d/iu.test(t)
+      const hasEn = paragraphHasStrictEnglishFigMarker(el.innerHTML, t)
       if (hasRu || hasEn) {
         captionsAfter.push(el)
         el = el.nextElementSibling
@@ -2502,7 +2573,7 @@ export function promoteLooseFigureCaptionsAroundImagesInRoot(root, doc) {
     for (const p of captionsAfter) {
       const t = (p.textContent || "").replace(/\s+/gu, " ").trim()
       const hasRu = /(?:^|[^A-Za-zА-Яа-я])(?:Рис|Рисунок|Рис\.)\s*\d/iu.test(t)
-      const hasEn = /(?:^|[^A-Za-zА-Яа-я])(?:Fig\.?|Figure)\s*\d/iu.test(t)
+      const hasEn = paragraphHasStrictEnglishFigMarker(p.innerHTML, t)
       if (!dataNumber) {
         const m =
           t.match(/(?:^|[^A-Za-zА-Яа-я])(?:Рис(?:унок)?|Рис\.)\s*(\d+)/iu) ||
@@ -2600,6 +2671,7 @@ export function normalizeImportedHtml(html) {
       holder.innerHTML = out
       promoteFigureAsTableFramesInRoot(holder, document)
       promoteFloatingFiguresAndCaptionsInRoot(holder, document)
+      promoteOrphanStyleFigureCaptionParagraphsInRoot(holder, document)
       // v0.50.4: pick up Рис./Fig. captions that live as siblings of bare <img>
       // paragraphs (Sazykina pattern) — promote them into figure-blocks too.
       promoteLooseFigureCaptionsAroundImagesInRoot(holder, document)

@@ -43,6 +43,7 @@
 | **v0.52** | **2026-04-15** | **Pleiades `pStyle` → теги и `style-*`; caption до/после image + split caption+body; OLE несколько `(n)` + хвост в `<p>`; corpus `~$`; mtef merge func + `tmLDIV` → `mfrac`** |
 | **v0.53** | **2026-04-15** | **OLE tail `peelOleTailLabels` (регрессия v0.52); fig-caption только у соседнего `<img>` / `Figure`; metadata: abstracts/dates/keywords split, email→contributor, `aff_1`; MTEF EMBELL+prime `msubsup`; corpus baseline refresh** |
 | **v0.54** | **2026-04-27** | **MTEF: пустые sub/sup не оборачиваются (`mathml.ts`); EMBELL lookahead + `embell-orphan`; LaTeX пробелы после `\\cmd`, `validateLatex`, пустые `_{}` убраны. Импорт: floating figure + placeholder; полные RU/bilingual captions; single-author `*e-mail` → corresponding; Pleiades EN-блок. QA: `formula-quality` + baseline/diff, `formula-diff.mjs`; corpus `figures_extracted_total`.** |
+| **v0.55** | **2026-04-27** | **MTEF: EMBELL до 8 hop + base из row/matrix; LaTeX — `longestRecognizedCommand` (нет `\\partialt` как одной команды), `fixLatexSpacing` / `validateLatex` согласованы. Импорт: строгий EN-маркер Fig для bilingual caption; `promoteOrphanStyleFigureCaptionParagraphsInRoot` (`style-figure` без img → figure-block + placeholder); metadata: single-author email приоритет, второй TitleArticle → EN title. QA: `formula-quality-lib` на linkedom (семантические атомы), метрики figure/metadata/bilingual; `formula-diff --inspect-figures`; calibration-тесты; обновлены corpus + formula-quality baseline.** |
 | **v0.45b** | **2026-04-15** | **Codex: без static split и без `{\displaystyle}` в block LaTeX; см. сессию** |
 | **v0.44b–h** | **2026-04-15** | **Codex: OMML/импорт — `cdots`, `bmatrix`, пробелы вокруг inline math, прямой шрифт индексов (см. сессию 2026-04-15)** |
 | **v0.44d** | **2026-04-15** | **Пробелы перед `,.;:!?)]}»"` — input rule + `normalizeSpaceBeforePunctuation`** |
@@ -88,6 +89,19 @@
 | 6 | Single-author `*e-mail:` → email + is_corresponding; второй блок стилей Pleiades → EN title/abstract/keywords/contributors | Composer | `metadata-extract.js`, `document-model.js`, tests | ✅ | Trukhachev: contributors + EN поля; multi-author логика сохранена |
 | 7 | `scripts/formula-quality.mjs` + lib, baseline `tests/formula-quality-baseline.json`, `formula-quality:diff`; `formula-diff.mjs` (`--docx` / `--all`); README | Composer | `scripts/*`, `package.json` | ✅ | JSON-отчёт; diff exit 0 vs baseline |
 | — | Финал: `mtef` build+test; prototype test+vite build; `corpus:baseline` + `corpus:diff` exit 0 | Composer | `corpus-baseline.json`, etc. | ✅ | OK |
+
+## Сессия v0.55 — 2026-04-27 (EMBELL глубже, LaTeX-команды, orphan figures, QA-метрики)
+
+| # | Задача | Кто | Файлы | Статус | Билд / метрики |
+|---|--------|-----|-------|--------|----------------|
+| 1 | EMBELL: до 8 lookahead; `extractEmbellishmentBaseNode` для row/matrix; предупреждения с attempts | Composer | `mtef-to-mathml/src/parser.ts`, `test/parser.test.ts` | ✅ | vitest зелёный |
+| 2 | LaTeX: набор имён команд + greedy `longestRecognizedCommand`; пробел только перед буквой; `validateLatex` синхронизирован | Composer | `mtef-to-mathml/src/latex.ts`, tests | ✅ | `\partialt` не склеивается |
+| 3 | Caption: `paragraphHasStrictEnglishFigMarker`; bilingual split только при строгом EN Fig | Composer | `prototype/src/word-import.js`, tests | ✅ | NBSP в HTML в тестах |
+| 4 | Orphan `style-figure` + текст подписи без `<img>` → `figure-block` + placeholder | Composer | `word-import.js`, `normalizeImportedHtml` | ✅ | регрессионные тесты |
+| 5 | Metadata: single-author / `*e-mail`; второй TitleArticle (латиница без кириллицы) → `title.en` | Composer | `metadata-extract.js` | ✅ | — |
+| 6 | `formula-quality-lib`: linkedom для атомов; figure/metadata/bilingual метрики; diff higher-is-better; calibration tests | Composer | `scripts/formula-quality-*.mjs`, `tests/formula-quality-calibration.test.js`, baseline | ✅ | `formula-quality:diff` exit 0 |
+| 7 | `formula-diff.mjs`: `--inspect-figures` / `--docx` | Composer | `scripts/formula-diff.mjs`, `scripts/README.md` | ✅ | — |
+| — | Финал: `corpus:diff` + `formula-quality` + `formula-quality:diff` exit 0 | Composer | baselines | ✅ | OK |
 
 ## Сессия 2026-04-15 — v0.53 Trukhachev hardening (D→A→B/C→E)
 

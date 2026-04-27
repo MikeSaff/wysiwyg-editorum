@@ -1,5 +1,60 @@
-import { decodeMtCode } from './encoding-table.js';
+import { decodeMtCode, MT_CODE_TO_UNICODE } from './encoding-table.js';
 import type { MathNode, ParseWarning, TemplateNode } from './types.js';
+
+const EXTRA_LATEX_COMMANDS = new Set([
+  'frac',
+  'sqrt',
+  'int',
+  'sum',
+  'prod',
+  'lim',
+  'left',
+  'right',
+  'begin',
+  'end',
+  'matrix',
+  'aligned',
+  'array',
+  'overbrace',
+  'underbrace',
+  'underline',
+  'overline',
+  'hat',
+  'tilde',
+  'vec',
+  'prime',
+  'langle',
+  'rangle',
+  'backslash',
+  'cdot',
+  'times',
+  'div',
+  'pm',
+  'ldots',
+  'cdots'
+]);
+
+function collectLatexCommandNames(): Set<string> {
+  const s = new Set<string>(EXTRA_LATEX_COMMANDS);
+  for (const e of Object.values(MT_CODE_TO_UNICODE)) {
+    const lx = e.latex;
+    if (!lx || lx[0] !== '\\') continue;
+    const m = lx.match(/^\\([a-zA-Z]+)/);
+    if (m?.[1]) s.add(m[1]);
+  }
+  return s;
+}
+
+const LATEX_COMMAND_NAMES = collectLatexCommandNames();
+
+/** Longest prefix of `letters` that is a known `\\name` command (avoids `\partialt` → one token). */
+function longestRecognizedCommand(letters: string): string {
+  for (let L = letters.length; L >= 1; L -= 1) {
+    const pref = letters.slice(0, L);
+    if (LATEX_COMMAND_NAMES.has(pref)) return pref;
+  }
+  return letters;
+}
 
 export function renderLatex(root: MathNode, warnings: ParseWarning[]): string {
   const raw = renderNode(root, warnings).replace(/\s+/g, ' ').trim();
@@ -8,7 +63,7 @@ export function renderLatex(root: MathNode, warnings: ParseWarning[]): string {
 
 /**
  * Insert a space after `\\command` when the next character would glue (invalid TeX).
- * Uses longest \\word at each position so we never split `\frac` into `\fr` + `ac`.
+ * Resolves the command name via `longestRecognizedCommand` so `\partialt` becomes `\partial` + `t`.
  */
 export function fixLatexSpacing(s: string): string {
   let out = '';
@@ -17,11 +72,11 @@ export function fixLatexSpacing(s: string): string {
     if (s[i] === '\\') {
       const m = s.slice(i).match(/^\\([a-zA-Z]+)/);
       if (m?.[1]) {
-        const cmd = m[1];
+        const cmd = longestRecognizedCommand(m[1]);
         const len = 1 + cmd.length;
         const next = s[i + len];
-        out += m[0];
-        if (next !== undefined && /[A-Za-z0-9]/.test(next) && !/[{( _^\\\n]/.test(next)) {
+        out += '\\' + cmd;
+        if (next !== undefined && /[a-zA-Z]/.test(next) && !/[{( _^\\\n]/.test(next)) {
           out += ' ';
         }
         i += len;
@@ -39,11 +94,15 @@ export function validateLatex(latex: string): { valid: boolean; errors: string[]
   const s = latex.trim();
   if (!s) return { valid: true, errors: [] };
 
-  if (/_\{\}\s*_\{\}/.test(s) || /\^{}\s*\^{}/.test(s)) {
+  if (/_\{\}\s*_\{\}/.test(s) || /\^\{\}\s*\^\{\}/.test(s)) {
     errors.push('empty subscript/superscript pair');
   }
   if (/_\{\}(?:\s*_\{\})+/.test(s)) errors.push('repeated empty subscripts');
-  if (/\^{}(?:\s*\^{})+/.test(s)) errors.push('repeated empty superscripts');
+  if (/\^\{\}(?:\s*\^\{\})+/.test(s)) errors.push('repeated empty superscripts');
+
+  // Empty script glued to single-letter base (malformed)
+  if (/(?:^|[^\\])[a-zA-Z]_\{\}(?!\})/.test(s)) errors.push('empty subscript after letter');
+  if (/(?:^|[^\\])[a-zA-Z]\^\{\}(?!\})/.test(s)) errors.push('empty superscript after letter');
 
   let depth = 0;
   for (const c of s) {
@@ -67,16 +126,16 @@ export function validateLatex(latex: string): { valid: boolean; errors: string[]
     if (s[i] === '\\') {
       const m = s.slice(i).match(/^\\([a-zA-Z]+)/);
       if (m?.[1]) {
-        const cmd = m[1];
+        const cmd = longestRecognizedCommand(m[1]);
         i += 1 + cmd.length;
         const next = s[i];
         if (
           next !== undefined &&
-          /[A-Za-z0-9]/.test(next) &&
+          /[a-zA-Z]/.test(next) &&
           !/[{( _^\\\n]/.test(next)
         ) {
-          if (!errors.includes('missing delimiter after \\command')) {
-            errors.push('missing delimiter after \\command');
+          if (!errors.includes('command-no-space')) {
+            errors.push('command-no-space');
           }
         }
         continue;

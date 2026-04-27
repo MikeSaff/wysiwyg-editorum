@@ -123,24 +123,24 @@ function parseObjectList(
           });
           continue;
         }
-        const tag2 = readRecordTag(reader, version);
-        if (tag2.type === 0) {
-          warnings.push({
-            type: 'embell-orphan',
-            position: tag.position,
-            decoration_hex: hex(emb.embellishment),
-            message: 'EMBELL had no inner base and no following record'
-          });
-          nodes.push(standaloneEmbellFallbackNode(tag.position, emb.embellishment));
-          continue;
+        const attempts: string[] = ['lookbehind-empty', 'lookahead'];
+        let base: MathNode | null = null;
+        let hops = 0;
+        while (!base && hops < 8) {
+          hops += 1;
+          const tag2 = readRecordTag(reader, version);
+          if (tag2.type === 0) break;
+          const parsed = parseRecordPayload(reader, version, tag2, warnings);
+          base = extractEmbellishmentBaseNode(parsed);
         }
-        const base = parseRecordPayload(reader, version, tag2, warnings);
         if (!base) {
+          attempts.push('nested-exhausted');
           warnings.push({
             type: 'embell-orphan',
             position: tag.position,
             decoration_hex: hex(emb.embellishment),
-            message: 'EMBELL lookahead record produced no node'
+            attempts,
+            message: 'EMBELL had no inner base; lookahead/nested recovery failed'
           });
           nodes.push(standaloneEmbellFallbackNode(tag.position, emb.embellishment));
           continue;
@@ -460,6 +460,27 @@ function parseMatrix(
     cols,
     cells
   };
+}
+
+/** LINE/MTRX wrapper: use single child as prime target; multiple children → decorate whole row. */
+function extractEmbellishmentBaseNode(parsed: MathNode | null): MathNode | null {
+  if (!parsed) return null;
+  if (parsed.kind === 'row') {
+    if (parsed.children.length === 1) {
+      const only = parsed.children[0];
+      return only ?? null;
+    }
+    if (parsed.children.length > 1) return parsed;
+    return null;
+  }
+  if (parsed.kind === 'matrix') {
+    for (const cell of parsed.cells) {
+      const inner = extractEmbellishmentBaseNode(cell);
+      if (inner) return inner;
+    }
+    return null;
+  }
+  return parsed;
 }
 
 /** Reads EMBELL (type 6) payload; if inner list has no child, `child` is undefined (caller does lookahead). */
