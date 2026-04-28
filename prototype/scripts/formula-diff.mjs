@@ -75,6 +75,21 @@ function precedingCaptionPi(paragraphs, pi) {
   return null
 }
 
+function subsequentCaptionPi(paragraphs, pi) {
+  for (let j = pi + 1, seen = 0; j < paragraphs.length && seen < 3; j++) {
+    const t = (paragraphs[j].textContent || "").replace(/\s+/g, " ").trim()
+    if (!t) {
+      seen += 1
+      continue
+    }
+    if (/(?:^|[^A-Za-zА-Яа-я])(?:Рис|Рисунок|Рис\.)\s*\d/i.test(t) || /\bFig\.?\s*\d/i.test(t)) {
+      return { pi: j, text: t.slice(0, 120) }
+    }
+    break
+  }
+  return null
+}
+
 function isEquationProgId(progId) {
   return /(?:Equation|MathType|DSMT)/i.test(progId || "")
 }
@@ -322,6 +337,7 @@ export async function inspectFiguresInDocx(docxPath) {
     if (hints.length === 0) continue
     const media = hasImageRid(p, relsMap)
     const cap = precedingCaptionPi(paragraphs, pi)
+    const afterCap = subsequentCaptionPi(paragraphs, pi)
     rows.push({
       image_idx: rows.length + 1,
       pi,
@@ -330,6 +346,8 @@ export async function inspectFiguresInDocx(docxPath) {
       media_target: media || null,
       preceding_caption_pi: cap?.pi ?? null,
       preceding_caption_text: cap?.text ?? null,
+      subsequent_caption_pi: afterCap?.pi ?? null,
+      subsequent_caption_text: afterCap?.text ?? null,
     })
   }
   return { docx: docxPath, figure_like_paragraphs: rows }

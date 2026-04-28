@@ -46,7 +46,7 @@ test("Trukhachev UI acceptance", async ({ page }) => {
   await expect(page.getByTestId("nav-group-header")).toHaveText(["Разделы", "Рисунки", "Таблицы", "Формулы"])
 
   const navItems = page.getByTestId("nav-item")
-  await expect(navItems).toHaveCount(29)
+  await expect(navItems).toHaveCount(30)
   await expect(page.getByTestId("nav-item").filter({ hasText: "Рисунок1" })).toHaveCount(0)
   await expect(page.getByTestId("nav-item").filter({ hasText: "демонстрирует классические свойства солитонов" })).toHaveCount(0)
 
@@ -77,16 +77,18 @@ test("Trukhachev UI acceptance", async ({ page }) => {
   expect(activeCount).toBeGreaterThanOrEqual(1)
 
   const figureBlocks = page.locator(".ProseMirror figure.figure-block")
-  await expect(figureBlocks).toHaveCount(3)
+  await expect(figureBlocks).toHaveCount(4)
   const looseImages = page.locator(".ProseMirror > p > img.inline-image")
-  await expect(looseImages).toHaveCount(1)
+  await expect(looseImages).toHaveCount(0)
   await expect(page.locator(".ProseMirror p").filter({ hasText: "ПОДПИСИ К РИСУНКАМ" })).toHaveCount(0)
   await expect(page.locator(".ProseMirror p").filter({ hasText: /^Рис\.\s*4\.$/u })).toHaveCount(0)
   await expect(page.locator(".ProseMirror figcaption.figure-caption-ru")).toHaveText([
     /Рис\.\s*1/u,
     /Рис\.\s*2/u,
     /Рис\.\s*3/u,
+    /Рис\.\s*4\..{50,}/u,
   ])
+  await expect(page.getByTestId("nav-item").filter({ hasText: /Рис\.\s*4/u })).toHaveCount(1)
 
   const numberedMathBlocks = page.locator(".ProseMirror .math-block[data-label]")
   await expect(numberedMathBlocks).toHaveCount(22)

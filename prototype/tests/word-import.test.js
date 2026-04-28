@@ -1271,7 +1271,7 @@ test("v0.53: «Рисунок N. демонстрирует…» without adjacen
   assert.doesNotMatch(html, /style-fig-caption/)
 })
 
-test("v0.56: caption before image may skip blank paragraphs and does not steal next figure caption", () => {
+test("v0.60: subsequent image captions do not get reused by later images", () => {
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <w:document xmlns:w="${W_NS}" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"
   xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
@@ -1285,9 +1285,10 @@ test("v0.56: caption before image may skip blank paragraphs and does not steal n
   </w:body>
 </w:document>`
   const html = docxXmlToHtml(xml, {}, { rIdDecor: "decor.png", rId1: "fig1.png", rId2: "fig2.png" }, {}, {}, new Map())
-  assert.match(html, /<p[^>]*><img src="decor\.png"[^>]*><\/p>/u)
-  assert.match(html, /<figure[^>]*><img src="fig1\.png"[^>]*><figcaption class="figure-caption-ru">Рис\. 1\.<\/figcaption><\/figure>/u)
-  assert.match(html, /<figure[^>]*><img src="fig2\.png"[^>]*><figcaption class="figure-caption-ru">Рис\. 2\.<\/figcaption><\/figure>/u)
+  assert.match(html, /<figure[^>]*><img src="decor\.png"[^>]*><figcaption class="figure-caption-ru">Рис\. 1\.<\/figcaption><\/figure>/u)
+  assert.match(html, /<figure[^>]*><img src="fig1\.png"[^>]*><figcaption class="figure-caption-ru">Рис\. 2\.<\/figcaption><\/figure>/u)
+  assert.match(html, /<p[^>]*><img src="fig2\.png"[^>]*><\/p>/u)
+  assert.equal((html.match(/<figcaption class="figure-caption-ru">Рис\. 2\.<\/figcaption>/gu) || []).length, 1)
 })
 
 test("v0.56: normalizeImportedHtml expands short figure captions from Pleiades caption list", () => {
@@ -1305,6 +1306,112 @@ test("v0.56: normalizeImportedHtml expands short figure captions from Pleiades c
     assert.match(out, /Рис\. 1\. Полный текст первой подписи/u)
     assert.match(out, /Рис\. 2\. Полный текст второй подписи/u)
     assert.doesNotMatch(out, /<p class="style-figure">/u)
+  } finally {
+    globalThis.document = prevDoc
+  }
+})
+
+test("v0.60: image paragraph pairs with subsequent caption after empty spacer", () => {
+  const { document: doc } = parseHTML("<!DOCTYPE html><html><body></body></html>")
+  const prevDoc = globalThis.document
+  globalThis.document = doc
+  try {
+    const html = [
+      '<p><img src="img.png" alt="" class="inline-image"></p>',
+      '<p> </p>',
+      '<p>Рис. 1.</p>',
+    ].join("\n")
+    const out = normalizeImportedHtml(html)
+    assert.match(out, /<figure[^>]*class="figure-block"/u)
+    assert.match(out, /<img[^>]*src="img\.png"[^>]*figure-block-img/u)
+    assert.match(out, /<figcaption class="figure-caption-ru">Рис\. 1\.<\/figcaption>/u)
+    assert.doesNotMatch(out, /<p[^>]*>Рис\. 1\./u)
+  } finally {
+    globalThis.document = prevDoc
+  }
+})
+
+test("v0.60: preceding figure caption remains fallback when no subsequent caption exists", () => {
+  const { document: doc } = parseHTML("<!DOCTYPE html><html><body></body></html>")
+  const prevDoc = globalThis.document
+  globalThis.document = doc
+  try {
+    const html = [
+      '<p>Рис. 7.</p>',
+      '<p><img src="img.png" alt="" class="inline-image"></p>',
+      '<p>Обычный текст после рисунка.</p>',
+    ].join("\n")
+    const out = normalizeImportedHtml(html)
+    assert.match(out, /<figure[^>]*class="figure-block"/u)
+    assert.match(out, /<figcaption class="figure-caption-ru">Рис\. 7\.<\/figcaption>/u)
+  } finally {
+    globalThis.document = prevDoc
+  }
+})
+
+test("v0.60: image followed by non-caption body paragraph is not mispaired", () => {
+  const { document: doc } = parseHTML("<!DOCTYPE html><html><body></body></html>")
+  const prevDoc = globalThis.document
+  globalThis.document = doc
+  try {
+    const html = [
+      '<p><img src="img.png" alt="" class="inline-image"></p>',
+      '<p></p>',
+      '<p>Это обычный абзац, не подпись к рисунку.</p>',
+    ].join("\n")
+    const out = normalizeImportedHtml(html)
+    assert.doesNotMatch(out, /figure-block/u)
+    assert.match(out, /<p[^>]*><img src="img\.png"/u)
+  } finally {
+    globalThis.document = prevDoc
+  }
+})
+
+test("v0.60: short caption combines with tail-aligned Pleiades full figure text", () => {
+  const { document: doc } = parseHTML("<!DOCTYPE html><html><body></body></html>")
+  const prevDoc = globalThis.document
+  globalThis.document = doc
+  try {
+    const html = [
+      '<p class="style-figure">Полный текст четвертой подписи с деталями эксперимента.</p>',
+      '<figure class="figure-block"><img src="a.png"><figcaption class="figure-caption-ru">Рис. 1.</figcaption></figure>',
+      '<figure class="figure-block"><img src="b.png"><figcaption class="figure-caption-ru">Рис. 2.</figcaption></figure>',
+      '<figure class="figure-block"><img src="c.png"><figcaption class="figure-caption-ru">Рис. 3.</figcaption></figure>',
+      '<figure class="figure-block"><img src="d.png"><figcaption class="figure-caption-ru">Рис. 4.</figcaption></figure>',
+    ].join("\n")
+    const out = normalizeImportedHtml(html)
+    assert.match(out, /Рис\. 4\. Полный текст четвертой подписи/u)
+    assert.doesNotMatch(out, /Рис\. 1\. Полный текст четвертой/u)
+    assert.doesNotMatch(out, /<p class="style-figure">/u)
+  } finally {
+    globalThis.document = prevDoc
+  }
+})
+
+test("v0.60: adjacent images without captions stay separate and are never merged", () => {
+  const { document: doc } = parseHTML("<!DOCTYPE html><html><body></body></html>")
+  const prevDoc = globalThis.document
+  globalThis.document = doc
+  try {
+    const html = [
+      '<p><img src="a.png" alt="" class="inline-image"></p>',
+      '<p><img src="b.png" alt="" class="inline-image"></p>',
+    ].join("\n")
+    const out = normalizeImportedHtml(html)
+    assert.doesNotMatch(out, /figure-block/u)
+    assert.equal((out.match(/<img\b/gu) || []).length, 2)
+  } finally {
+    globalThis.document = prevDoc
+  }
+})
+
+test("v0.60: invalid empty image sources are dropped during normalization", () => {
+  const { document: doc } = parseHTML("<!DOCTYPE html><html><body></body></html>")
+  const prevDoc = globalThis.document
+  globalThis.document = doc
+  try {
+    const out = normalizeImportedHtml('<p><img src="" alt="" class="inline-image"></p>')
+    assert.doesNotMatch(out, /<img\b/u)
   } finally {
     globalThis.document = prevDoc
   }

@@ -329,3 +329,29 @@ Playwright проверяет все 22 numbered `math-block[data-label]` на T
 `npm run ui-acceptance` теперь проходит на свежем preview и ловит именно browser-state после import/hydration, а не только PM JSON или quality counters.
 Trukhachev после v0.59: `formulas_total=96`, `single_char_formula_count=0`, `embell_decoration_unknown_count=0`, `figure_count=3`, `figure_caption_gap_count=0`, `section_type_other_count=0`, UI показывает 1 loose image + 3 figure captions `Рис. 1/2/3`.
 Полный финализационный прогон пройден: `mtef build/test`, `prototype test/build`, `corpus:baseline`, `corpus:diff`, `formula-quality`, `ui-acceptance`.
+
+## v0.60 — что сделано
+
+### 1. Caption-pairing subsequent-direction
+
+Уточнён v0.59 diagnosis: Trukhachev source имеет subsequent captions для всех четырёх PNG figures; старый preceding-direction давал shift `-1` и оставлял `image93.png` loose.
+`word-import.js` теперь для image-only paragraphs сначала ищет caption вперёд через пустые spacer-параграфы, затем использует preceding fallback; уже использованные captions не переиспользуются следующими images.
+`formula-diff --inspect-figures` дополнен `subsequent_caption_pi/text`: `image93=111 (Рис. 1.)`, `image94=114 (Рис. 2.)`, `image95=116 (Рис. 3.)`, `image96=120 (Рис. 4.)`.
+
+### 2. pStyle=Figure preceding/full caption capture
+
+Caption full-text expansion теперь поддерживает tail-aligned pool для Pleiades: если full-text `style-figure` paragraphs меньше, чем short markers, они прикрепляются к последним unmatched figures.
+На Trukhachev это сохраняет `Рис. 3` с full caption для `fυ(υi)` и `Рис. 4` с full caption для `fW(Wi)` вместо потери `Рис. 4`.
+Старый equal-count mapping для caption-list остаётся: когда full-text captions и short figure captions идут один-к-одному, порядок не меняется.
+
+### 3. Empty-img drop
+
+Добавлен guard для invalid images: пустой `src`, пустой data URI и unresolved image nodes удаляются до figure promotion.
+Image-only detection теперь допускает технический leading `<br>` перед `<img>`, что было реальным shape у Trukhachev `image93.png`.
+На Trukhachev после import: `4 figure-block`, `0 loose images`, `0 img[src=""]`.
+
+### 4. UI acceptance + corpus check
+
+Playwright acceptance обновлён под v0.60: TOC count `30` (`4 sections + 4 figures + 22 formulas`), figure group содержит четыре items, captions `Рис. 1`…`Рис. 4`, loose images `0`.
+Formula-quality на Trukhachev: `formulas_total=96`, `figure_count=4`, `figure_caption_truncated_count=0`, `figure_caption_gap_count=0`, `single_char_formula_count=0`, `section_type_other_count=0`.
+Финальный прогон пройден: `mtef build/test`, `prototype npm install && npm test && npx vite build`, `corpus:baseline`, `corpus:diff`, `formula-quality`, `ui-acceptance`.
