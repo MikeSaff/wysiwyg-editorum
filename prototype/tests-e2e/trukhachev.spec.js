@@ -96,9 +96,21 @@ test("Trukhachev UI acceptance", async ({ page }) => {
   for (let i = 0; i < mathCount; i += 1) {
     const block = numberedMathBlocks.nth(i)
     const label = await block.getAttribute("data-label")
+    const latex = (await block.getAttribute("data-latex")) || ""
     await expect(block.locator(".math-label")).toBeVisible()
     const text = await block.locator(".math-label").textContent()
     expect(text?.trim()).toBe(label)
+    expect(latex).not.toMatch(/\\upsilon i_\{\d+\}/)
+    expect(latex).not.toMatch(/\\[A-Za-z]+\s+[A-Za-z]_\{\d+\}/)
+    expect(latex).not.toMatch(/[A-Za-z]\s+[A-Za-z]_\{\d+\}/)
+  }
+
+  for (const label of ["(19)", "(20)"]) {
+    const latex = (await page.locator(`.ProseMirror .math-block[data-label="${label}"]`).getAttribute("data-latex")) || ""
+    expect(latex).toContain("\\upsilon_{i}")
+    expect(latex).toContain("\\upsilon_{i}^{2}")
+    expect(latex).not.toContain("\\upsilon i")
+    expect(latex).not.toContain("\\upsilon i_{2}")
   }
 
   await openMetadataPanel(page)

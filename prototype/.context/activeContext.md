@@ -355,3 +355,23 @@ Image-only detection теперь допускает технический lead
 Playwright acceptance обновлён под v0.60: TOC count `30` (`4 sections + 4 figures + 22 formulas`), figure group содержит четыре items, captions `Рис. 1`…`Рис. 4`, loose images `0`.
 Formula-quality на Trukhachev: `formulas_total=96`, `figure_count=4`, `figure_caption_truncated_count=0`, `figure_caption_gap_count=0`, `single_char_formula_count=0`, `section_type_other_count=0`.
 Финальный прогон пройден: `mtef build/test`, `prototype npm install && npm test && npx vite build`, `corpus:baseline`, `corpus:diff`, `formula-quality`, `ui-acceptance`.
+
+## v0.61 — что сделано
+
+### 1. MTEF script diagnosis
+
+Добавлен env-gated debug `MTEF_DEBUG=1` для script templates: raw selector/children и normalized target classification (`plain-atom`, `existing-subscript`, `existing-superscript`, `combined-script`).
+Диагностика real OLE: `(19)` `oleObject66.bin` имеет postfix `tmSUB` на pos `244/375/479` и postfix `tmSUBSUP` на pos `413`; `(20)` `oleObject67.bin` имеет postfix `tmSUB` на pos `210/254/400/504` и postfix `tmSUBSUP` на pos `438`.
+Корень: selector `27/29` приходил с пустым base slot и должен был целиться в предыдущий atom (`υ` или `f`), а старый renderer оставлял script row отдельным child, получая `\upsilon i` / `\upsilon i_{2}`.
+
+### 2. Composite script target resolution
+
+`parser.ts` нормализует postfix script templates внутри row AST: `υ + tmSUB(i, empty)` → `<msub>υ,i</msub>`, `υ + tmSUBSUP(i,2)` → `<msubsup>υ,i,2</msubsup>`, а `tmSUB`/`tmSUP` поверх уже существующего script promotes в combined script.
+`latex.ts` теперь оборачивает command bases при subscript, поэтому Greek commands рендерятся как `\upsilon_{i}` / `\upsilon_{i}^{2}`, но simple ASCII вроде `x_i` не получает лишних braces.
+Существующие v0.58 EMBELL goldens `(12)/(13)` остались зелёными, включая `\ddot{\xi}` и `\ddot{X}`.
+
+### 3. Goldens, UI acceptance, verification
+
+Добавлены real OLE goldens `19-trukhachev-velocity-eq19` и `20-trukhachev-velocity-eq20` из `oleObject66.bin` / `oleObject67.bin` с exact MathML и LaTeX expected.
+Playwright acceptance на Trukhachev теперь проверяет formulas `(19)` и `(20)` на `\upsilon_{i}` + `\upsilon_{i}^{2}` и запрещает anti-patterns `\upsilon i`, `\upsilon i_{2}`, `letter space letter_{number}`.
+Финальный прогон пройден: `mtef build/test` (`86 passed`), `prototype npm install && npm test && npx vite build` (`143 tests`, 1 existing skip), `corpus:baseline`, `corpus:diff`, `formula-quality`, `ui-acceptance`.

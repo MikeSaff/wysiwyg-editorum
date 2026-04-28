@@ -12,7 +12,7 @@ import type {
   TemplateNode,
   TextNode
 } from './types.js';
-import { hex } from './util.js';
+import { hex, isOperator } from './util.js';
 
 const OPT_NUDGE = 0x08;
 const OPT_CHAR_EMBELL = 0x01;
@@ -271,11 +271,12 @@ function parseLine(
   skipNudgeIfPresent(reader, options);
   if ((options & OPT_LINE_LSPACE) !== 0) reader.readUInt16LE();
   if ((options & OPT_LP_RULER) !== 0) skipRuler(reader);
+  const children = (options & OPT_LINE_NULL) !== 0 ? [] : parseObjectList(reader, version, warnings);
 
   const row: RowNode = {
     kind: 'row',
     position: tag.position,
-    children: (options & OPT_LINE_NULL) !== 0 ? [] : parseObjectList(reader, version, warnings)
+    children: normalizePostfixScriptTemplates(children)
   };
   if ((options & OPT_LINE_NULL) !== 0) row.null = true;
   return row;
@@ -447,6 +448,7 @@ function parseTemplate(
   const variation = (first & 0x7f) | (second << 8);
   const templateOptions = reader.readUInt8();
   const children = parseObjectList(reader, version, warnings);
+  debugTemplate(tag.position, selector, variation, children);
 
   if (!SELECTOR_NAMES[selector]) {
     warnings.push({
@@ -466,6 +468,128 @@ function parseTemplate(
     templateOptions,
     children
   };
+}
+
+function normalizePostfixScriptTemplates(children: MathNode[]): MathNode[] {
+  const out: MathNode[] = [];
+  for (const child of children) {
+    if (child.kind !== 'template') {
+      out.push(child);
+      continue;
+    }
+    const previous = out[out.length - 1];
+    const normalized = normalizePostfixScriptTemplate(previous, child);
+    if (!normalized) {
+      out.push(child);
+      continue;
+    }
+    debugPostfixScriptNormalization(previous, child, normalized);
+    out[out.length - 1] = normalized;
+  }
+  return out;
+}
+
+function normalizePostfixScriptTemplate(previous: MathNode | undefined, script: TemplateNode): TemplateNode | null {
+  if (!previous || !isScriptableBase(previous)) return null;
+  const first = script.children[0];
+  const second = script.children[1];
+  if (!first) return null;
+  if (script.selector === 27 && isSuperscriptTemplate(previous) && second && isEmptyScriptSlot(second)) {
+    const base = previous.children[0];
+    const sup = previous.children[1];
+    if (!base || !sup) return null;
+    return makeScriptTemplate(script, 29, [base, first, sup]);
+  }
+  if (script.selector === 27 && second && isEmptyScriptSlot(second)) {
+    return makeScriptTemplate(script, 27, [previous, first]);
+  }
+  if (script.selector === 28 && second && isEmptyScriptSlot(first)) {
+    const sup = second;
+    if (isSubscriptTemplate(previous)) {
+      const base = previous.children[0];
+      const sub = previous.children[1];
+      if (!base || !sub) return null;
+      return makeScriptTemplate(script, 29, [base, sub, sup]);
+    }
+    return makeScriptTemplate(script, 28, [previous, sup]);
+  }
+  if (script.selector === 29 && second && script.children.length === 2) {
+    return makeScriptTemplate(script, 29, [previous, first, second]);
+  }
+  return null;
+}
+
+function makeScriptTemplate(source: TemplateNode, selector: number, children: MathNode[]): TemplateNode {
+  return {
+    ...source,
+    selector,
+    selectorName: SELECTOR_NAMES[selector] ?? source.selectorName,
+    children
+  };
+}
+
+function isSubscriptTemplate(node: MathNode): node is TemplateNode {
+  return node.kind === 'template' && node.selector === 27 && node.children.length >= 2;
+}
+
+function isSuperscriptTemplate(node: MathNode): node is TemplateNode {
+  return node.kind === 'template' && node.selector === 28 && node.children.length >= 2;
+}
+
+function isScriptableBase(node: MathNode): boolean {
+  if (node.kind === 'text') {
+    const value = node.value.trim();
+    return value.length > 0 && !isOperator(value);
+  }
+  return node.kind === 'template' || node.kind === 'embellished' || node.kind === 'matrix';
+}
+
+function isEmptyScriptSlot(node: MathNode | undefined): boolean {
+  if (!node) return true;
+  if (node.kind === 'row' || node.kind === 'pile') return node.children.every(isEmptyScriptSlot);
+  if (node.kind === 'text') return node.value.trim() === '';
+  return false;
+}
+
+function debugTemplate(position: number, selector: number, variation: number, children: MathNode[]): void {
+  if (!process?.env?.MTEF_DEBUG) return;
+  if (selector !== 27 && selector !== 28 && selector !== 29) return;
+  const childSummary = children.map((child) => summarizeNodeForDebug(child)).join(', ');
+  console.log(
+    `[mtef-debug] script-template position=${position} selector=${selector} variation=${variation} children=[${childSummary}]`
+  );
+}
+
+function debugPostfixScriptNormalization(previous: MathNode | undefined, source: TemplateNode, normalized: TemplateNode): void {
+  if (!process?.env?.MTEF_DEBUG) return;
+  console.log(
+    `[mtef-debug] script-normalized position=${source.position} selector=${source.selector}->${normalized.selector} ` +
+      `target=${classifyScriptTarget(previous)} sourceChildren=[${source.children
+        .map((child) => summarizeNodeForDebug(child))
+        .join(', ')}] normalizedChildren=[${normalized.children.map((child) => summarizeNodeForDebug(child)).join(', ')}]`
+  );
+}
+
+function classifyScriptTarget(node: MathNode | undefined): string {
+  if (!node) return 'none';
+  if (node.kind === 'template') {
+    if (node.selector === 27) return 'existing-subscript';
+    if (node.selector === 28) return 'existing-superscript';
+    if (node.selector === 29) return 'combined-script';
+    return 'template';
+  }
+  if (node.kind === 'row') return 'row';
+  if (node.kind === 'text') return 'plain-atom';
+  return node.kind;
+}
+
+function summarizeNodeForDebug(node: MathNode | undefined): string {
+  if (!node) return 'empty';
+  if (node.kind === 'text') return `text(${node.value})`;
+  if (node.kind === 'row') return `row(${node.children.map((child) => summarizeNodeForDebug(child)).join(' ')})`;
+  if (node.kind === 'template') return `template(${node.selectorName})`;
+  if (node.kind === 'embellished') return `embellished(${node.embellishment})`;
+  return node.kind;
 }
 
 function parsePile(

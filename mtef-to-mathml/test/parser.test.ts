@@ -73,6 +73,44 @@ describe('parseMathTypeSync', () => {
     expect(result.latex).toBe('x_i^{2}');
   });
 
+  it('normalizes postfix subscript on composite identifier (υᵢ)', () => {
+    const result = parseMathTypeSync(mtef(line([char(0x03c5), template(27, 0, [line(char(0x0069)), line()])])));
+    expect(result.mathml).toContain('<msub>');
+    expect(result.mathml).toContain('<mi>υ</mi>');
+    expect(result.mathml).toContain('<mi>i</mi>');
+    expect(result.latex).toBe('\\upsilon_{i}');
+  });
+
+  it('normalizes postfix subscript+superscript on composite identifier (υᵢ²)', () => {
+    const result = parseMathTypeSync(mtef(line([char(0x03c5), template(29, 0, [line(char(0x0069)), line(char(0x0032))])])));
+    expect(result.mathml).toContain('<msubsup>');
+    expect(result.latex).toBe('\\upsilon_{i}^{2}');
+    expect(result.latex).not.toContain('\\upsilon i_{2}');
+  });
+
+  it('promotes postfix subscript followed by postfix superscript to msubsup', () => {
+    const result = parseMathTypeSync(
+      mtef(line([char(0x03c5), template(27, 0, [line(char(0x0069)), line()]), template(28, 0, [line(), line(char(0x0032))])]))
+    );
+    expect(result.mathml).toContain('<msubsup>');
+    expect(result.latex).toBe('\\upsilon_{i}^{2}');
+  });
+
+  it('promotes postfix superscript followed by postfix subscript to msubsup', () => {
+    const result = parseMathTypeSync(
+      mtef(line([char(0x03c5), template(28, 0, [line(), line(char(0x0032))]), template(27, 0, [line(char(0x0069)), line()])]))
+    );
+    expect(result.mathml).toContain('<msubsup>');
+    expect(result.latex).toBe('\\upsilon_{i}^{2}');
+  });
+
+  it('keeps plain adjacent identifiers without scripts as adjacent identifiers', () => {
+    const result = parseMathTypeSync(mtef(line([char(0x03c5), char(0x0069)])));
+    expect(result.mathml).not.toContain('<msub>');
+    expect(result.mathml).not.toContain('<msubsup>');
+    expect(result.latex).toBe('\\upsilon i');
+  });
+
   it('parses square root', () => {
     const result = parseMathTypeSync(mtef(line(template(10, 0, [line(char(0x0078))]))));
     expect(result.mathml).toContain('<msqrt>');

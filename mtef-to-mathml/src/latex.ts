@@ -164,12 +164,18 @@ function wrapSubSeg(inner: string): string {
   return `{${inner}}`;
 }
 
+function wrapSubSegForBase(base: string, inner: string): string {
+  if (!inner) return '';
+  if (base.startsWith('\\') && !/^\{[^{}]*\}$/.test(inner)) return `{${inner}}`;
+  return wrapSubSeg(inner);
+}
+
 function emitLatexSubSup(base: string, sub: string, sup: string): string {
   const hs = sub.length > 0;
   const hu = sup.length > 0;
   if (!hs && !hu) return base;
   let out = base;
-  if (hs) out += `_${wrapSubSeg(sub)}`;
+  if (hs) out += `_${wrapSubSegForBase(base, sub)}`;
   if (hu) out += `^{${sup}}`;
   return out;
 }
